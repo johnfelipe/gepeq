@@ -1,0 +1,1306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.PUBLISH_TEST}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_testrelease.xhtml" />
+  </ui:define>
+  
+  <ui:define name="menu">
+    <ui:include src="/WEB-INF/pages/menu_testrelease.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputScript library="javascript" name="om.js" />
+    <h:outputScript library="javascript" name="calendar_locales.js" />    
+    <h:outputScript library="javascript" name="testrelease.js" />
+	<h:outputStylesheet library="css" name="testrelease.css" />	
+    
+    <h:form id="testReleaseForm"  onkeypress="preventEnterSubmit(event);">
+      <p:wizard id="testReleaseFormWizard" backLabel="#{msgs.PREV}" nextLabel="#{msgs.NEXT}" backProcess="true"
+        flowListener="#{testReleaseBean.changeStep}">
+        
+        <p:tab id="general" title="#{msgs.COMMON_DATA}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="generalMessages" rendered="#{testReleaseBean.activeTestReleaseTabName=='general'}" />
+            <h:panelGrid columns="4" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnTestNameLabel,columnTestNameInput,columnTestReleaseVersionLabel,columnTestReleaseVersionInput')}">
+              
+              #{msgs.TEST_NAME}
+              <h:inputText styleClass="readonlyInput" style="width:405px;" 
+                value="#{testReleaseBean.testRelease.test.name}" readonly="true" />
+              #{msgs.VERSION}
+              <h:inputText styleClass="readonlyInput" style="width:50px;text-align:center;" 
+                value="#{testReleaseBean.version}" readonly="true" />
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnLabelsGeneral,columnInputsGeneral')}">
+              
+              #{msgs.CATEGORY}
+              <h:inputText styleClass="readonlyInput" style="width:545px;"
+                value="#{testReleaseBean.getLocalizedCategoryLongName(testReleaseBean.testRelease.test.category)}" 
+                readonly="true" />
+            </h:panelGrid>
+            <h:panelGrid columns="4" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnTestTitleLabel,columnTestTitleInput,columnAuthorLabel,columnAuthorInput')}">
+              
+              #{msgs.TEST_TITLE}
+              <h:inputText styleClass="readonlyInput" style="width:230px;" 
+                value="#{testReleaseBean.testRelease.test.title}" readonly="true" />
+              #{msgs.AUTHOR}
+              <h:inputText styleClass="readonlyInput" style="width:230px;" 
+                value="#{testReleaseBean.testRelease.test.createdBy.nick}" readonly="true" />
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnDescriptionLabel,columnDescriptionInput')}">
+              
+              #{msgs.DESCRIPTION}
+              <p:inputTextarea styleClass="readonlyInput descriptionTextArea" 
+                value="#{testReleaseBean.testRelease.test.description}" maxHeight="100" readonly="true" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAssessementLabel,columnAssessementInput,columnAssessementTip')}">
+              
+              #{msgs.ASSESSEMENT}
+              <p:selectOneMenu id="assessementInput" styleClass="combo" style="width:200px;" 
+                value="#{testReleaseBean.assessementId}">
+                
+                <p:ajax process="@this" update="assessementTip" />
+                <f:selectItems value="#{testReleaseBean.assessements}" var="assessement" 
+                  itemLabel="#{msgs[assessement.type]}" itemValue="#{assessement.id}" />
+              </p:selectOneMenu>
+              <h:outputText id="assessementTip" value="#{testReleaseBean.assessementTip}" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnScoreTypeLabel,columnScoreTypeInput,columnScoreTypeTip')}">
+              
+              #{msgs.SCORE}
+              <h:inputText styleClass="readonlyInput" style="width:140px;" value="#{testReleaseBean.scoreType}" 
+                readonly="true" />
+              <h:outputText value="#{testReleaseBean.scoreTypeTip}" />
+            </h:panelGrid>
+          </p:panel>
+        </p:tab>
+        <p:tab id="presentation" title="#{msgs.PRESENTATION}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="presentationMessages" 
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='presentation'}" />
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="columnPresentationTitleLabel,columnPresentationTitleInput">
+              
+              #{msgs.PRESENTATION_TITLE}
+              <h:inputText styleClass="readonlyInput" style="width:310px;" 
+                value="#{testReleaseBean.testRelease.test.presentationTitle}" />
+            </h:panelGrid>
+            <h:panelGroup layout="block" styleClass="leftAlignTop">
+              <h:outputText style="font-weight:bold;" value="#{msgs.CONTENT}:" />   
+            </h:panelGroup>
+            <p:panel styleClass="readonlyPanel">
+              <h:panelGroup layout="block" styleClass="presentationHtmlContentPreview">
+                <h:outputText escape="false" value="#{testReleaseBean.testRelease.test.presentation}" />
+              </h:panelGroup>
+            </p:panel>
+          </p:panel>
+        </p:tab>
+        <p:tab id="sections" title="#{msgs.SECTIONS}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="sectionsMessages" 
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='sections'}" />
+            <h:panelGroup id="sectionsPanel" layout="block">
+              <p:accordionPanel id="sectionsAccordion" widgetVar="sectionsAccordion" styleClass="accordion" 
+                value="#{testReleaseBean.testRelease.test.sections}" var="section"> 
+                
+                <p:tab title="#{testReleaseBean.getSectionName(section)}">
+                  <p:outputPanel id="randomPanel">
+                    <h:panelGrid id="sectionNamesGrid" columns="4" cellpadding="5" rowClasses="topAlignRow" 
+                      columnClasses="sectionNameLabel,sectionNameInput,sectionTitleLabel,sectionTitleInput">
+                      
+                      <h:outputText value="#{msgs.NAME}" style="font-size:120%;" />
+                      <h:inputText styleClass="readonlyInput" style="width:180px;font-size:110%;" 
+                        value="#{section.name}" readonly="true" />
+                      <h:outputText value="#{msgs.SECTION_TITLE}" style="font-size:120%;" />
+                      <h:inputText styleClass="readonlyInput" style="width:290px;font-size:110%;" 
+                        value="#{section.title}" readonly="true"/>
+                      <h:outputText value="#{msgs.WEIGHT}" style="font-size:120%;" 
+                        rendered="#{testReleaseBean.sectionsWeightsDisplayed}" />
+                      <h:inputText styleClass="readonlyInput" 
+                        style="width:50px;font-size:105%;text-align:center;" value="#{section.weight}" 
+                        readonly="true" rendered="#{testReleaseBean.sectionsWeightsDisplayed}" />
+                    </h:panelGrid>
+                    <h:panelGrid id="shuffleRandomGrid" columns="4" cellpadding="5" rowClasses="topAlignRow" 
+                      columnClasses="#{localizationService.getLocalizedStyleClasses('shuffleLabel,shuffleInput,randomLabel,randomInput')}">
+                      
+                      <h:outputText value="#{msgs.SHUFFLE_QUESTIONS}" style="font-size:120%;" />
+                      <h:panelGroup styleClass="#{section.shuffle ? 'readonlyCheckbox ui-icon ui-icon-check' : 'readonlyCheckbox ui-icon ui-icon-empty' } " />
+                      <h:outputText value="#{msgs.RANDOM_QUESTIONS}" style="font-size:120%;" />
+                      <h:panelGroup styleClass="#{section.random ? 'readonlyCheckbox ui-icon ui-icon-check' : 'readonlyCheckbox ui-icon ui-icon-empty' } " />
+                    </h:panelGrid>
+                    <h:panelGroup id="randomQuantityPanelGroup" layout="block" styleClass="alignTop"
+                      rendered="#{section.shuffle and section.random}">
+                      
+                      <h:panelGrid columns="3" cellpadding="0" styleClass="randomQuantityTopGrid"
+                        rowClasses="randomQuantityGridRow" 
+                        columnClasses="randomQuantityLabel,randomQuantityInput,randomQuantityQuestionsNumber">
+                        
+                        <h:outputText value="#{msgs.QUESTIONS_QUANTITY}" style="font-size:120%;" />
+                        <h:inputText styleClass="readonlyInput" 
+                          style="width:50px;font-size:105%;text-align:center;" value="#{section.randomQuantity}" 
+                          readonly="true" rendered="#{section.shuffle and section.random}" />
+                        <h:outputText value="(#{section.questionOrders == null ? 0 : section.getQuestionOrders().size()} #{(section.questionOrders == null ? 0 : section.getQuestionOrders().size())==1 ? msgs.AVAILABLE_QUESTION : msgs.AVAILABLE_QUESTIONS })" 
+                           style="font-size:120%;" rendered="#{section.shuffle and section.random}" />
+                      </h:panelGrid>
+                    </h:panelGroup>
+                  </p:outputPanel>
+                  <p:outputPanel id="questionsPanel">
+                    <p:dataTable id="questionsSection" styleClass="questionsTable" rowStyleClass="dataRow" 
+                      emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder"
+                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                      paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                      
+                      <p:column styleClass="columnOrder" sortBy="#{questionOrder.order}">
+                        <f:facet name="header" />
+                        #{questionOrder.order}
+                      </p:column>
+                      <p:column styleClass="columnType" sortBy="#{questionOrder.question.type}"
+                        sortFunction="#{testReleaseBean.sortQuestionTypes}">
+                        
+                        <f:facet name="header" />
+                        <h:graphicImage id="questionOrderQuestionTypeImage" 
+                          url="/resources/images/#{questionOrder.question.type}.gif" />
+                        <p:tooltip for="questionOrderQuestionTypeImage">
+                          #{msgs[questionOrder.question.type]}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnName" sortBy="#{questionOrder.question.name}">
+                        <f:facet name="header">#{msgs.QUESTION}</f:facet>
+                        #{questionOrder.question.name}
+                      </p:column>
+                      <p:column styleClass="columnCategory" 
+                        sortBy="#{testReleaseBean.getLocalizedCategoryName(questionOrder.question.category)}">
+                        
+                        <f:facet name="header">#{msgs.CATEGORY}</f:facet>
+                        <h:outputText id="categoryName" 
+                          value="#{testReleaseBean.getLocalizedCategoryName(questionOrder.question.category)}" />
+                        <p:tooltip for="categoryName">
+                          #{testReleaseBean.getLocalizedCategoryLongName(questionOrder.question.category)}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnAuthor" sortBy="#{questionOrder.question.createdBy.nick}">
+                        <f:facet name="header">#{msgs.AUTHOR}</f:facet>
+                        <h:outputText value="#{questionOrder.question.createdBy.nick}" />
+                      </p:column>
+                      <p:column styleClass="columnLevel" sortBy="#{questionOrder.question.level}">
+                        <f:facet name="header">#{msgs.LEVEL}</f:facet>
+                        <h:outputText id="questionOrderQuestionLevelColor" 
+                          value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+                          styleClass="#{questionOrder.question.levelString}" />
+                        <p:tooltip for="questionOrderQuestionLevelColor">
+                          #{msgs[questionOrder.question.levelString]}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnDate" sortBy="#{questionOrder.question.timemodified}">
+                        <f:facet name="header">#{msgs.DATE}</f:facet> 
+                        <h:outputText value="#{questionOrder.question.timemodified}">
+                          <f:convertDateTime dateStyle="short" />
+                        </h:outputText> 
+                      </p:column>
+                      <p:column styleClass="columnWeight">
+                        <f:facet name="header">#{msgs.WEIGHT}</f:facet>
+                        <h:inputText styleClass="readonlyInput" 
+                          style="width:50px;font-size:105%;text-align:center;" value="#{questionOrder.weight}" 
+                          readonly="true" />
+                      </p:column>
+                      <p:column styleClass="columnOM">
+                        <p:commandLink action="#{testReleaseBean.viewOM(questionOrder.question.id)}" 
+                          onstart="buildingQuestionDialog.show()" 
+                          oncomplete="buildingQuestionDialog.hide();viewQuestion(xhr,status,args)" immediate="true" 
+                          update="testReleaseForm:sectionsAccordion" 
+                          rendered="#{testReleaseBean.isViewOMQuestionEnabled(questionOrder.question)}">
+                          
+                          <h:graphicImage id="viewOMQuestionOrderImage" styleClass="links" 
+                            value="#{resource['images:om16.png']}" />
+                          <p:tooltip for="viewOMQuestionOrderImage">
+                            #{msgs.OM_PREVIEW}
+                          </p:tooltip>
+                        </p:commandLink>
+                      </p:column>
+                    </p:dataTable>
+                  </p:outputPanel>
+                </p:tab>
+              </p:accordionPanel>
+            </h:panelGroup>
+          </p:panel>
+        </p:tab>
+        <p:tab id="users" title="#{msgs.USERS}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="usersMessages" rendered="#{testReleaseBean.activeTestReleaseTabName=='users'}" />
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAllUsersAllowedLabel,columnAllUsersAllowedInput')}" 
+              styleClass="allUsersAllowedGrid" style="margin-bottom:5px;" rowClasses="topAlignRow">
+              
+              #{msgs.ALLUSERSALLOWED_LABEL}
+              <p:selectBooleanCheckbox id="allUsersAllowed" value="#{testReleaseBean.allUsersAllowed}">
+                <f:attribute name="property" value="allUsersAllowed" />
+                <p:ajax listener="#{testReleaseBean.changeProperty}" process="@this" 
+                  update="testReleaseForm:usersPanelGroup" />
+              </p:selectBooleanCheckbox>
+            </h:panelGrid>
+            <h:panelGroup id="usersPanelGroup">
+              <ui:fragment rendered="#{!testReleaseBean.allUsersAllowed}">
+                <h:panelGroup layout="block" styleClass="alignTop" style="margin-top:-10px;">
+                  <h:panelGrid columns="2" cellpadding="0" styleClass="usersTopGrid" 
+                    columnClasses="usersLabel,usersButtons">
+                    
+                    <h:panelGroup>
+                      <h:outputText id="usersAllowedLabel" style="font-weight:bold;" value="#{msgs.USERS}:" />
+                      <p:tooltip for="usersAllowedLabel">
+                        #{msgs.USERS_ALLOWED}
+                      </p:tooltip>
+                    </h:panelGroup>
+                    <h:panelGroup>
+                      <p:commandButton id="addUsersButton" value="#{msgs.ADD_USERS}" styleClass="button" 
+                        image="ui-icon ui-icon-plus" actionListener="#{testReleaseBean.showAddUsers}" 
+                        immediate="true" update="addUsersDialog" />
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </h:panelGroup>
+                <p:outputPanel id="usersPanel">
+                  <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
+                    emptyMessage="#{msgs.NO_USERS}" value="#{testReleaseBean.testRelease.users}" var="user"
+                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                    paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    
+                    <p:column styleClass="columnUser" sortBy="#{user.nick}">
+                      <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+                      #{user.nick}
+                    </p:column>
+                    <p:column styleClass="columnRole" sortBy="#{user.userType.type}">
+                      <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+                      <h:outputText id="userTypeDescription" value="#{user.userType.type}"/>
+                      <p:tooltip for="userTypeDescription" style="max-width:330px;">
+                        #{user.userType.description}
+                      </p:tooltip>
+                    </p:column>
+                    <p:column styleClass="columnOmUser">
+                      <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                        rendered="#{!user.gepeqUser}" />
+                    </p:column>
+                    <p:column styleClass="columnDelete">
+                      <p:commandLink actionListener="#{testReleaseBean.removeUser}" immediate="true" 
+                        process="@this" update="testReleaseForm:usersPanel">
+                        
+                        <f:attribute name="user" value="#{user}" />
+                        <h:graphicImage id="removeUserImage" styleClass="links" 
+                          value="#{resource['images:delete.png']}" />
+                        <p:tooltip for="removeUserImage">
+                          #{msgs.REMOVE_USER}
+                        </p:tooltip>
+                      </p:commandLink> 
+                    </p:column>
+                  </p:dataTable>
+                </p:outputPanel>
+              </ui:fragment>
+            </h:panelGroup>
+            <h:panelGroup layout="block" styleClass="alignTop">
+              <h:panelGrid columns="2" cellpadding="0" styleClass="adminsTopGrid" 
+                columnClasses="adminsLabel,adminsButtons">
+                
+                <h:panelGroup>
+                  <h:outputText id="adminsLabel" style="font-size:110%;font-weight:bold;" value="#{msgs.ADMINS}:" />
+                  <p:tooltip for="adminsLabel">
+                    <h:outputText value="#{msgs.ADMINS_TIP}" escape="false" />
+                  </p:tooltip>
+                </h:panelGroup>
+                <h:panelGroup>
+                  <p:commandButton id="addAdminsButton" value="#{msgs.ADD_ADMINS}" styleClass="button" 
+                    image="ui-icon ui-icon-plus" actionListener="#{testReleaseBean.showAddAdmins}" 
+                    immediate="true" update="addAdminsDialog" />
+                </h:panelGroup>
+              </h:panelGrid>
+            </h:panelGroup>
+            <p:outputPanel id="adminsPanel">
+              <p:dataTable id="adminsTable" styleClass="adminsTable" rowStyleClass="dataRow" 
+                emptyMessage="#{msgs.NO_ADMINS}" value="#{testReleaseBean.testRelease.admins}" var="admin"
+                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                
+                <p:column styleClass="columnUser" sortBy="#{admin.nick}">
+                  <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+                  #{admin.nick}
+                </p:column>
+                <p:column styleClass="columnRole" sortBy="#{admin.userType.type}">
+                  <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+                  <h:outputText id="adminTypeDescription" value="#{admin.userType.type}"/>
+                  <p:tooltip for="adminTypeDescription" style="max-width:330px;">
+                    #{admin.userType.description}
+                  </p:tooltip>
+                </p:column>
+                <p:column styleClass="columnOmUser">
+                  <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                    rendered="#{!admin.gepeqUser}" />
+                </p:column>
+                <p:column styleClass="columnDelete">
+                  <p:commandLink actionListener="#{testReleaseBean.removeAdmin}" immediate="true" process="@this" 
+                    update="testReleaseForm:adminsPanel">
+                    
+                    <f:attribute name="admin" value="#{admin}" /> 
+                    <h:graphicImage id="removeAdminImage" styleClass="links" 
+                      value="#{resource['images:delete.png']}" />
+                    <p:tooltip for="removeAdminImage">
+                      #{msgs.REMOVE_ADMIN}
+                    </p:tooltip>
+                  </p:commandLink>
+                </p:column>
+              </p:dataTable>
+            </p:outputPanel>
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAllowAdminReportsLabel,columnAllowAdminReportsInput')}">
+              
+              <h:outputText style="font-size:110%;" value="#{msgs.ALLOW_ADMINS_REPORTS}" />
+              <p:selectOneMenu id="allowAdminReports" value="#{testReleaseBean.allowAdminReports}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </p:panel>
+        </p:tab>
+        <p:tab id="calendar" title="#{msgs.CALENDAR}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="calendarMessages" 
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='calendar'}" />
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="columnRestrictDatesLabel,columnRestrictDatesInput">
+              
+              #{msgs.RESTRICT_DATES}
+              <p:selectBooleanCheckbox id="restrictDates" value="#{testReleaseBean.restrictDates}">
+                <f:attribute name="property" value="restrictDates" />
+                <p:ajax listener="#{testReleaseBean.changeProperty}" 
+                  process="@this testReleaseForm:startDate testReleaseForm:closeDate testReleaseForm:warningDate" 
+                  update="testReleaseForm:startCloseWarningDatesPanelGroup" />
+              </p:selectBooleanCheckbox>
+            </h:panelGrid>
+            <h:panelGroup id="startCloseWarningDatesPanelGroup">
+              <ui:fragment rendered="#{testReleaseBean.restrictDates}">
+                <h:inputHidden id="startDateHidden" value="#{testReleaseBean.startDateHidden}" />
+                <h:inputHidden id="closeDateHidden" value="#{testReleaseBean.closeDateHidden}" />
+                <h:inputHidden id="warningDateHidden" value="#{testReleaseBean.warningDateHidden}" />
+                <h:panelGrid columns="6" cellpadding="2" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnDatesLeftLabels,columnDatesLeftInputs,columnDatesLeftResets,columnDatesRightLabels,columnDatesRightInputs,columnDatesRightResets')}"
+                  rowClasses="topAlignRow">
+                  
+                  #{msgs.START_DATE}
+                  <p:calendar id="startDate" widgetVar="startDate" pattern="#{msgs.DATE_PATTERN}" 
+                    value="#{testReleaseBean.startDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                    popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                    
+                    <p:ajax event="dateSelect" listener="#{testReleaseBean.changeStartDate}" 
+                      update="testReleaseForm:startDateHidden" />
+                  </p:calendar>
+                  <p:commandLink actionListener="#{testReleaseBean.resetStartDate}" immediate="true" 
+                    update="testReleaseForm:startDate testReleaseForm:startDateHidden" 
+                    onclick="clearDate(startDate);">
+                    
+                    <h:graphicImage id="resetStartDateImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip for="resetStartDateImage">
+                      #{msgs.RESET}
+                    </p:tooltip>
+                  </p:commandLink>
+                  #{msgs.CLOSE_DATE}
+                  <p:calendar id="closeDate" widgetVar="closeDate" pattern="#{msgs.DATE_PATTERN}" 
+                    value="#{testReleaseBean.closeDate}" mode="popup"  showOn="both" showButtonPanel="true" 
+                    popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                    
+                    <p:ajax event="dateSelect" listener="#{testReleaseBean.changeCloseDate}" 
+                      update="testReleaseForm:closeDateHidden" />
+                  </p:calendar>
+                  <p:commandLink actionListener="#{testReleaseBean.resetCloseDate}" immediate="true" 
+                    update="testReleaseForm:closeDate testReleaseForm:closeDateHidden" 
+                    onclick="clearDate(closeDate);">
+                    
+                    <h:graphicImage id="resetCloseDateImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip for="resetCloseDateImage">
+                      #{msgs.RESET}
+                    </p:tooltip>
+                  </p:commandLink>
+                  #{msgs.WARNING_DATE}
+                  <p:calendar id="warningDate" widgetVar="warningDate" pattern="#{msgs.DATE_PATTERN}" 
+                    value="#{testReleaseBean.warningDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                    popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                    
+                    <p:ajax event="dateSelect" listener="#{testReleaseBean.changeWarningDate}" 
+                      update="testReleaseForm:warningDateHidden" />
+                  </p:calendar>
+                  <p:commandLink actionListener="#{testReleaseBean.resetWarningDate}" immediate="true" 
+                    update="testReleaseForm:warningDate testReleaseForm:warningDateHidden"
+                    onclick="clearDate(warningDate);">
+                    
+                    <h:graphicImage id="resetWarningDateImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip for="resetWarningDateImage">
+                      #{msgs.RESET}
+                    </p:tooltip>
+                  </p:commandLink>
+                </h:panelGrid>
+              </ui:fragment>
+            </h:panelGroup>
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="columnRestrictFeedbackDateLabel,columnRestrictFeedbackDateInput">
+              
+              #{msgs.RESTRICT_DATE_FEEDBACK}
+              <p:selectBooleanCheckbox id="restrictFeedbackDate" value="#{testReleaseBean.restrictFeedbackDate}">
+                <f:attribute name="property" value="restrictFeedbackDate" />
+                <p:ajax listener="#{testReleaseBean.changeProperty}" process="@this testReleaseForm:feedbackDate" 
+                  update="testReleaseForm:feedbackDatePanelGroup" />
+              </p:selectBooleanCheckbox>
+            </h:panelGrid>
+            <h:panelGroup id="feedbackDatePanelGroup">
+              <ui:fragment rendered="#{testReleaseBean.restrictFeedbackDate}">
+                <h:inputHidden id="feedbackDateHidden" value="#{testReleaseBean.feedbackDateHidden}" />
+                <h:panelGrid columns="3" cellpadding="2" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnFeedbackDateLabel,columnFeedbackDateInput,columnFeedbackDateReset')}" 
+                  rowClasses="topAlignRow">
+                  
+                  #{msgs.FEEDBACK_DATE}
+                  <p:calendar id="feedbackDate" widgetVar="feedbackDate" pattern="#{msgs.DATE_PATTERN}" 
+                    value="#{testReleaseBean.feedbackDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                    popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                    
+                    <p:ajax event="dateSelect" listener="#{testReleaseBean.changeFeedbackDate}" 
+                      update="testReleaseForm:feedbackDateHidden" />
+                  </p:calendar>
+                  <p:commandLink actionListener="#{testReleaseBean.resetFeedbackDate}" immediate="true" 
+                    update="testReleaseForm:feedbackDate testReleaseForm:feedbackDateHidden"
+                    onclick="clearDate(feedbackDate);">
+                    
+                    <h:graphicImage id="resetFeedbackDateImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip for="resetFeedbackDateImage">
+                      #{msgs.RESET}
+                    </p:tooltip>
+                  </p:commandLink>
+                </h:panelGrid>
+              </ui:fragment>
+            </h:panelGroup>
+            <h:panelGroup id="deleteDatePanelGroup">
+              <h:inputHidden id="deleteDateHidden" value="#{testReleaseBean.deleteDateHidden}" />
+              <h:panelGrid columns="3" cellpadding="2" 
+                columnClasses="#{localizationService.getLocalizedStyleClasses('columnDeleteDateLabel,columnDeleteDateInput,columnDeleteDateReset')}"
+                rowClasses="topAlignRow">
+                
+                #{msgs.DELETE_DATE}
+                <p:calendar id="deleteDate" widgetVar="deleteDate" pattern="#{msgs.DATE_PATTERN}" 
+                  value="#{testReleaseBean.deleteDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                  popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                  
+                  <p:ajax event="dateSelect" listener="#{testReleaseBean.changeDeleteDate}" 
+                    update="testReleaseForm:deleteDateHidden" />
+                </p:calendar>
+                <p:commandLink actionListener="#{testReleaseBean.resetDeleteDate}" immediate="true" 
+                  update="testReleaseForm:deleteDate testReleaseForm:deleteDateHidden" 
+                  onclick="clearDate(deleteDate);">
+                  
+                  <h:graphicImage id="resetDeleteDateImage" styleClass="links" 
+                    value="#{resource['images:reset.png']}" />
+                  <p:tooltip for="resetDeleteDateImage">
+                    #{msgs.RESET}
+                  </p:tooltip>
+                </p:commandLink>
+              </h:panelGrid>
+            </h:panelGroup>
+          </p:panel>
+        </p:tab>
+        <p:tab id="configuration" title="#{msgs.CONFIGURATION}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="configurationMessages" 
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='configuration'}" />
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnConfigurationLabels,columnConfigurationInputs')}">
+              
+              #{msgs.FREESUMMARY_LABEL}
+              <p:selectOneMenu id="freeSummary" value="#{testReleaseBean.testRelease.freeSummary}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.FREESTOP_LABEL}
+              <p:selectOneMenu id="freeStop" value="#{testReleaseBean.testRelease.freeStop}" styleClass="combo">
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.SUMMARYQUESTIONS_LABEL}
+              <p:selectOneMenu id="summaryQuestions" value="#{testReleaseBean.testRelease.summaryQuestions}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.SUMMARYSCORES_LABEL}
+              <p:selectOneMenu id="summaryScores" value="#{testReleaseBean.testRelease.summaryScores}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.SUMMARYATTEMPTS_LABEL}
+              <p:selectOneMenu id="summaryAttempts" value="#{testReleaseBean.testRelease.summaryAttempts}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.NAVIGATION_LABEL}
+              <p:selectOneMenu id="navigation" value="#{testReleaseBean.testRelease.navigation}" 
+                styleClass="combo">
+                
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              #{msgs.NAVLOCATION_LABEL}
+              <p:selectOneMenu id="navLocation" styleClass="combo" value="#{testReleaseBean.navLocationId}">
+                <f:selectItems value="#{testReleaseBean.navLocations}" var="navLocation" 
+                  itemLabel="#{msgs[navLocation.location]}" itemValue="#{navLocation.id}" />
+              </p:selectOneMenu>
+              #{msgs.REDOQUESTION_LABEL}
+              <p:selectOneMenu id="redoQuestions" styleClass="combo" value="#{testReleaseBean.redoQuestionId}">
+                <f:selectItems value="#{testReleaseBean.redoQuestions}" var="redoQuestion" 
+                  itemLabel="#{msgs[redoQuestion.value]}" itemValue="#{redoQuestion.id}" />
+              </p:selectOneMenu>
+              #{msgs.REDOTEST_LABEL}
+              <p:selectOneMenu id="redoTest" value="#{testReleaseBean.testRelease.redoTest}" styleClass="combo">
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </p:panel>
+        </p:tab>
+        <p:tab id="addresses" title="#{msgs.ADDRESSES}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="addressesMessages" 
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='addresses'}" />
+            <h:panelGroup layout="block" styleClass="assessementAlignTop">
+              <h:panelGrid columns="2" cellpadding="0" styleClass="assessementTopGrid" 
+                columnClasses="assessementLabel,assessementAddressPanel">
+                
+                <h:panelGroup>
+                  <h:outputText id="assessementLabel" value="#{msgs.ASSESSEMENT}:" 
+                    style="font-size:110%;font-weight:bold;" />
+                  <p:tooltip for="assessementLabel">
+                    <h:outputText value="#{msgs.ASSESSEMENT_TIP}" escape="false"/>
+                  </p:tooltip>
+                </h:panelGroup>
+                <h:panelGroup layout="block">
+                  <p:commandButton id="addAssessementAddressButton" value="#{msgs.ADD_ADDRESS}" 
+                    styleClass="button" image="ui-icon ui-icon-plus" 
+                    actionListener="#{testReleaseBean.showAddEvaluator}" immediate="true" 
+                    update="addAssessementAddressDialog" />
+                </h:panelGroup>
+              </h:panelGrid>
+            </h:panelGroup>
+            <p:outputPanel id="assessementAddressesPanel">
+              <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" 
+                rowStyleClass="dataRow" emptyMessage="#{msgs.NO_EVALUATORS}" 
+                value="#{testReleaseBean.evaluators}" var="evaluator"
+                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                
+                <p:column styleClass="columnFiltering" sortBy="#{evaluator.filteringString}">
+                  <f:facet name="header">#{msgs.FILTERING}</f:facet>
+                  #{evaluator.filteringString}
+                </p:column>
+                <p:column styleClass="columnAddress" sortBy="#{evaluator.evaluator}">
+                  <f:facet name="header">#{msgs.ADDRESS}</f:facet>
+                  #{evaluator.evaluator}
+                </p:column>
+                <p:column styleClass="columnEdit">
+                  <p:commandLink actionListener="#{testReleaseBean.showEditEvaluator}" immediate="true" 
+                    update="addAssessementAddressDialog">
+                    
+                    <f:attribute name="evaluator" value="#{evaluator}" />
+                    <h:graphicImage id="editAssessementAddressImage" styleClass="links" 
+                      value="#{resource['images:edit16.png']}" />
+                    <p:tooltip for="editAssessementAddressImage">
+                      #{msgs.EDIT_ADDRESS}
+                    </p:tooltip>
+                  </p:commandLink>
+                </p:column>
+                <p:column styleClass="columnDelete">
+                  <p:commandLink actionListener="#{testReleaseBean.removeEvaluator}" immediate="true" 
+                    process="@this" update="testReleaseForm:assessementAddressesPanel">
+                    
+                    <f:attribute name="evaluator" value="#{evaluator}" />
+                    <h:graphicImage id="removeEvaluatorImage" styleClass="links" 
+                      value="#{resource['images:delete.png']}" />
+                    <p:tooltip for="removeEvaluatorImage">
+                      #{msgs.REMOVE_ADDRESS}
+                    </p:tooltip>
+                  </p:commandLink> 
+                </p:column>
+              </p:dataTable>
+            </p:outputPanel>
+            <h:panelGroup layout="block" styleClass="techSupportAlignTop">
+              <h:panelGrid columns="2" cellpadding="0" styleClass="techSupportTopGrid" 
+                columnClasses="techSupportLabel,techSupportAddressPanel">
+                
+                <h:panelGroup>
+                  <h:outputText id="techSupportLabel" value="#{msgs.TECH_SUPPORT}:" 
+                    style="font-size:110%;font-weight:bold;" />
+                  <p:tooltip for="techSupportLabel">
+                    <h:outputText value="#{msgs.TECH_SUPPORT_TIP}" escape="false"/>
+                  </p:tooltip>
+                </h:panelGroup>
+                <h:panelGroup layout="block">
+                  <p:commandButton id="addTechSupportAddressButton" value="#{msgs.ADD_ADDRESS}"
+                    styleClass="button" image="ui-icon ui-icon-plus" 
+                   actionListener="#{testReleaseBean.showAddSupportContact}" immediate="true"  
+                   update="addTechSupportAddressDialog testForm:generalMessages" />
+                </h:panelGroup>
+              </h:panelGrid>
+            </h:panelGroup>
+            <p:outputPanel id="techSupportAddressesPanel">
+              <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" 
+                rowStyleClass="dataRow" emptyMessage="#{msgs.NO_TECH_SUPPORT}" 
+                value="#{testReleaseBean.supportContacts}" var="supportContact"
+                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                
+                <p:column styleClass="columnFiltering" sortBy="#{supportContact.filteringString}">
+                  <f:facet name="header">#{msgs.FILTERING}</f:facet>
+                  #{supportContact.filteringString}
+                </p:column>
+                <p:column styleClass="columnAddress" sortBy="#{supportContact.supportContact}">
+                  <f:facet name="header">#{msgs.ADDRESS}</f:facet>
+                  #{supportContact.supportContact}
+                </p:column>
+                <p:column styleClass="columnEdit">
+                  <p:commandLink actionListener="#{testReleaseBean.showEditSupportContact}" immediate="true" 
+                    update="addTechSupportAddressDialog">
+                    
+                    <f:attribute name="supportContact" value="#{supportContact}" />
+                    <h:graphicImage id="editTechSupportAddressImage" styleClass="links" 
+                      value="#{resource['images:edit16.png']}" />
+                    <p:tooltip for="editTechSupportAddressImage">
+                      #{msgs.EDIT_ADDRESS}
+                    </p:tooltip>
+                  </p:commandLink>
+                </p:column>
+                <p:column styleClass="columnDelete">
+                  <p:commandLink actionListener="#{testReleaseBean.removeSupportContact}" immediate="true" 
+                    process="@this" update="testReleaseForm:techSupportAddressesPanel">
+                    
+                    <f:attribute name="supportContact" value="#{supportContact}" />
+                    <h:graphicImage id="removeSupportContactImage" styleClass="links" 
+                      value="#{resource['images:delete.png']}" />
+                    <p:tooltip for="removeSupportContactImage">
+                      #{msgs.REMOVE_ADDRESS}
+                    </p:tooltip>
+                  </p:commandLink> 
+                </p:column>
+              </p:dataTable>
+            </p:outputPanel>
+          </p:panel>
+        </p:tab>  
+        <p:tab id="confirmation" title="#{msgs.CONFIRM}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="confirmationMessages"
+              rendered="#{testReleaseBean.activeTestReleaseTabName=='confirmation'}" />
+            <h:panelGroup layout="block" style="text-align:center;">
+              <p>
+                <h:outputText value="#{msgs.PUBLISH_TEST_CONFIRMATION}" escape="false" />
+              </p>
+              <p:commandButton id="publishButton" value="#{msgs.PUBLISH}" ajax="false" 
+                styleClass="confirmButtons" image="ui-icon ui-icon-check" action="#{testReleaseBean.publishTest}" 
+                onclick="publishingDialog.show()" disabled="#{!testReleaseBean.publishAllowed}" />
+              <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
+                image="ui-icon ui-icon-cancel" action="publication" />
+            </h:panelGroup>
+          </p:panel>
+        </p:tab>
+      </p:wizard>
+	</h:form>
+	
+    <p:dialog widgetVar="addUsersDialog" id="addUsersDialog" styleClass="dialog" width="740" height="390" 
+      header="#{msgs.ADD_USERS}" modal="true" closable="true" draggable="false" resizable="false"
+      onShow="centerDialog('addUsersDialog');">
+      
+      <h:form id="usersDialogForm">
+        <p:panel id="usersFilterPanel" styleClass="dialogPanel">
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow" 
+            columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+            
+            #{msgs.ROLE}
+            <p:selectOneMenu id="filterUserRoleId" styleClass="combo" style="width:210px;" 
+              value="#{testReleaseBean.filterUsersUserTypeId}">
+              
+              <p:ajax event="change" process="usersDialogForm:usersFilterPanel" 
+                update="usersDialogForm:usersFilterPanel" /> 
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+              <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+              <f:selectItems value="#{testReleaseBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                itemValue="#{userType.id}" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+              rendered="#{testReleaseBean.filterUsersUserTypeId&lt;=0}" />
+            <p:selectBooleanCheckbox id="includeOmUsers" value="#{testReleaseBean.filterUsersIncludeOmUsers}" 
+              rendered="#{testReleaseBean.filterUsersUserTypeId&lt;=0}" />
+            <h:outputText value="" rendered="#{testReleaseBean.filterUsersUserTypeId&gt;0}" />
+            <h:outputText value="" rendered="#{testReleaseBean.filterUsersUserTypeId&gt;0}" />
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testReleaseBean.applyUsersFilter}" process="usersDialogForm:usersFilterPanel" 
+              update="usersDialogForm:usersPickerPanel" />
+          </h:panelGrid>
+        </p:panel>
+        <p:panel id="usersPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="usersPickList" styleClass="usersPickList" value="#{testReleaseBean.usersDualList}" 
+            var="user" itemLabel="#{user}" itemValue="#{user}" converter="UserConverter" iconOnly="true">
+            
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_USERS_HEADER}</f:facet>
+            <p:column styleClass="columnUserPick">
+              #{user.nick}
+            </p:column>
+            <p:column styleClass="columnRolePick">
+              #{user.userType.type}
+            </p:column>
+            <p:column styleClass="columnOmUserPick">
+              <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                rendered="#{!user.gepeqUser}" />
+            </p:column>
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+            actionListener="#{testReleaseBean.acceptAddUsers}" oncomplete="addUsersDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" onclick="addUsersDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="addAdminsDialog" id="addAdminsDialog" styleClass="dialog" width="740" height="390" 
+      header="#{msgs.ADD_ADMINS}" modal="true" closable="true" draggable="false" resizable="false"
+      onShow="centerDialog('addAdminsDialog');">
+      
+      <h:form id="adminsDialogForm">
+        <p:panel id="adminsFilterPanel" styleClass="dialogPanel">
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow" 
+            columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+            
+            #{msgs.ROLE}
+            <p:selectOneMenu id="filterAdminRoleId" styleClass="combo" style="width:210px;" 
+              value="#{testReleaseBean.filterAdminsUserTypeId}">
+              
+              <p:ajax event="change" process="adminsDialogForm:adminsFilterPanel" 
+                update="adminsDialogForm:adminsFilterPanel" /> 
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+              <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+              <f:selectItems value="#{testReleaseBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                itemValue="#{userType.id}" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+              rendered="#{testReleaseBean.filterAdminsUserTypeId&lt;=0}" />
+            <p:selectBooleanCheckbox id="includeOmUsers" value="#{testReleaseBean.filterAdminsIncludeOmUsers}" 
+              rendered="#{testReleaseBean.filterAdminsUserTypeId&lt;=0}" />
+            <h:outputText value="" rendered="#{testReleaseBean.filterAdminsUserTypeId&gt;0}" />
+            <h:outputText value="" rendered="#{testReleaseBean.filterAdminsUserTypeId&gt;0}" />
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testReleaseBean.applyAdminsFilter}" process="adminsDialogForm:adminsFilterPanel" 
+              update="adminsDialogForm:adminsPickerPanel" />
+          </h:panelGrid>
+        </p:panel>
+        <p:panel id="adminsPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="adminsPickList" styleClass="adminsPickList" value="#{testReleaseBean.adminsDualList}" 
+            var="admin" itemLabel="#{admin}" itemValue="#{admin}" converter="UserConverter" iconOnly="true">
+            
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_ADMINS_HEADER}</f:facet>
+            <p:column styleClass="columnUserPick">
+              #{admin.nick}
+            </p:column>
+            <p:column styleClass="columnRolePick">
+              #{admin.userType.type}
+            </p:column>
+            <p:column styleClass="columnOmUserPick">
+              <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                rendered="#{!user.gepeqUser}" />
+            </p:column>
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+            actionListener="#{testReleaseBean.acceptAddAdmins}" oncomplete="addAdminsDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" onclick="addAdminsDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="addTechSupportAddressDialog" id="addTechSupportAddressDialog" styleClass="dialog" 
+      width="750" height="410" header="#{testReleaseBean.addEditSupportContactTitle}" modal="true" closable="true" 
+      draggable="false" resizable="false" onShow="centerDialog('addTechSupportAddressDialog');">
+      
+      <h:form id="techSupportAddressDialogForm">
+        <p:growl id="techSupportAddressDialogMessages" showDetail="true" sticky="true" 
+          itemClass="#{testReleaseBean.supportContactDialogDisplayed ? '' : 'invisible' }" />
+        <p:panel id="techSupportAddressFilterPanel" styleClass="dialogPanel" 
+          style="border-width:0px;height:320px;">
+          
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressFilterTypeLabelColumn,addressFilterTypeInputColumn,addressFilterSubtypeLabelColumn,addressFilterSubtypeInputColumn">
+            
+            #{msgs.FILTER_TYPE}
+            <p:selectOneMenu id="supportContactFilterType" styleClass="combo" style="width:170px;" 
+              value="#{testReleaseBean.supportContactFilterType}">
+              
+              <p:ajax event="change" listener="#{testReleaseBean.changeSupportContactFilterType}" 
+                process="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                update="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                onstart="changeSupportContactFilterTypeStart();" />
+              <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
+              <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
+              rendered="#{testReleaseBean.supportContactFilterSubtypeEnabled}" />
+            <p:selectOneMenu id="supportContactFilterSubtype" styleClass="combo" style="width:280px;" 
+              value="#{testReleaseBean.supportContactFilterSubtype}" 
+              rendered="#{testReleaseBean.supportContactFilterSubtypeEnabled}">
+              
+              <p:ajax event="change" listener="#{testReleaseBean.changeSupportContactFilterSubtype}" 
+                process="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                update="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                onstart="changeSupportContactFilterSubtypeStart();" />
+              <f:selectItems value="#{testReleaseBean.supportContactFilterSubtypes}" var="subtype" 
+                itemLabel="#{msgs[subtype]}" itemValue="#{subtype}" />
+            </p:selectOneMenu>
+          </h:panelGrid>
+          
+          <h:panelGroup layout="block" rendered="#{testReleaseBean.supportContactFilterType=='NO_FILTER'}" 
+            styleClass="noFilterTip">
+            
+            <h:panelGroup styleClass="noFilterTipSpan">
+              <h:panelGroup styleClass="noFilterTipContent">
+                <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_NO_FILTER_TEXT}" escape="false" 
+                  styleClass="noFilterTipText" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGroup>
+          
+          <h:panelGroup rendered="#{testReleaseBean.supportContactFilterType=='USER_FILTER' and testReleaseBean.supportContactFilterSubtype=='USERS_SELECTION'}">
+            <p:panel id="supportContactFilterUsersFilterPanel" styleClass="dialogPanel" style="margin-bottom:0px;">
+              <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+                columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+                
+                #{msgs.ROLE}
+                <p:selectOneMenu id="filterSupportContactFilterUserRoleId" styleClass="combo" style="width:210px;" 
+                  value="#{testReleaseBean.filterSupportContactFilterUsersUserTypeId}">
+                  
+                  <p:ajax event="change" 
+                    process="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" 
+                    update="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" /> 
+                  <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                  <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                  <f:selectItems value="#{testReleaseBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                    itemValue="#{userType.id}" />
+                </p:selectOneMenu>
+                <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                  rendered="#{testReleaseBean.filterSupportContactFilterUsersUserTypeId&lt;=0}" />
+                <p:selectBooleanCheckbox id="includeOmUsers" 
+                  value="#{testReleaseBean.filterSupportContactFilterUsersIncludeOmUsers}" 
+                  rendered="#{testReleaseBean.filterSupportContactFilterUsersUserTypeId&lt;=0}" />
+                <h:outputText value="" 
+                  rendered="#{testReleaseBean.filterSupportContactFilterUsersUserTypeId&gt;0}" />
+                <h:outputText value="" 
+                  rendered="#{testReleaseBean.filterSupportContactFilterUsersUserTypeId&gt;0}" />
+                <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                  actionListener="#{testReleaseBean.applySupportContactFilterUsersFilter}" 
+                  process="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" 
+                  update="techSupportAddressDialogForm:supportContactFilterUsersPickerPanel techSupportAddressDialogForm:supportContactFilterUsersList" 
+                  onstart="applySupportContactFilterUsersFilterStart();" />
+              </h:panelGrid>
+            </p:panel>
+            <h:inputHidden id="supportContactFilterUsersIdsHidden" 
+              value="#{testReleaseBean.supportContactFilterUsersIdsHidden}" />            
+            <p:panel id="supportContactFilterUsersPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="supportContactFilterUsersList" styleClass="supportContactFilterUsersPickList" 
+                value="#{testReleaseBean.evaluatorFilterUsersDualList}" var="user" itemLabel="#{user}" 
+                itemValue="#{user}" converter="UserConverter" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.TECH_SUPPORT_USERS_HEADER}</f:facet>
+                <p:column styleClass="columnUserPick">
+                  #{user.nick}
+                </p:column>
+                <p:column styleClass="columnRolePick">
+                  #{user.userType.type}
+                </p:column>
+                <p:column styleClass="columnOmUserPick">
+                  <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                    rendered="#{!user.gepeqUser}" />
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.supportContactFilterType=='USER_FILTER' and testReleaseBean.supportContactFilterSubtype=='RANGE_NAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_USER_FILTER_RANGE_NAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_NAME}
+              <p:selectOneMenu id="filterSupportContactRangeNameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterSupportContactRangeNameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterSupportContactRangeNameLowerLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeNameUpperLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeNameUpperLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterSupportContactRangeNameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterSupportContactRangeNameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterSupportContactRangeNameUpperLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeNameLowerLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeNameLowerLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.supportContactFilterType=='USER_FILTER' and testReleaseBean.supportContactFilterSubtype=='RANGE_SURNAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_USER_FILTER_RANGE_SURNAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_SURNAME}
+              <p:selectOneMenu id="filterSupportContactRangeSurnameLowerLimit" styleClass="combo" 
+                style="width:50px;" value="#{testReleaseBean.filterSupportContactRangeSurnameLowerLimit}">
+                
+                <p:ajax event="change" 
+                  listener="#{testReleaseBean.changeFilterSupportContactRangeSurnameLowerLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeSurnameUpperLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeSurnameUpperLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterSupportContactRangeSurnameUpperLimit" styleClass="combo" 
+                style="width:50px;" value="#{testReleaseBean.filterSupportContactRangeSurnameUpperLimit}">
+                
+                <p:ajax event="change" 
+                  listener="#{testReleaseBean.changeFilterSupportContactRangeSurnameUpperLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeSurnameLowerLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeSurnameLowerLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+        </p:panel>
+        <p:panel id="techSupportAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
+          <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressLabelColumn,addressInputColumn">
+            
+            #{msgs.ADDRESS}
+            <h:inputText id="supportContactAddress" style="width:580px;" 
+              value="#{testReleaseBean.supportContact}" />
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom" style="margin-top:-20px;">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testReleaseBean.acceptAddSupportContact}" 
+            update="testReleaseForm:techSupportAddressesTable techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+            onstart="acceptAddSupportContactStart();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+            actionListener="#{testReleaseBean.cancelAddSupportContact}"  
+            update="techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+            onclick="addTechSupportAddressDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="addAssessementAddressDialog" id="addAssessementAddressDialog" styleClass="dialog" 
+      width="750" height="410" header="#{testReleaseBean.addEditEvaluatorTitle}" modal="true" closable="true" 
+      draggable="false" resizable="false" onShow="centerDialog('addAssessementAddressDialog');">
+      
+      <h:form id="assessementAddressDialogForm">
+        <p:growl id="assessementAddressDialogMessages" showDetail="true" sticky="true" 
+          itemClass="#{testReleaseBean.evaluatorDialogDisplayed ? '' : 'invisible' }" />
+        <p:panel id="assessementAddressFilterPanel" styleClass="dialogPanel" 
+          style="border-width:0px;height:320px;">
+          
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressFilterTypeLabelColumn,addressFilterTypeInputColumn,addressFilterSubtypeLabelColumn,addressFilterSubtypeInputColumn">
+            
+            #{msgs.FILTER_TYPE}
+            <p:selectOneMenu id="evaluatorFilterType" styleClass="combo" style="width:170px;" 
+              value="#{testReleaseBean.evaluatorFilterType}">
+              
+              <p:ajax event="change" listener="#{testReleaseBean.changeEvaluatorFilterType}" 
+                process="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                update="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                onstart="changeEvaluatorFilterTypeStart();" />
+              <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
+              <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
+              rendered="#{testReleaseBean.evaluatorFilterSubtypeEnabled}" />
+            <p:selectOneMenu id="evaluatorFilterSubtype" styleClass="combo" style="width:280px;" 
+              value="#{testReleaseBean.evaluatorFilterSubtype}" 
+              rendered="#{testReleaseBean.evaluatorFilterSubtypeEnabled}">
+              
+              <p:ajax event="change" listener="#{testReleaseBean.changeEvaluatorFilterSubtype}" 
+                process="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                update="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                onstart="changeEvaluatorFilterSubtypeStart();" />
+              <f:selectItems value="#{testReleaseBean.evaluatorFilterSubtypes}" var="subtype" 
+                itemLabel="#{msgs[subtype]}" itemValue="#{subtype}" />
+            </p:selectOneMenu>
+          </h:panelGrid>
+          
+          <h:panelGroup layout="block" rendered="#{testReleaseBean.evaluatorFilterType=='NO_FILTER'}" 
+            styleClass="noFilterTip">
+            
+            <h:panelGroup styleClass="noFilterTipSpan">
+              <h:panelGroup styleClass="noFilterTipContent">
+                <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_NO_FILTER_TEXT}" escape="false" 
+                  styleClass="noFilterTipText" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGroup>
+          
+          <h:panelGroup rendered="#{testReleaseBean.evaluatorFilterType=='USER_FILTER' and testReleaseBean.evaluatorFilterSubtype=='USERS_SELECTION'}">
+            <p:panel id="evaluatorFilterUsersFilterPanel" styleClass="dialogPanel" style="margin-bottom:0px;">
+              <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+                columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+                
+                #{msgs.ROLE}
+                <p:selectOneMenu id="filterEvaluatorFilterUserRoleId" styleClass="combo" style="width:210px;" 
+                  value="#{testReleaseBean.filterEvaluatorFilterUsersUserTypeId}">
+                  
+                  <p:ajax event="change" 
+                    process="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" 
+                    update="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" /> 
+                  <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                  <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                  <f:selectItems value="#{testReleaseBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                    itemValue="#{userType.id}" />
+                </p:selectOneMenu>
+                <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                  rendered="#{testReleaseBean.filterEvaluatorFilterUsersUserTypeId&lt;=0}" />
+                <p:selectBooleanCheckbox id="includeOmUsers" 
+                  value="#{testReleaseBean.filterEvaluatorFilterUsersIncludeOmUsers}" 
+                  rendered="#{testReleaseBean.filterEvaluatorFilterUsersUserTypeId&lt;=0}" />
+                <h:outputText value="" rendered="#{testReleaseBean.filterEvaluatorFilterUsersUserTypeId&gt;0}" />
+                <h:outputText value="" rendered="#{testReleaseBean.filterEvaluatorFilterUsersUserTypeId&gt;0}" />
+                <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                  actionListener="#{testReleaseBean.applyEvaluatorFilterUsersFilter}" 
+                  process="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" 
+                  update="assessementAddressDialogForm:evaluatorFilterUsersPickerPanel assessementAddressDialogForm:evaluatorFilterUsersList" 
+                  onstart="applyEvaluatorFilterUsersFilterStart();" />
+              </h:panelGrid>
+            </p:panel>
+            <h:inputHidden id="evaluatorFilterUsersIdsHidden" value="#{testReleaseBean.evaluatorFilterUsersIdsHidden}" />            
+            <p:panel id="evaluatorFilterUsersPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="evaluatorFilterUsersList" styleClass="evaluatorFilterUsersPickList" 
+                value="#{testReleaseBean.evaluatorFilterUsersDualList}" var="user" itemLabel="#{user}" 
+                itemValue="#{user}" converter="UserConverter" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.ASSESSEMENT_USERS_HEADER}</f:facet>
+                <p:column styleClass="columnUserPick">
+                  #{user.nick}
+                </p:column>
+                <p:column styleClass="columnRolePick">
+                  #{user.userType.type}
+                </p:column>
+                <p:column styleClass="columnOmUserPick">
+                  <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                    rendered="#{!user.gepeqUser}" />
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.evaluatorFilterType=='USER_FILTER' and testReleaseBean.evaluatorFilterSubtype=='RANGE_NAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_USER_FILTER_RANGE_NAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_NAME}
+              <p:selectOneMenu id="filterEvaluatorRangeNameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterEvaluatorRangeNameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterEvaluatorRangeNameLowerLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeNameUpperLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeNameUpperLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterEvaluatorRangeNameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterEvaluatorRangeNameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterEvaluatorRangeNameUpperLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeNameLowerLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeNameLowerLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.evaluatorFilterType=='USER_FILTER' and testReleaseBean.evaluatorFilterSubtype=='RANGE_SURNAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_USER_FILTER_RANGE_SURNAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_SURNAME}
+              <p:selectOneMenu id="filterEvaluatorRangeSurnameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterEvaluatorRangeSurnameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterEvaluatorRangeSurnameLowerLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeSurnameUpperLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeSurnameUpperLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterEvaluatorRangeSurnameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testReleaseBean.filterEvaluatorRangeSurnameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testReleaseBean.changeFilterEvaluatorRangeSurnameUpperLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeSurnameLowerLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeSurnameLowerLimit" />
+                <f:selectItems value="#{testReleaseBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+        </p:panel>
+        <p:panel id="assessementAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
+          <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressLabelColumn,addressInputColumn">
+            
+            #{msgs.ADDRESS}
+            <h:inputText id="evaluatorAddress" style="width:580px;" value="#{testReleaseBean.evaluator}" />
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom" style="margin-top:-20px;">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testReleaseBean.acceptAddEvaluator}" 
+            update="testReleaseForm:assessementAddressesTable assessementAddressDialogForm:assessementAddressDialogMessages" 
+            onstart="acceptAddEvaluatorStart();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+            actionListener="#{testReleaseBean.cancelAddEvaluator}"  
+            update="assessementAddressDialogForm:assessementAddressDialogMessages" 
+            onclick="addAssessementAddressDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="buildingQuestionDialog" id="buildingQuestionDialog" styleClass="dialog" width="200" 
+      height="50" header="#{msgs.DEPLOYING_QUESTION}" showEffect="clip" draggable="false" closable="false" 
+      resizable="false" modal="true">
+      
+      <h:form>
+        <h:panelGrid columns="2">
+          <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" height="32" width="32" />
+          #{msgs.PLEASE_WAIT}
+        </h:panelGrid>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="buildingTestDialog" id="buildingTestDialog" styleClass="dialog" width="200" 
+      height="50" header="#{msgs.DEPLOYING_TEST}" showEffect="clip" draggable="false" closable="false" 
+      resizable="false" modal="true">
+      
+      <h:form>
+        <h:panelGrid columns="2">
+          <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" height="32" width="32" />
+          #{msgs.PLEASE_WAIT}
+        </h:panelGrid>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="publishingDialog" id="publishingDialog" styleClass="dialog" width="200" 
+      height="50" header="#{msgs.PUBLISHING_TEST}" showEffect="clip" draggable="false" closable="false" 
+      resizable="false" modal="true">
+      
+      <h:form>
+        <h:panelGrid columns="2">
+          <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" height="32" width="32" />
+          #{msgs.PLEASE_WAIT}
+        </h:panelGrid>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="confirmCancelPublishTestDialog" id="confirmCancelPublishTestDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+      onShow="centerDialog('confirmCancelPublishTestDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_CANCEL_PUBLISH_TEST}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" ajax="false" action="#{testReleaseBean.cancelPublishTest}" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmCancelPublishTestDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>
+</html>

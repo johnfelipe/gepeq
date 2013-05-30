@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui"
+  xmlns:c="http://java.sun.com/jsp/jstl/core">
+
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.QUESTIONS_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_questions.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputScript library="javascript" name="om.js" />
+    <h:outputStylesheet library="css" name="questions.css" />
+    
+    <p:outputPanel styleClass="questionsPanel">
+      <h:form id="questionsForm" styleClass="questionsForm" onkeypress="preventEnterSubmit(event);">
+        <p:growl id="messages" showDetail="true" sticky="#{questionsBean.criticalErrorMessage}" />
+        
+        <h:inputHidden value="#{questionsBean.questionId}" />
+        
+        <p:panel id="questionsFilterPanel" styleClass="filterPanel">
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="categoryLabelColumn,categoryComboColumn,includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn">
+            
+            #{msgs.CATEGORY}:
+            <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:450px;" panelStyle="width:550px;" 
+              value="#{questionsBean.filterCategoryId}" var="filterCategoryId">
+              
+              <p:ajax event="change" process="questionsForm:questionsFilterPanel" 
+                update="questionsForm:questionsFilterPanel" /> 
+              <f:selectItems value="#{questionsBean.specialCategoriesFilters}" var="catFilter" 
+                itemLabel="#{msgs[catFilter.name]}" itemValue="#{catFilter.id}" />
+              <f:selectItems value="#{questionsBean.questionsCategories}" var="cat" 
+                itemLabel="#{questionsBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+              <p:column>
+                #{questionsBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+              </p:column>
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" 
+              rendered="#{questionsBean.filterCategoryId&gt;0}" />
+            <p:selectBooleanCheckbox id="includeSubcategories" 
+              value="#{questionsBean.filterIncludeSubcategories}"
+              rendered="#{questionsBean.filterCategoryId&gt;0}" />
+          </h:panelGrid>
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="questionLevelLabelColumn,questionLevelComboColumn,questionTypeLabelColumn,questionTypeComboColumn,applyFilterButtonColumn">
+            
+            #{msgs.DIF}:
+            <p:selectOneMenu id="filterQuestionLevel" styleClass="combo" style="width:150px;margin-right:15px;" 
+              var="l" value="#{questionsBean.filterQuestionLevel}">
+              
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('DIF_GEN')}" itemValue="" />
+              <f:selectItems value="#{questionsBean.questionLevels}" var="level" itemLabel="#{msgs[level]}" 
+                itemValue="#{level}" />
+              <p:column styleClass="columnLevel">
+                <h:outputText value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" styleClass="#{l}" />
+              </p:column>
+              <p:column style="font-size:85% !important;">
+                #{msgs[l]}
+              </p:column>
+            </p:selectOneMenu>
+            #{msgs.QUESTION_TYPES}: 
+            <p:selectOneMenu id="filterQuestionType" styleClass="combo" style="width:250px;" var="t"
+              value="#{questionsBean.filterQuestionType}">
+              
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('QUESTION_TYPES_GEN')}" 
+                itemValue="" />
+              <f:selectItems value="#{questionTypesService.questionTypes}" var="type" itemLabel="#{msgs[type]}" 
+                itemValue="#{type}" />
+              <p:column styleClass="columnIcon">
+                <p:graphicImage value="/resources/images/#{t}.gif" width="16" height="16" />
+              </p:column>
+              <p:column style="font-size:85% !important;">
+                #{msgs[t]}
+              </p:column>
+            </p:selectOneMenu>
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{questionsBean.applyQuestionsFilter}" 
+              process="questionsForm:questionsFilterPanel" 
+              update="questionsForm:messages questionsForm:questionsTable" />
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="newQuestionPanel">
+          <p:selectOneMenu id="selectedQuestionType" styleClass="questionTypeCombo" 
+            value="#{questionsBean.selectedQuestionTypeName}" var="questionTypeName">
+            
+            <p:ajax process="@this" update="newQuestionButton" />
+            <f:selectItems value="#{questionTypesService.questionTypes}" var="questionType" 
+              itemLabel="#{msgs[questionType]}" itemValue="#{questionType}" />
+            <p:column styleClass="columnIcon"> 
+              <p:graphicImage value="/resources/images/#{questionTypeName}.gif" width="16" height="16" />
+            </p:column>
+            <p:column style="font-size:85% !important;">  
+              #{msgs[questionTypeName]}
+            </p:column>
+          </p:selectOneMenu>
+          <p:commandButton id="newQuestionButton" value="#{msgs.NEW_QUESTION}" styleClass="newQuestionButton" 
+            action="#{questionsBean.addQuestion}" ajax="false" image="ui-icon ui-icon-plus" 
+            disabled="#{!questionsBean.isAddEnabled()}">
+            
+            <f:param name="questionType" value="#{questionsBean.selectedQuestionType.fullClassName}" />
+          </p:commandButton>
+        </h:panelGroup>
+	    
+        <p:dataTable id="questionsTable" styleClass="questionsTable" rowStyleClass="dataRow" 
+          emptyMessage="#{msgs.NO_QUESTIONS}" value="#{questionsBean.questions}" var="question" 
+	      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+          paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+          
+          <p:column styleClass="columnType" sortBy="#{question.type}" 
+            sortFunction="#{questionsBean.sortQuestionTypes}">
+            
+            <f:facet name="header"></f:facet>
+            <h:graphicImage id="questionTypeImage" url="/resources/images/#{question.type}.gif" />
+            <p:tooltip for="questionTypeImage">
+              #{msgs[question.type]}
+            </p:tooltip>
+          </p:column>
+          <p:column styleClass="columnName" sortBy="#{question.name}">
+    	    <f:facet name="header">#{msgs.QUESTION}</f:facet>
+    	    #{question.name}
+          </p:column>
+          <p:column styleClass="columnCategory" sortBy="#{questionsBean.getLocalizedCategoryName(question.category)}">
+            <f:facet name="header">#{msgs.CATEGORY}</f:facet> 
+            <h:outputText id="categoryName" value="#{questionsBean.getLocalizedCategoryName(question.category)}" />
+            <p:tooltip for="categoryName">
+              #{questionsBean.getLocalizedCategoryLongName(question.category)}
+            </p:tooltip>
+          </p:column>
+          <p:column styleClass="columnAuthor" sortBy="#{question.createdBy.nick}">
+            <f:facet name="header">#{msgs.AUTHOR}</f:facet>
+            <h:outputText value="#{question.createdBy.nick}" />
+          </p:column>
+          <p:column styleClass="columnLevel" sortBy="#{question.level}">
+            <!-- Added some non-breakable white-spaces to fix column title display on Opera -->
+    	    <f:facet name="header">#{msgs.LEVEL}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</f:facet>
+            <h:outputText id="questionLevelColor" value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+              styleClass="#{question.levelString}" />
+            <p:tooltip for="questionLevelColor">
+              #{msgs[question.levelString]}
+            </p:tooltip>
+          </p:column>
+          <p:column styleClass="columnDate" sortBy="#{question.timemodified}">
+            <!-- Added some non-breakable white-spaces to fix column title display on Opera -->
+    	    <f:facet name="header">#{msgs.DATE}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</f:facet> 
+    	    <h:outputText value="#{question.timemodified}">
+              <f:convertDateTime dateStyle="short" />
+            </h:outputText> 
+          </p:column>
+          <p:column styleClass="columnEdit">  
+            <h:commandLink action="#{questionsBean.editQuestion(question)}" 
+              rendered="#{questionsBean.isEditQuestionAllowed(question)}">
+              
+              <f:param name="questionId" value="#{question.id}" />
+              <h:graphicImage id="editQuestionImage" styleClass="links" 
+                value="#{resource['images:edit16.png']}" />
+              <p:tooltip for="editQuestionImage">
+                #{msgs.EDIT_QUESTION}
+              </p:tooltip> 
+            </h:commandLink>
+          </p:column>
+          <p:column styleClass="columnCreateCopy">
+            <h:commandLink action="#{questionsBean.addQuestionCopy(question)}" 
+              rendered="#{questionsBean.isCreateCopyQuestionAllowed(question)}">
+              
+              <f:param name="questionCopyId" value="#{question.id}" />
+              <h:graphicImage id="createCopyQuestionImage" styleClass="links" 
+                value="#{resource['images:copyto16.png']}" />
+              <p:tooltip for="createCopyQuestionImage">
+                #{msgs.CREATE_COPY_QUESTION}
+              </p:tooltip> 
+            </h:commandLink>
+          </p:column>
+          <p:column styleClass="columnDelete">
+            <p:commandLink update="@form" actionListener="#{questionsBean.confirm}" 
+              rendered="#{questionsBean.isDeleteQuestionAllowed(question)}">
+              
+			  <f:setPropertyActionListener value="#{question.id}" target="#{questionsBean.questionId}" />
+              <h:graphicImage id="deleteQuestionImage" styleClass="links" 
+                value="#{resource['images:delete.png']}" />
+              <p:tooltip for="deleteQuestionImage">
+                #{msgs.DELETE_QUESTION}
+              </p:tooltip>
+            </p:commandLink> 
+          </p:column>
+          <p:column styleClass="columnOM">
+            <p:commandLink process="@form" update="@form" action="#{questionsBean.viewOM(question.id)}" 
+              onstart="buildingDialog.show()" oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" 
+              rendered="#{questionsBean.isViewOMEnabled()}">
+              
+              <h:graphicImage id="viewOMQuestionImage" styleClass="links" 
+                value="#{resource['images:om16.png']}" />
+              <p:tooltip for="viewOMQuestionImage">
+                #{msgs.OM_PREVIEW}
+              </p:tooltip>
+            </p:commandLink>
+          </p:column>
+        </p:dataTable>
+      </h:form>
+    </p:outputPanel>
+    
+    <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+         some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+         Moreover p:dialog provides more control... for example forcing user to click a button 
+         to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+         some actions after user interaction even on cancel. -->
+    
+    <p:dialog widgetVar="confirmDialog" id="confirmDialog" styleClass="dialog" header="#{msgs.CONFIRM}" 
+      modal="true" closable="false" draggable="false" resizable="false" onShow="centerDialog('confirmDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_DELETE_QUESTION}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
+              actionListener="#{questionsBean.deleteQuestion}" 
+              update="questionsForm:messages questionsForm:newQuestionButton questionsForm:questionsTable" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="buildingDialog" id="buildingDialog" styleClass="dialog" width="200" height="50" 
+      header="#{msgs.DEPLOYING_QUESTION}" showEffect="clip" draggable="false" closable="false" 
+      resizable="false" modal="true">
+      
+      <h:form>
+        <h:panelGrid columns="2">
+          <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" width="32" 
+            height="32" />
+          #{msgs.PLEASE_WAIT}
+        </h:panelGrid>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>
+
+</html>

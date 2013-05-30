@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+      
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.IMPORT_TITLE}</ui:define>	
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js"/>
+    <h:outputScript library="javascript" name="om.js" />
+    <h:outputStylesheet library="css" name="import.css" />
+	   
+	<p:outputPanel styleClass="importPanel">
+	  <h:form enctype="multipart/form-data" id="importForm" styleClass="importForm" 
+	    onkeypress="preventEnterSubmit(event);">
+	    
+	    <h:panelGrid columns="2" columnClasses=",columnButton"
+	      style="width: 100%;">
+	      <p:panel>
+	        <p:messages />
+	  	    <h:panelGrid columns="2" cellpadding="5" 
+	  	      columnClasses="columnLabels" rowClasses="topAlignRow">
+        	    <h:outputText value="#{msgs.CATEGORY}:" />
+	  		    <p:selectOneMenu styleClass="combo" style="width: 500px;" 
+	  		      value="#{exportBean.categoryId}">
+        	      <f:selectItems value="#{exportBean.categories}" 
+        	        var="cat" itemValue="#{cat.id}"
+                    itemLabel="#{categoriesService.getLocalizedCategory(cat)}" />
+                </p:selectOneMenu>
+                <h:outputText value="#{msgs.TYPE}:" />
+        	    <p:selectOneMenu styleClass="combo" style="width: 250px;" 
+        	      value="#{exportBean.type}" var="t">
+        	      <f:selectItems value="#{questionsTypesService.questionTypes}" var="type"
+                    itemLabel="#{msgs[type.name]}" itemValue="#{type.name}" />  
+                </p:selectOneMenu>
+	  		    <h:outputText value="#{msgs.FILE}s:" />
+		 	    <p:fileUpload styleClass="fileUpload" label="#{msgs.SELECT_FILE}s"
+		 	      uploadLabel="#{msgs.FILES_UPLOAD}" cancelLabel="#{msgs.CANCEL}"
+                  sizeLimit="524288" multiple="true"
+                  invalidFileMessage="#{msgs.XML_SUPPORTED}" 
+                  invalidSizeMessage="#{msgs.FILE_SIZE_LIMIT}" 
+                  allowTypes="/(\.|\/)(xml)$/"
+                  fileUploadListener="#{importBean.handleFileUpload}">
+                </p:fileUpload>
+              </h:panelGrid>
+	        </p:panel>
+	 
+	        <p:commandButton value="#{msgs.IMP}" styleClass="button" 
+              action="#{importBean.importQuestions}" update="importForm" 
+              image="ui-icon ui-icon-circle-arrow-w">
+	  	    </p:commandButton>
+	      </h:panelGrid>
+	    </h:form>
+	  </p:outputPanel>
+    </ui:define>
+  </ui:composition>
+</html>

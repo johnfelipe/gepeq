@@ -1,0 +1,198 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+    
+	<ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+	
+	<ui:define name="contentTitle">
+	  <h:outputText value="#{msgs.EDIT_RESOURCE}" rendered="#{resourceBean.update}" />
+	  <h:outputText value="#{msgs.ADD_RESOURCE}" rendered="#{!resourceBean.update}" />
+	</ui:define>
+    
+    <ui:define name="pageBody">
+      <h:body onload="$(document).ready(checkDecodeInputFieldsUTF8('resourceForm:decodeUTF8','resourceForm:resourceName resourceForm:resourceDescription'));">
+        <ui:include src="/WEB-INF/templates/commontemplate.xhtml" />
+      </h:body>
+    </ui:define>
+    
+    <ui:define name="changelocale">
+      <ui:include src="/WEB-INF/pages/changelocale_resource.xhtml" />
+    </ui:define>
+    
+    <ui:define name="menu">
+      <ui:include src="/WEB-INF/pages/menu_resource.xhtml" />
+    </ui:define>
+    
+	<ui:define name="content">
+	  
+      <h:outputScript library="javascript" name="form_utils.js" />
+	  <h:outputStylesheet library="css" name="resource.css" />
+	  
+	  <p:panel>
+	    <h:form id="resourceForm" enctype="multipart/form-data" onkeypress="preventEnterSubmit(event);" 
+	      acceptcharset="UTF-8">
+	      
+          <p:messages id="messages" />
+          <h:inputHidden id="decodeUTF8" value="#{resourceBean.decodeUTF8}" />
+          <h:panelGrid columns="4" cellpadding="5" 
+            columnClasses="leftLabelColumn,leftFieldColumn,rightLabelColumn,rightFieldColumn">
+            
+            #{msgs.NAME}
+            <h:inputText id="resourceName" styleClass="input" style="width:290px;" maxlength="25" 
+              value="#{resourceBean.resource.name}">
+              
+              <p:ajax event="keyup" process="@this" update="resourceForm:saveButton" />
+            </h:inputText>
+            <h:outputText value="#{msgs.AUTHOR}" rendered="#{resourceBean.update}" />
+            <h:inputText styleClass="input readonlyInput" style="width:230px;" 
+              value="#{resourceBean.resource.user.nick}" readonly="true" rendered="#{resourceBean.update}" />
+          </h:panelGrid>
+	  	  <h:panelGrid columns="2" cellpadding="5" columnClasses="labelColumn,fieldColumn">
+            #{msgs.DESCRIPTION}
+            <p:inputTextarea id="resourceDescription" styleClass="textarea" style="width:600px;" maxHeight="50" 
+              value="#{resourceBean.resource.description}" />
+            #{msgs.RESOURCE_SOURCE}
+            <h:panelGroup id="resourceSourceGroup">
+              <h:selectOneRadio id="resourceSource" styleClass="sourceOptions" value="#{resourceBean.source}" 
+                rendered="#{!resourceBean.allSourcesDenied}">
+                
+                <f:ajax execute="@this" 
+                  render="resourceForm:messages resourceForm:uploadLabel resourceForm:fileUpload" />
+                <f:selectItems value="#{resourceBean.resourceSources}" var="source" 
+                  itemLabel="#{msgs[source.source]}" itemValue="#{source.source}" 
+                  itemDisabled="#{source.disabled}" />
+              </h:selectOneRadio>
+              <h:inputHidden value="#{resourceBean.source}" rendered="#{resourceBean.allSourcesDenied}" />
+              <h:panelGroup layout="block" styleClass="allSourcesDeniedMessage ui-messages ui-widget" 
+                rendered="#{resourceBean.allSourcesDenied}">
+                
+                <h:panelGroup layout="block" styleClass="#{resourceBean.allSourcesDeniedMessageStyle}">
+                  <h:panelGroup styleClass="#{resourceBean.allSourcesDeniedMessageIconStyle}" />
+                    <ul>
+                      <li>
+                        <h:panelGroup styleClass="#{resourceBean.allSourcesDeniedMessageSummaryStyle}">
+                          #{msgs.RESOURCE_ALL_SOURCES_DENIED}
+                        </h:panelGroup>
+                      </li>
+                    </ul>
+                  </h:panelGroup>
+                </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGrid>
+          <h:panelGrid columns="3" cellpadding="5" columnClasses="labelColumn,fileColumn">
+            <h:panelGroup id="uploadLabel">
+              <h:outputText value="#{msgs.FILE}" rendered="#{resourceBean.source=='RESOURCE_SOURCE_LOCAL'}" />
+              <h:outputText value="#{msgs.URL}" rendered="#{resourceBean.source=='RESOURCE_SOURCE_REMOTE'}" />
+            </h:panelGroup>
+            <h:panelGroup id="fileUpload">
+              <h:panelGroup rendered="#{resourceBean.source=='RESOURCE_SOURCE_LOCAL'}">
+                <p:fileUpload styleClass="fileUpload" label="#{msgs.SELECT_FILE}" 
+                  sizeLimit="#{resourceBean.resourceSizeLimit}" fileLimit="1" 
+                  invalidSizeMessage="#{resourceBean.errorMessageSizeLimit}"
+                  fileUploadListener="#{resourceBean.handleFileUpload}" immediate="true"
+                  update="resourceForm:messages resourceForm:resourceMimeType resourceForm:resourceCorrect resourceForm:resourcePreview resourceForm:saveButton" 
+                  rendered="#{!resourceBean.resourceSizeUnlimited}" />
+                <p:fileUpload styleClass="fileUpload" label="#{msgs.SELECT_FILE}" fileLimit="1" 
+                  fileUploadListener="#{resourceBean.handleFileUpload}" immediate="true"
+                  update="resourceForm:messages resourceForm:resourceMimeType resourceForm:resourceCorrect resourceForm:resourcePreview resourceForm:saveButton" 
+                  rendered="#{resourceBean.resourceSizeUnlimited}" />
+              </h:panelGroup>
+              <h:panelGrid columns="2" cellpadding="5" 
+                rendered="#{resourceBean.source=='RESOURCE_SOURCE_REMOTE'}" style="margin-left:-7px;" 
+                columnClasses="urlInputColumn">
+                
+                <h:inputText styleClass="input" style="width:450px;" value="#{resourceBean.url}">
+                  <p:ajax event="keyup" process="@this" 
+                    update="resourceForm:messages resourceForm:urlUploadButton" />
+                </h:inputText>
+                <p:commandButton id="urlUploadButton" value="#{msgs.UPLOAD}" 
+                  image="ui-icon ui-icon-arrowreturnthick-1-n" styleClass="button" 
+                  actionListener="#{resourceBean.handleUrlUpload}" immediate="true"
+                  update="@this resourceForm:messages resourceForm:resourceMimeType resourceForm:resourceCorrect resourceForm:resourcePreview resourceForm:saveButton" 
+                  disabled="#{!resourceBean.uploadURLEnabled}" />
+              </h:panelGrid>
+            </h:panelGroup>
+            <h:panelGroup id="resourceCorrect">
+              <h:graphicImage id="resourceCorrectImage" styleClass="icon" url="/resources/images/ok.png" 
+                rendered="#{resourceBean.uploaded}" />
+              <p:tooltip for="resourceCorrectImage">
+                #{msgs.UPLOAD_SUCCESS}
+              </p:tooltip>
+            </h:panelGroup>
+          </h:panelGrid>
+          <h:panelGrid columns="2" cellpadding="5" columnClasses="labelColumn,fieldColumn">
+            #{msgs.CATEGORY}
+            <p:selectOneMenu id="resourceCategoryId" styleClass="combo" style="width:600px;"
+              value="#{resourceBean.resourceCategoryId}" var="resourceCategoryId">
+              
+              <p:ajax process="@this" update="resourceForm:saveButton" />
+              <f:selectItems value="#{resourceBean.resourcesCategories}" var="cat" 
+                itemLabel="#{resourceBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+              <p:column>
+                #{resourceBean.getLocalizedCategoryLongName(resourceCategoryId,65)}
+              </p:column>
+            </p:selectOneMenu>
+            #{msgs.COPYRIGHT}
+            <p:selectOneMenu id="resourceCopyright" styleClass="combo" style="width:500px;" 
+              value="#{resourceBean.resourceCopyrightId}">
+              
+              <f:selectItems value="#{resourceBean.copyrights}" var="cop" itemLabel="#{msgs[cop.copyright]}" 
+                itemValue="#{cop.id}" />
+            </p:selectOneMenu>
+            #{msgs.MIME_TYPE}
+            <p:selectOneMenu id="resourceMimeType" styleClass="combo" style="width:200px;" 
+              value="#{resourceBean.resourceMimeType}">
+              
+              <f:selectItems value="#{resourcesService.supportedMIMETypes}" var="mimeType" 
+                itemLabel="#{mimeType}" itemValue="#{mimeType}" />
+            </p:selectOneMenu>
+	  	  </h:panelGrid>
+          <h:panelGroup id="resourcePreview" styleClass="resourcePreview" layout="block">
+            <h:panelGroup styleClass="resourcePreviewSpan">
+              <h:panelGroup styleClass="resourcePreviewContent">
+                <h:graphicImage value="#{resourceBean.resourcePreview}" 
+                  width="#{resourceBean.resourcePreviewWidth}" height="#{resourceBean.resourcePreviewHeight}" 
+                  rendered="#{resourceBean.resourcePreview!=null}" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGroup>
+          <h:panelGroup styleClass="centerAlign" layout="block">
+            <p:commandButton id="saveButton" value="#{msgs.SAVE}" image="ui-icon ui-icon-disk" 
+              styleClass="button" ajax="false" action="#{resourceBean.saveResource}" 
+              disabled="#{!resourceBean.saveEnabled}" />
+            <p:commandButton id="cancelButton" ajax="false" value="#{msgs.CANCEL}" image="ui-icon ui-icon-cancel" 
+              styleClass="button" style="margin-left:5px;" action="#{resourceBean.cancel}" />
+          </h:panelGroup>
+	  	</h:form>
+	  </p:panel>
+	  
+      <p:dialog widgetVar="confirmCancelResourceDialog" id="confirmCancelResourceDialog" styleClass="dialog" 
+        header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+        onShow="centerDialog('confirmCancelResourceDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs[resourceBean.confirmCancelResourceDialogMessage]}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" ajax="false" action="#{resourceBean.cancelResource}" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmCancelResourceDialog.hide();" type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+	</ui:define>
+  </ui:composition>
+  
+</html>

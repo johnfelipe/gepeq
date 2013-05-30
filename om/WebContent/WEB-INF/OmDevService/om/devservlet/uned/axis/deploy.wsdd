@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- Use this file to deploy some handlers/chains and services      --><!-- Two ways to do this:                                           --><!--   java org.apache.axis.client.AdminClient deploy.wsdd          --><!--      after the axis server is running                          --><!-- or                                                             --><!--   java org.apache.axis.utils.Admin client|server deploy.wsdd   --><!--      from the same directory that the Axis engine runs         --><deployment xmlns="http://xml.apache.org/axis/wsdd/" xmlns:java="http://xml.apache.org/axis/wsdd/providers/java">
+
+  <!-- Services from OmDevService WSDL service -->
+
+  <service name="OmDev" provider="java:RPC" style="wrapped" use="literal">
+      <parameter name="wsdlTargetNamespace" value="http://axis.uned.devservlet.om"/>
+      <parameter name="wsdlServiceElement" value="OmDevService"/>
+      <parameter name="schemaQualified" value="http://axis.uned.devservlet.om"/>
+      <parameter name="wsdlServicePort" value="OmDev"/>
+      <parameter name="className" value="om.devservlet.uned.axis.OmDev"/>
+      <parameter name="wsdlPortType" value="OmDev"/>
+      <parameter name="typeMappingVersion" value="1.2"/>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" name="createQuestion" qname="operNS:createQuestion" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:path" type="tns:string"/>
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:extraPackages" type="tns:string"/>
+      </operation>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="buildQuestion" qname="operNS:buildQuestion" returnQName="retNS:buildQuestionReturn" returnType="rtns:boolean" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+      </operation>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" name="deleteQuestion" qname="operNS:deleteQuestion" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+      </operation>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="existQuestionJar" qname="operNS:existQuestionJar" returnQName="retNS:existQuestionJarReturn" returnType="rtns:boolean" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+      </operation>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getQuestionJarLastModified" qname="operNS:getQuestionJarLastModified" returnQName="retNS:getQuestionJarLastModifiedReturn" returnType="rtns:long" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+      </operation>
+      <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="downloadQuestionJar" qname="operNS:downloadQuestionJar" returnQName="retNS:downloadQuestionJarReturn" returnType="rtns:string" soapAction="">
+        <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+      </operation>
+      <parameter name="allowedMethods" value="getQuestionJarLastModified deleteQuestion buildQuestion existQuestionJar createQuestion downloadQuestionJar"/>
+
+  </service>
+</deployment>

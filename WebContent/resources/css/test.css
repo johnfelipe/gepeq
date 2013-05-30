@@ -1,0 +1,1295 @@
+/* ©UNED */
+.questionsPickList .ui-picklist-list, .usersPickList .ui-picklist-list, .adminsPickList .ui-picklist-list {
+	width:310px;
+}
+
+.supportContactFilterUsersPickList .ui-picklist-list, .evaluatorFilterUsersPickList .ui-picklist-list {
+    width:300px;
+    height:120px;
+}
+
+.questionsOrderList .ui-orderlist-list {
+    width:400px;
+}
+
+.sectionsOrderList .ui-orderlist-list, .feedbacksOrderList .ui-orderlist-list {
+    width:690px;
+}
+
+.ui-wizard-content {
+	font-size:90%;
+}
+
+.ui-wizard-navbar {
+	font-size:75%;
+}
+
+.ui-wizard-step-title {
+	font-size:85%;
+}
+
+.ui-tabs-panel {
+	font-size:90%;
+	padding:0px;
+}
+
+.ui-tabs-nav {
+	font-size:75%;
+}
+
+.ui-spinner-input {
+    width:27px;
+}
+
+.panelTab {
+	width:99%;	
+}
+
+.ui-messages-error {
+	font-size:90% !important;
+}
+
+.ui-growl-message {
+    font-size:90% !important;
+}
+
+.noFilterTip {
+	width:100%;
+	height:245px;
+	text-align:center;
+}
+
+.noFilterTipSpan {
+    width:650px;
+    height:245px;
+}
+
+.noFilterTipContent {
+	width:650px;
+	height:245px;
+	display:table-cell;
+	text-align:center;
+	vertical-align:middle;
+}
+
+.noFilterTipText {
+    font-size:120%;
+    line-height:40px;
+}
+
+.userFilterTip {
+    width:100%;
+    height:200px;
+    text-align:center;
+}
+
+.userFilterTipSpan {
+    width:650px;
+    height:200px;
+}
+
+.userFilterTipContent {
+    width:650px;
+    height:200px;
+    display:table-cell;
+    text-align:center;
+    vertical-align:middle;
+}
+
+.userFilterTipText {
+    font-size:120%;
+    line-height:40px;
+}
+
+.dialog {
+	font-size:90% !important;
+}
+
+.dialogPanel {
+	vertical-align:middle; 
+	margin-bottom:5px;
+}
+
+.ui-selectonemenu-item {
+    font-size:85% !important;
+}
+
+.columnFeedbackSectionsLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+    vertical-align:middle;
+    text-align:left;
+}
+
+.columnFeedbackSectionsInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+.columnFeedbackConditionDisplayLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+    vertical-align:middle;
+    text-align:left;
+}
+
+.columnFeedbackConditionComparatorInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:200px;
+    vertical-align:middle;
+}
+
+.columnFeedbackConditionValues {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+.descriptionTextArea {
+    width:545px; 
+    height:40px;
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.accordion {
+	font-size:90% !important;
+	padding:0px;
+	margin:0px;
+}
+
+.topAlignRow {
+	vertical-align:top;
+	margin-top:10px;
+	margin-bottom:10px;
+}
+
+.categoryLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.categoryInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:410px;
+}
+
+.includeSubcategoriesLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.includeSubcategoriesInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.questionLevelLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.questionLevelInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.questionTypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.questionTypeInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.applyFilterButtonColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.roleLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.roleInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.includeOmUsersLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.includeOmUsersInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.applyUsersFilterButtonColumn {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.addressFilterTypeLabelColumn {
+	vertical-align:middle;
+	padding-top:8px;
+	padding-bottom:12px;
+	width:100px;
+}
+
+.addressFilterTypeInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.addressFilterSubtypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:60px;
+}
+
+.addressFilterSubtypeInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.filterRangeLowerLimitLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.filterRangeLowerLimitInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.filterRangeUpperLimitLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.filterRangeUpperLimitInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.addressLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.addressInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.sectionNameLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:60px;
+}
+
+.sectionNameInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:220px;
+}
+
+.sectionTitleLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.sectionTitleInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+/* ------------------------------- */
+/* Shuffle random inputs (Spanish) */
+/* ------------------------------- */
+.shuffleLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:280px;
+}
+
+.shuffleInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:55px;
+}
+
+.randomLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:250px;
+}
+
+.randomInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------- */
+
+/* ------------------------------- */
+/* Shuffle random inputs (English) */
+/* ------------------------------- */
+.shuffleLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.shuffleInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:140px;
+}
+
+.randomLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.randomInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------- */
+
+.randomQuantityTopGrid {
+	margin-top:-15px;
+	margin-bottom:-12px;
+    width:100%;
+}
+
+.randomQuantityLabel {
+    vertical-align:middle;
+    padding-left:5px;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:170px;
+}
+
+.randomQuantityInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.randomQuantityQuestionsNumber {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.questionsSectionButtonsGroup {
+	display:table-cell;
+	vertical-align:middle;
+	height:42px;
+}
+
+.firstColumnLabels {
+	padding-top:8px;
+	padding-bottom:12px;
+	width:80px;
+}
+
+/* ---------------------------- */
+/* Common data inputs (Spanish) */
+/* ---------------------------- */
+.columnLabelsGeneral, .columnDescriptionLabel, .columnAssessementLabel, .columnScoreTypeLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.columnAssessementInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnScoreTypeInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.columnInputsGeneral, .columnDescriptionInput, .columnAssessementTip, .columnScoreTypeTip {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnTestTitleLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.columnTestTitleInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.columnAuthorLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:50px;
+}
+
+.columnAuthorInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ---------------------------- */
+
+/* ---------------------------- */
+/* Common data inputs (English) */
+/* ---------------------------- */
+.columnLabelsGeneralEn, .columnDescriptionLabelEn, .columnAssessementLabelEn, .columnScoreTypeLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:100px;
+}
+
+.columnAssessementInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnScoreTypeInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.columnInputsGeneralEn, .columnDescriptionInputEn, .columnAssessementTipEn, .columnScoreTypeTipEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnTestTitleLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:100px;
+}
+
+.columnTestTitleInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.columnAuthorLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:50px;
+}
+
+.columnAuthorInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ---------------------------- */
+
+/* ------------------------------ */
+/* Configuration inputs (Spanish) */
+/* ------------------------------ */
+.columnConfigurationLabels {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:400px;
+}
+
+.columnConfigurationInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ------------------------------ */
+
+/* ------------------------------ */
+/* Configuration inputs (English) */
+/* ------------------------------ */
+.columnConfigurationLabelsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:310px;
+}
+
+.columnConfigurationInputsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ------------------------------ */
+
+/* ------------------------------------- */
+/* Allow user to do test input (Spanish) */
+/* ------------------------------------- */
+.columnAllUsersAllowedLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:320px;
+}
+
+.columnAllUsersAllowedInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/* Allow user to do test input (English) */
+/* ------------------------------------- */
+.columnAllUsersAllowedLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnAllUsersAllowedInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------------- */
+
+/* ----------------------------------- */
+/* Allow admin reports input (Spanish) */
+/* ----------------------------------- */
+.columnAllowAdminReportsLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:320px;
+}
+
+.columnAllowAdminReportsInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ----------------------------------- */
+
+/* ----------------------------------- */
+/* Allow admin reports input (English) */
+/* ----------------------------------- */
+.columnAllowAdminReportsLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.columnAllowAdminReportsInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ----------------------------------- */
+
+.columnRestrictDatesLabel, .columnRestrictFeedbackDateLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    padding-right:10px;
+}
+
+.columnRestrictDatesInput, .columnRestrictFeedbackDateInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+/* ------------------------- */
+/* Calendar inputs (Spanish) */
+/* ------------------------- */
+.columnDatesLeftLabels {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.columnDatesLeftInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesLeftResets {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.columnDatesRightLabels {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.columnDatesRightInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesRightResets {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnFeedbackDateLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:200px;
+}
+
+.columnFeedbackDateInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnFeedbackDateReset {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ------------------------- */
+
+/* -------------------------- */
+/* Calendar inputs  (English) */
+/* -------------------------- */
+.columnDatesLeftLabelsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnDatesLeftInputsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesLeftResetsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.columnDatesRightLabelsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.columnDatesRightInputsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesRightResetsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnFeedbackDateLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnFeedbackDateInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnFeedbackDateResetEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* -------------------------- */
+
+
+/* ------------------------- */
+/* Feedback scores (Spanish) */
+/* ------------------------- */
+.columnDisplayScoresLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.columnDisplayScoresInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------- */
+
+/* ------------------------- */
+/* Feedback scores (English) */
+/* ------------------------- */
+.columnDisplayScoresLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnDisplayScoresInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------- */
+
+.columnPresentationTitleLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:50px;
+}
+
+.columnPresentationTitleInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnPreliminarySummaryLabels {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnPreliminarySummaryInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDisplaySummaryLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.columnDisplaySummaryInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+
+.columnDisplaySummaryMarksLabel {
+	vertical-align:middle;
+	padding-top:8px;
+	padding-bottom:12px;
+	width:110px;
+}
+
+.columnDisplaySummaryMarksInput {
+	vertical-align:middle;
+	padding-top:8px;
+	padding-bottom:12px;
+	width:190px;
+}
+
+.columnDisplaySummaryAttemptsLabel {
+	vertical-align:middle;
+	padding-top:8px;
+	padding-bottom:12px;
+	width:270px;
+}
+
+.columnDisplaySummaryAttemptsInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDisplayScoresMarksLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnDisplayScoresMarksInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.columnDisplayScoresPercentagesLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.columnDisplayScoresPercentagesInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.button {
+	font-size:85% !important;
+}
+
+.allUsersAllowedGrid {
+    margin-bottom:-20px;
+}
+
+.usersTopGrid, .adminsTopGrid, .assessementTopGrid, .techSupportTopGrid {
+    width:100%;
+}
+
+.randomQuantityGridRow {
+	vertical-align:middle;
+	height:45px;
+}
+
+.usersLabel {
+    text-align:left;
+    width:340px;
+}
+
+.adminsLabel {
+    text-align:left;
+    width:140px;
+}
+
+.assessementLabel, .techSupportLabel {
+    text-align:left;
+    width:140px;
+}
+
+.usersButtons, .adminsButtons, .assessementAddressPanel, .techSupportAddressPanel, .questionsSectionButtons {
+    float:right;
+}
+
+.assessementAlignTop {
+    width:100%;
+    margin-top:0px; 
+    margin-bottom:5px;
+}
+
+.techSupportAlignTop {
+    width:100%;
+    margin-top:25px; 
+    margin-bottom:5px;
+}
+
+.advancedFeedbacksLeftAlignTop {
+    text-align:left;
+    width:100%;
+    margin-top:10px; 
+    margin-bottom:5px;
+}
+
+.advancedFeedbacksRightAlignTop {
+    text-align:right;
+    width:100%; 
+    margin-top:10px;
+    margin-bottom:5px;
+}
+
+.alignTop {
+    width:100%;
+    margin-top:10px; 
+    margin-bottom:5px;
+}
+
+.leftAlignTop {
+	text-align:left;
+    width:100%;
+    margin-top:0px; 
+    margin-bottom:5px;
+}
+
+.rightAlign {
+    text-align:right;  
+    width:100%; 
+}
+
+.rightAlignTop {
+	text-align:right;
+	width:100%; 
+	margin-top:-5px;
+	margin-bottom:5px;
+}
+
+.rightAlignBottom {
+	text-align:right;
+	width:100%;
+	margin-top:5px;
+	margin-bottom:-5px;
+}
+
+.rightAlignTopAccordion {
+	text-align:right;
+	width:100%;
+	margin-top:0px;
+	margin-bottom:-10px;
+}
+
+.centerAlignBottom {
+    text-align:center;  
+    width:100%; 
+    margin-top:5px;
+    margin-bottom:-5px;
+}
+
+.confirmButton {
+	font-size:80% !important;
+	margin-bottom:15px;
+}
+
+.confirmButtons {
+    margin:10px;
+    font-size:85% !important;
+}
+
+/* Tabla de preguntas */
+/* ------------------ */
+.questionsTable {
+	width:100%;
+}
+
+.headerRow {
+}
+
+.dataRow {
+	padding:5px;
+	margin:5px;
+}
+
+.columnOrder {
+	width:16px;
+	text-align:left;
+}
+
+.columnType {
+	width:16px;
+	text-align:left;
+}
+
+.columnName {
+    width:90px;
+}
+
+.columnCategory {
+    width:85px;
+}
+
+.columnAuthor {
+    width:60px;
+}
+
+.columnLevel {
+	width:50px;
+	text-align:center;
+}
+
+.columnIcon {
+	width:18px;
+	text-align:center;
+}
+
+.VERY_EASY {
+	background-color:green;
+	color:green;
+}
+
+.EASY {
+	background-color:blue;
+	color:blue;
+}
+
+.NORMAL {
+	background-color:yellow;
+	color:yellow;
+}
+
+.HARD {
+	background-color:orange;
+	color:orange;
+}
+
+.VERY_HARD {
+	background-color:red;
+	color:red;
+}
+
+.columnDate {
+	width:55px;
+	text-align:center;
+}
+
+.columnCondition {
+	width:210px;
+    text-align:left;
+}
+
+.columnContent {
+	width:305px;
+    text-align:left;
+}
+
+.columnWeight {
+    width:50px;
+    text-align:center;
+}
+
+.columnEdit {
+	width:16px;
+	text-align:left;
+}
+
+.columnDelete {
+	width:16px;
+	text-align:left;
+}
+
+.columnOM {
+	width:16px;
+	text-align:left;
+}
+
+.columnSectionName {
+	width:200px;
+	text-align:left;
+}
+
+.columnSectionQuestionsNumber {
+	width:100px;
+	text-align:left;
+}
+
+.columnSectionShuffle {
+	width:100px;
+	text-align:left;
+}
+
+.columnSectionRandom {
+    width:80px;
+    text-align:left;
+}
+
+.columnSectionQuestions {
+    text-align:left;
+}
+
+/* More tables */
+/* ----------- */
+.usersTable, .adminsTable, .addressesTable, .feedbacksTable {
+    width:100%;
+}
+
+.feedbackHtmlContentPreview {
+	max-height:150px;
+	overflow:auto;
+}
+
+.feedbackItemHtmlContentPreview {
+    max-height:50px;
+    overflow:hidden;
+}
+
+.columnFiltering {
+    width:260px;
+    text-align:left;
+}
+
+.columnAddress {
+    width:300px;
+}
+
+.columnUser {
+	width:210px;
+}
+
+.columnRole {
+	width:350px;
+}
+
+.columnOmUser {
+    width:16px;
+    text-align:left;
+}
+
+.columnUserPick {
+	width:150px;
+}
+
+.columnRolePick {
+	width:120px;
+}
+
+.columnOmUserPick {
+	text-align:center;
+}
+
+/** Modified styles for calendar control (default calendar control was too big) */
+.ui-datepicker-title {
+	font-size:90%;
+}
+
+.ui-datepicker {
+	width:200px;
+}
+
+.ui-datepicker table {
+	margin-bottom:0px;
+}
+
+.ui-datepicker th {
+    padding-bottom:0em;
+}
+
+.ui-datepicker td {
+	font-size:90%;
+}
+
+.ui-slider .ui-slider-handle {
+    width:0.2em;
+}
+
+.ui-timepicker-div {
+	font-size:90%;
+	margin-top:0px;
+}
+
+.ui-slider-horizontal .ui-slider-handle {
+    margin-left:-0.2em;
+}
+
+.ui-progressbar {
+	height:0.8em;
+}
+
+.ui-datepicker-buttonpane {
+	font-size:80%;
+}

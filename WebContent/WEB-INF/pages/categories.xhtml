@@ -1,0 +1,205 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml" 
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.CATEGORIES_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_categories.xhtml" />
+  </ui:define>
+  
+  <ui:define name="menu">
+    <ui:include src="/WEB-INF/pages/menu.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputStylesheet library="css" name="categories.css" />
+	
+    <h:form id="categoriesForm" onkeypress="preventEnterSubmit(event);">
+	  <p:panel id="categoriesFilterPanel" styleClass="categoriesFilterPanel">
+	    <h:panelGrid columns="7" columnClasses="#{categoriesBean.otherUsersCategoriesColumnClasses}">
+	      #{msgs.MY_CATEGORIES}
+	      <p:selectBooleanCheckbox id="displayMyCategories" value="#{categoriesBean.displayMyCategories}" />
+          #{msgs.GLOBAL_CATEGORIES}
+          <p:selectBooleanCheckbox id="displayGlobalCategories" value="#{categoriesBean.displayGlobalCategories}" 
+            disabled="#{!categoriesBean.filterGlobalCategoriesEnabled}" />
+          #{msgs.OTHER_USERS_CATEGORIES}
+          <h:panelGroup id="displayOtherUsersCategories">
+            <p:selectBooleanCheckbox id="displayOtherUsersCategoriesCheckbox" 
+              value="#{categoriesBean.displayOtherUsersCategoriesCheck}" 
+              disabled="#{!categoriesBean.filterOtherUsersCategoriesEnabled}" 
+              rendered="#{!categoriesBean.viewOtherUsersPrivateCategoriesEnabled}" />
+            <p:selectOneMenu id="displayOtherUsersCategoriesCombo" 
+              value="#{categoriesBean.displayOtherUsersCategoriesCombo}" style="width:90px;" styleClass="combo"
+              rendered="#{categoriesBean.viewOtherUsersPrivateCategoriesEnabled}">
+              
+              <f:selectItems value="#{categoriesBean.displayOtherUsersCategoriesChoices}" var="choice" 
+                itemLabel="#{msgs[choice.name]}" itemValue="#{choice.value}" />
+            </p:selectOneMenu>
+          </h:panelGroup>
+          <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+            actionListener="#{categoriesBean.applyCategoriesFilter}" immediate="true" 
+            update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" />
+	    </h:panelGrid>
+	  </p:panel>
+	  <p:panel id="categories" styleClass="categoriesPanel">
+        <p:messages id="messages" />
+        <p:focus for="categoryName" />
+        <h:panelGrid columns="2" cellpadding="10" styleClass="tabGrid" 
+          columnClasses="categoryColumn,controlsColumn">
+          
+          <h:panelGroup>
+            <h:panelGrid columns="2" style="width:290px;" 
+              columnClasses="categoriesLabelColumn,refreshButtonColumn">
+              
+              #{msgs.CATEGORIES}
+              <p:commandLink id="refreshButton" actionListener="#{categoriesBean.refreshTree}" immediate="true" 
+                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:categoriesFilterPanel categoriesForm:messages">
+                
+                <h:graphicImage id="refreshTreeImage" styleClass="links" 
+                  value="#{resource['images:reset.png']}" />
+                <p:tooltip for="refreshTreeImage">
+                  #{msgs.REFRESH}
+                </p:tooltip>
+              </p:commandLink>
+            </h:panelGrid>
+            <p:tree id="categoriesTree" value="#{categoriesBean.rootNode}" var="category" 
+              selectionMode="single" styleClass="tree" dynamic="false" cache="true" 
+              selection="#{categoriesBean.selectedNode}">
+              
+              <p:ajax event="select" listener="#{categoriesBean.onNodeSelect}" 
+                update="categoriesForm:categoryControlsPanelGroup categoriesForm:messages" />
+              <p:ajax event="expand" listener="#{categoriesBean.onNodeExpand}" update="@none" />
+              <p:ajax event="collapse" listener="#{categoriesBean.onNodeCollapse}" 
+                update="categoriesForm:categoryControlsPanelGroup" />
+              
+              <!-- NOTE: I don't like declaring p:treeNode components statically but it looks like that 
+                         p:tree doesn't support looping taglibs like ui:repeat -->
+              <p:treeNode type="CATEGORY_TYPE_GENERAL" 
+                icon="#{categoriesBean.getCategoryTypeIcon('CATEGORY_TYPE_GENERAL')}">
+                
+                <h:outputText value="#{categoriesBean.getCategoryNodeName(category)}" />
+              </p:treeNode>
+              <p:treeNode type="CATEGORY_TYPE_QUESTIONS"
+                icon="#{categoriesBean.getCategoryTypeIcon('CATEGORY_TYPE_QUESTIONS')}">
+                
+                <h:outputText value="#{categoriesBean.getCategoryNodeName(category)}" />
+              </p:treeNode>
+              <p:treeNode type="CATEGORY_TYPE_TESTS"
+                icon="#{categoriesBean.getCategoryTypeIcon('CATEGORY_TYPE_TESTS')}">
+                
+                <h:outputText value="#{categoriesBean.getCategoryNodeName(category)}" />
+              </p:treeNode>
+              <p:treeNode type="CATEGORY_TYPE_IMAGES"
+                icon="#{categoriesBean.getCategoryTypeIcon('CATEGORY_TYPE_IMAGES')}">
+                
+                <h:outputText value="#{categoriesBean.getCategoryNodeName(category)}" />
+              </p:treeNode>
+            </p:tree>
+          </h:panelGroup>
+          <h:panelGroup id="categoryControlsPanelGroup">
+            <h:panelGroup layout="block" styleClass="centerAlignBottom">
+              <p:commandButton id="displayModeButton" value="#{msgs.CATEGORY_DISPLAY_MODE}" 
+                image="ui-icon ui-icon-arrow-4-diag" styleClass="#{categoriesBean.displayModeButtonStyleClass}" 
+                actionListener="#{categoriesBean.selectDisplayMode}" immediate="true" 
+                update="categoriesForm:categoryControlsPanelGroup categoriesForm:messages" />
+              <p:commandButton id="editModeButton" value="#{msgs.CATEGORY_EDIT_MODE}" 
+                image="ui-icon ui-icon-pencil" styleClass="#{categoriesBean.editModeButtonStyleClass}" 
+                actionListener="#{categoriesBean.selectEditMode}" immediate="true" 
+                update="categoriesForm:categoryControlsPanelGroup categoriesForm:messages" 
+                disabled="#{!categoriesBean.enabledEditMode}" />
+              <p:commandButton id="addModeButton" value="#{msgs.CATEGORY_ADD_MODE}" 
+                image="ui-icon ui-icon-plus" styleClass="#{categoriesBean.addModeButtonStyleClass}" 
+                actionListener="#{categoriesBean.selectAddMode}" immediate="true" 
+                update="categoriesForm:categoryControlsPanelGroup categoriesForm:messages"
+                disabled="#{!categoriesBean.enabledAddMode}" />
+            </h:panelGroup>
+            <h:panelGrid columns="2" cellpadding="5" columnClasses="labelColumn,fieldColumn">
+              <h:outputText value="#{msgs.CATEGORY}" styleClass="label" />
+              <h:inputText id="categoryName" maxlength="30" value="#{categoriesBean.categoryDisplayName}" 
+                styleClass="#{categoriesBean.enabledCategoryName ? 'categoryName' : 'categoryName readonlyInput'}"
+                readonly="#{!categoriesBean.enabledCategoryName}">
+                
+                <p:ajax event="keyup" process="@this" update="categoriesForm:addButton categoriesForm:editButton" />
+              </h:inputText>
+              <h:outputText value="#{msgs.OWNER}" styleClass="label" 
+                rendered="#{categoriesBean.enabledCategoryUser}" />
+              <h:inputText id="categoryUser" value="#{categoriesBean.categoryUser}" readonly="true" 
+                styleClass="categoryUser readonlyInput" rendered="#{categoriesBean.enabledCategoryUser}" />
+              <h:outputText value="#{msgs.TYPE}" styleClass="label" />
+              <h:panelGroup id="categoryTypePanelGroup">
+                <p:selectOneMenu id="categoryType" styleClass="combo categoryType" 
+                  value="#{categoriesBean.categoryType}" rendered="#{categoriesBean.enabledCategoryType}">
+                  
+                  <f:selectItems value="#{categoriesBean.categoryTypes}" var="type" itemLabel="#{msgs[type]}"
+                    itemValue="#{type}" />
+                </p:selectOneMenu>
+                <h:inputText value="#{msgs[categoriesBean.categoryType]}" styleClass="categoryType readonlyInput" 
+                  readonly="true" rendered="#{!categoriesBean.enabledCategoryType}" />
+              </h:panelGroup>
+              <h:outputText value="#{msgs.VISIBILITY}" styleClass="label" />
+              <h:panelGroup id="categoryVisibilityPanelGroup">
+                <p:selectOneMenu id="categoryVisibility" styleClass="combo categoryVisibility" 
+                  value="#{categoriesBean.categoryVisibility}" 
+                  rendered="#{categoriesBean.enabledCategoryVisibility}">
+                  
+                  <f:selectItems value="#{categoriesBean.categoryVisibilities}" var="visibility" 
+                    itemLabel="#{msgs[visibility]}" itemValue="#{visibility}" />
+                </p:selectOneMenu>
+                <h:inputText value="#{msgs[categoriesBean.categoryVisibility]}" 
+                  styleClass="categoryVisibility readonlyInput" readonly="true" 
+                  rendered="#{!categoriesBean.enabledCategoryVisibility}"/>
+              </h:panelGroup>
+              <h:outputText value="#{msgs.DESCRIPTION}" styleClass="label" />
+              <p:inputTextarea id="categoryDescription" value="#{categoriesBean.categoryDescription}" 
+                styleClass="#{categoriesBean.enabledCategoryDescription ? 'categoryDescription' : 'categoryDescription readonlyInput' }" 
+                maxHeight="60" readonly="#{!categoriesBean.enabledCategoryDescription}" />
+              <h:outputText value="#{msgs.ADD}" rendered="#{categoriesBean.mode=='CATEGORY_ADD_MODE'}" />
+              <p:selectOneMenu id="categoryWhereToAdd" styleClass="combo categoryWhereToAdd" 
+                value="#{categoriesBean.whereToAdd}" rendered="#{categoriesBean.mode=='CATEGORY_ADD_MODE'}">
+                
+                <p:ajax process="@this" 
+                  update="categoriesForm:categoryTypePanelGroup categoriesForm:categoryVisibilityPanelGroup categoriesForm:addButton" />
+                <f:selectItems value="#{categoriesBean.whereToAddOptions}" var="whereToAddOption" 
+                  itemLabel="#{msgs[whereToAddOption]}" itemValue="#{whereToAddOption}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+            <h:panelGroup layout="block" styleClass="centerAlignBottom" 
+              rendered="#{categoriesBean.mode=='CATEGORY_EDIT_MODE'}">
+              
+              <p:commandButton id="editButton" value="#{msgs.EDIT}" image="ui-icon ui-icon-disk" 
+                styleClass="button" actionListener="#{categoriesBean.updateCategory}" 
+                process="@this categoriesForm:categoryName categoriesForm:categoryType categoriesForm:categoryVisibility categoriesForm:categoryDescription" 
+                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" 
+                disabled="#{!categoriesBean.enabledUpdate}"/>
+              <p:commandButton id="deleteButton" value="#{msgs.DELETE}" image="ui-icon ui-icon-minus" 
+                styleClass="button" actionListener="#{categoriesBean.deleteCategory}" 
+                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" 
+                disabled="#{!categoriesBean.enabledDelete}" />
+            </h:panelGroup>
+            <h:panelGroup layout="block" styleClass="centerAlignBottom" 
+              rendered="#{categoriesBean.mode=='CATEGORY_ADD_MODE'}">
+              
+              <p:commandButton id="addButton" value="#{msgs.ADD}" image="ui-icon ui-icon-plus" 
+                styleClass="button" actionListener="#{categoriesBean.addCategory}" 
+                process="@this categoriesForm:categoryName categoriesForm:categoryType categoriesForm:categoryVisibility categoriesForm:categoryDescription categoriesForm:categoryWhereToAdd" 
+                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" 
+                disabled="#{!categoriesBean.enabledAdd}" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:panelGrid>
+	  </p:panel>
+    </h:form>
+  </ui:define>
+</ui:composition>
+</html>

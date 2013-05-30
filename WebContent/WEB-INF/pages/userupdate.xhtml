@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.EDIT_USER_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_user.xhtml" />
+  </ui:define>
+  
+  <ui:define name="menu">
+    <ui:include src="/WEB-INF/pages/menu_user.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+	<h:outputStylesheet library="css" name="user.css" />	
+    
+    <h:form id="userForm" onkeypress="preventEnterSubmit(event);">
+      <p:tabView id="userFormTabs">
+        <p:ajax event="tabChange" listener="#{userBean.changeActiveUserTab}" process="@this" 
+          update="@this userForm:userFormTabs:confirmPassword userForm:userFormTabs:generalMessages userForm:userFormTabs:permissionsMessages" />
+        <p:tab id="general" title="#{msgs.COMMON_DATA}">
+          <p:messages id="generalMessages" rendered="#{userBean.activeUserTabName=='general'}" />        
+          <h:panelGrid columns="2" cellpadding="5" columnClasses="commonDataLabels,commonDataInputs">
+            #{msgs.USER_LOGIN}
+            <h:inputText id="userLogin" style="width:200px;" value="#{userBean.user.login}" maxlength="15" 
+              readonly="true" styleClass="readonlyInput" />
+            #{msgs.CHANGE_PASSWORD}
+            <p:selectBooleanCheckbox id="changePassword" value="#{userBean.changePassword}">
+              <p:ajax listener="#{userBean.changePassword}" process="@this" 
+                update="userForm:userFormTabs:changePasswordPanelGroup" />
+            </p:selectBooleanCheckbox>
+          </h:panelGrid>
+          <h:panelGroup id="changePasswordPanelGroup">
+            <ui:fragment rendered="#{userBean.changePassword}">
+              <h:panelGrid columns="2" cellpadding="5" columnClasses="commonDataLabels,commonDataInputs">
+                #{msgs.NEW_PASSWORD}
+                <h:inputSecret id="userPassword" style="width:540px;" redisplay="true" 
+                  value="#{userBean.user.password}" maxlength="100" />
+                #{msgs.CONFIRM_PASSWORD}
+                <h:inputSecret id="confirmPassword" style="width:540px;" redisplay="true" 
+                  value="#{userBean.confirmPassword}" maxlength="100" />
+              </h:panelGrid>
+            </ui:fragment>
+          </h:panelGroup>
+          <h:panelGrid columns="2" cellpadding="5" columnClasses="commonDataLabels,commonDataInputs">
+            #{msgs.USER_NICK}
+            <h:inputText id="userNick" style="width:200px;" value="#{userBean.user.nick}" maxlength="15" />
+            #{msgs.USER_NAME}
+            <h:inputText id="userName" style="width:540px;" value="#{userBean.user.name}" maxlength="50" />
+            #{msgs.USER_SURNAME}
+            <h:inputText id="userSurname" style="width:540px;" value="#{userBean.user.surname}" 
+              maxlength="80" />
+            #{msgs.APPLICATION}
+            <h:inputText id="userApplication" value="#{userBean.userApplication}" style="width:310px;"
+              readonly="true" />
+            <h:outputText value="#{msgs.ROLE}" rendered="#{userBean.user.gepeqUser}" />
+            <p:selectOneMenu id="userUserType" value="#{userBean.userTypeId}" style="width:310px;" 
+              styleClass="combo" rendered="#{userBean.user.gepeqUser}">                
+              
+              <p:ajax listener="#{userBean.changeRole}" process="@this" 
+                update="roleDescription userForm:userFormTabs:permissionsTable" />
+              <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{0}" />
+              <f:selectItems value="#{userBean.userTypesIds}" var="userTypeId" 
+                itemLabel="#{userBean.getUserTypeString(userTypeId)}" itemValue="#{userTypeId}" />
+            </p:selectOneMenu>
+            <h:outputText value="&amp;nbsp;" rendered="#{userBean.user.gepeqUser}" escape="false"/>
+            <h:outputText id="roleDescription" 
+              value="#{userBean.breakText(userBean.abbreviate(userBean.abbreviateWords(userBean.userTypeDescription,45),135),3)}" 
+              escape="false" rendered="#{userBean.user.gepeqUser}" />
+          </h:panelGrid>
+          <h:panelGroup layout="block" styleClass="rightAlign" style="margin-top:-10px;margin-bottom:-10px;">
+            <p:commandButton value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
+              image="ui-icon ui-icon-disk" action="#{userBean.saveUser}" />
+            <p:commandButton value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
+              image="ui-icon ui-icon-cancel" action="administration" />
+          </h:panelGroup>
+        </p:tab>
+        <p:tab id="permissions" title="#{msgs.PERMISSIONS}" rendered="#{userBean.user.gepeqUser}">
+          <p:messages id="permissionsMessages" rendered="#{userBean.activeUserTabName=='permissions'}" />        
+          <p:dataTable id="permissionsTable" styleClass="permissionsTable" rowStyleClass="dataRow" 
+            emptyMessage="#{msgs.NO_PERMISSIONS}" value="#{userBean.permissions}" var="permission" 
+            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            
+            <p:ajax event="rowEdit" listener="#{userBean.changePermission}" update="permissionStatus" />
+            
+            <p:column styleClass="columnPermission" sortBy="#{msgs[permission.permission.name]}">
+              <f:facet name="header">#{msgs.PERMISSION}</f:facet>
+              #{msgs[permission.permission.name]}
+            </p:column>
+            <p:column styleClass="columnStatus" 
+              sortBy="#{userBean.getLocalizedPermissionValueType(permission)}">
+              
+              <f:facet name="header">#{msgs.STATUS}</f:facet>
+              <h:outputText id="permissionStatus" 
+                value="#{userBean.getLocalizedPermissionValueType(permission)}" />
+            </p:column>
+            <p:column styleClass="columnType" sortBy="#{msgs[permission.permission.permissionType.type]}">
+              <f:facet name="header">#{msgs.TYPE}</f:facet>
+              #{msgs[permission.permission.permissionType.type]}
+            </p:column>
+            <p:column styleClass="columnValue" sortBy="#{userBean.getLocalizedPermissionValue(permission)}">
+              <f:facet name="header">#{msgs.VALUE}</f:facet>
+              <p:cellEditor>
+                <f:facet name="output">
+                  <h:outputText id="permissionValueOutput" 
+                    value="#{userBean.getLocalizedPermissionValue(permission)}" />
+                </f:facet>
+                <f:facet name="input">
+                  <ui:fragment rendered="#{permission.permission.permissionType.type=='PERMISSION_TYPE_BOOLEAN'}">
+                    <p:selectOneMenu id="permissionValueBooleanInput" value="#{permission.value}" 
+                      styleClass="combo">
+                      
+                      <f:selectItems value="#{userBean.getBooleanPermissionValues(permission.permission)}" 
+                        var="booleanPermValue" 
+                        itemLabel="#{userBean.getLocalizedBooleanPermissionValue(booleanPermValue)}" 
+                        itemValue="#{booleanPermValue}" />
+                    </p:selectOneMenu>
+                  </ui:fragment>
+                  <ui:fragment rendered="#{permission.permission.permissionType.type=='PERMISSION_TYPE_INT'}">
+                    <p:spinner id="permissionValueIntInput" value="#{permission.value}" max="2147483647" 
+                      style="width:100px;" converter="SpinnerStringConverter">
+                        
+                      <p:ajax process="@this" update="@this" />
+                    </p:spinner>
+                  </ui:fragment>
+                  <ui:fragment rendered="#{permission.permission.permissionType.type=='PERMISSION_TYPE_STRING'}">
+                    <h:inputText id="permissionValueStringInput" value="#{permission.value}" 
+                      style="width:100px;" />
+                  </ui:fragment>
+                </f:facet>
+              </p:cellEditor>
+            </p:column>
+            <p:column styleClass="columnEdit">
+              <p:rowEditor />
+            </p:column>
+            <p:column styleClass="columnReset">
+              <p:commandLink immediate="true" actionListener="#{userBean.resetPermission}" 
+                update="permissionStatus permissionValueOutput permissionValueBooleanInput permissionValueIntInput permissionValueStringInput">
+                
+                <f:attribute name="permission" value="#{permission}" />
+                <h:panelGroup styleClass="ui-icon ui-icon-circle-close" />
+              </p:commandLink>
+            </p:column>
+          </p:dataTable>
+          <h:panelGroup layout="block" styleClass="rightAlign" style="margin-top:7px;margin-bottom:-10px;">
+            <p:commandButton value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
+              image="ui-icon ui-icon-disk" action="#{userBean.saveUser}" />
+            <p:commandButton value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
+              image="ui-icon ui-icon-cancel" action="administration" />
+          </h:panelGroup>
+        </p:tab>
+      </p:tabView>
+	</h:form>
+	
+    <p:dialog widgetVar="confirmCancelUserDialog" id="confirmCancelUserDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+      onShow="centerDialog('confirmCancelUserDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_CANCEL_USER_UPDATE}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" ajax="false" action="#{userBean.cancelUser}" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmCancelUserDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+  </ui:define>
+</ui:composition>
+</html>

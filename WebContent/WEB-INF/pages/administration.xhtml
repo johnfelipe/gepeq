@@ -1,0 +1,220 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.ADMINISTRATION_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_administration.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputStylesheet library="css" name="administration.css" />
+    
+    <h:form id="administrationForm" onkeypress="preventEnterSubmit(event);">
+      <p:messages id="messages"/>
+      <h:panelGroup layout="block" styleClass="ui-messages ui-widget" 
+        rendered="#{!administrationBean.isAdminEnabled()}">
+        
+        <h:panelGroup layout="block" styleClass="ui-messages-error ui-corner-all">
+          <h:panelGroup styleClass="ui-messages-error-icon" />
+          <ul>
+            <li>
+              <h:panelGroup styleClass="ui-messages-error-summary">
+                #{msgs.ADMINISTRATION_INSUFFICIENT_PERMISSIONS_ERROR}
+              </h:panelGroup>
+            </li>
+          </ul>
+        </h:panelGroup>
+      </h:panelGroup>
+      <p:tabView id="administrationTabs" rendered="#{administrationBean.isAdminEnabled()}">
+        <p:tab id="usersTab" title="#{msgs.USERS}" rendered="#{administrationBean.isAdminUsersEnabled()}">
+          <h:inputHidden value="#{administrationBean.userId}" />
+          
+          <p:panel id="usersFilterPanel" styleClass="filterPanel">
+            <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnRoleLabel,columnRoleInput,columnIncludeOmUsersLabel,columnIncludeOmUsersInput,columnApplyFilterButton')}">
+              #{msgs.ROLE}
+              <p:selectOneMenu id="filterRoleId" styleClass="combo" style="width:230px;" 
+                value="#{administrationBean.filterUserTypeId}">
+                
+                <p:ajax event="change" process="administrationForm:administrationTabs:usersFilterPanel" 
+                  update="administrationForm:administrationTabs:usersFilterPanel" /> 
+                <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                <f:selectItems value="#{administrationBean.userTypes}" var="userType" 
+                  itemLabel="#{userType.type}" itemValue="#{userType.id}" />
+              </p:selectOneMenu>
+              <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                rendered="#{administrationBean.filterUserTypeId&lt;=0}" />
+              <p:selectBooleanCheckbox id="includeOmUsers" 
+                value="#{administrationBean.filterIncludeOmUsers}" 
+                rendered="#{administrationBean.filterUserTypeId&lt;=0}" />
+              <h:outputText value="" rendered="#{administrationBean.filterUserTypeId&gt;0}" />
+              <h:outputText value="" rendered="#{administrationBean.filterUserTypeId&gt;0}" />
+              <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                actionListener="#{administrationBean.applyUsersFilter}" 
+                process="administrationForm:administrationTabs:usersFilterPanel" 
+                update="administrationForm:messages administrationForm:administrationTabs:usersTable" />
+            </h:panelGrid>
+          </p:panel>
+          
+          <h:panelGroup layout="block" styleClass="newUserButton">
+            <p:commandButton id="newUserButton" value="#{msgs.NEW_USER}" styleClass="button" 
+              action="#{administrationBean.addUser}" ajax="false" image="ui-icon ui-icon-plus" 
+              disabled="#{!administrationBean.isAddUsersEnabled()}" />
+          </h:panelGroup>
+          
+          <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
+            emptyMessage="#{msgs.NO_USER}" value="#{administrationBean.users}" var="user"
+            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}" 
+            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            
+            <p:column styleClass="columnLogin" sortBy="#{user.login}">
+              <f:facet name="header">#{msgs.USER}</f:facet>
+              #{user.login}
+            </p:column>
+            <p:column styleClass="columnNick" sortBy="#{user.nick}">
+              <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+              #{user.nick}
+            </p:column>
+            <p:column styleClass="columnName" sortBy="#{user.name}">
+              <f:facet name="header">#{msgs.USER_NAME}</f:facet>
+              <h:outputText id="userName" value="#{user.name}" />
+              <p:tooltip for="userName">
+                #{user.longName}
+              </p:tooltip>
+            </p:column>
+            <p:column styleClass="columnRole" sortBy="#{user.userType.type}">
+              <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+              <h:outputText id="userTypeDescription" 
+                value="#{administrationBean.getUserTypeType(user.userType)}" />
+              <p:tooltip for="userTypeDescription" style="max-width:330px;">
+                <h:outputText value="#{administrationBean.breakText(administrationBean.abbreviate(administrationBean.abbreviateWords(administrationBean.getUserTypeDescription(user.userType),25),210),5)}" 
+                  escape="false" />
+              </p:tooltip>
+            </p:column>
+            <p:column styleClass="columnOmUser">
+              <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                rendered="#{!user.gepeqUser}" />
+            </p:column>
+            <p:column styleClass="columnEdit">
+              <h:commandLink action="#{administrationBean.editUser}"
+                rendered="#{administrationBean.isEditUserAllowed(user)}">
+                
+                <f:param name="userId" value="#{user.id}" />
+                <h:graphicImage id="editUserImage" styleClass="links" value="#{resource['images:edit16.png']}" />
+                <p:tooltip for="editUserImage">
+                  #{msgs.EDIT_USER}
+                </p:tooltip>
+              </h:commandLink>
+            </p:column>
+            <p:column styleClass="columnDelete">
+              <p:commandLink update=":confirmDialog" actionListener="#{administrationBean.confirm}" 
+                rendered="#{administrationBean.isDeleteUserAllowed(user)}">
+                
+                <f:attribute name="userId" value="#{user.id}" />
+                <h:graphicImage id="deleteUserImage" styleClass="links" 
+                  value="#{resource['images:delete.png']}" />
+                <p:tooltip for="deleteUserImage">
+                  #{msgs.DELETE_USER}
+                </p:tooltip>
+              </p:commandLink>
+            </p:column>
+          </p:dataTable>
+        </p:tab>
+        <p:tab id="rolesTab" title="#{msgs.ROLES}" rendered="#{administrationBean.isAdminUserTypesEnabled()}">
+          <h:inputHidden value="#{administrationBean.userTypeId}" />
+          
+          <h:panelGroup layout="block" styleClass="newRoleButton">
+            <p:commandButton id="newRoleButton" value="#{msgs.NEW_ROLE}" styleClass="button" 
+              action="#{administrationBean.addUserType}" ajax="false" image="ui-icon ui-icon-plus" 
+              disabled="#{!administrationBean.isAddUserTypesEnabled()}" />
+          </h:panelGroup>
+          
+          <p:dataTable id="rolesTable" styleClass="rolesTable" rowStyleClass="dataRow" 
+            emptyMessage="#{msgs.NO_ROLES}" value="#{administrationBean.userTypes}" var="userType" 
+            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            
+            <p:column styleClass="columnRole" sortBy="#{userType.type}">
+              <f:facet name="header">#{msgs.ROLE}</f:facet>
+              #{userType.type}
+            </p:column>
+            <p:column styleClass="columnDescription" sortBy="#{userType.description}">
+              <f:facet name="header">#{msgs.DESCRIPTION}</f:facet>
+              <h:outputText value="#{administrationBean.breakText(administrationBean.abbreviate(administrationBean.abbreviateWords(administrationBean.getUserTypeDescription(userType),42),420),6)}" 
+                escape="false" />
+            </p:column>
+            <p:column styleClass="columnEdit">
+              <h:commandLink action="#{administrationBean.editUserType}" 
+                rendered="#{administrationBean.isEditUserTypeAllowed(userType)}">
+                
+                <f:param name="userTypeId" value="#{userType.id}" />
+                <h:graphicImage id="editRoleImage" styleClass="links" value="#{resource['images:edit16.png']}" />
+                <p:tooltip for="editRoleImage">
+                  #{msgs.EDIT_ROLE}
+                </p:tooltip>
+              </h:commandLink>
+            </p:column>
+            <p:column styleClass="columnDelete">
+              <p:commandLink update=":confirmDialog" actionListener="#{administrationBean.confirm}" 
+                rendered="#{administrationBean.isDeleteUserTypeAllowed(userType)}">
+                
+                <f:attribute name="userTypeId" value="#{userType.id}" />
+                <h:graphicImage id="deleteRoleImage" styleClass="links" 
+                  value="#{resource['images:delete.png']}" />
+                <p:tooltip for="deleteRoleImage">
+                  #{msgs.DELETE_ROLE}
+                </p:tooltip>
+              </p:commandLink>
+            </p:column>
+          </p:dataTable>
+        </p:tab>
+      </p:tabView>
+    </h:form>
+    
+    <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+         some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+         Moreover p:dialog provides more control... for example forcing user to click a button 
+         to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+         some actions after user interaction even on cancel. -->
+    
+    <p:dialog widgetVar="confirmDialog" id="confirmDialog" styleClass="dialog" header="#{msgs.CONFIRM}" 
+      modal="true" closable="false" draggable="false" resizable="false" onShow="centerDialog('confirmDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{administrationBean.confirmMessage}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
+              actionListener="#{administrationBean.deleteUser}" 
+              update="administrationForm:messages administrationForm:administrationTabs:newUserButton administrationForm:administrationTabs:usersTable" 
+              rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_USER'}" />
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
+              actionListener="#{administrationBean.deleteUserType}" 
+              update="administrationForm:messages administrationForm:administrationTabs:newRoleButton administrationForm:administrationTabs:rolesTable" 
+              rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_ROLE'}" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>
+
+</html>

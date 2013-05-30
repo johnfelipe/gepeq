@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+    
+<ui:composition>
+  <h:form id="changeLocaleForm" styleClass="changeLocaleForm">
+    <p:selectOneMenu id="langCode" value="#{localeBean.langCode}" var="locale" styleClass="localeCombo">
+      <f:selectItems value="#{localeBean.locales}" var="l" itemValue="#{l}"
+        itemLabel="#{localeBean.getDisplayLanguage(l)}" />
+      <p:column styleClass="columnLevel"> 
+        <p:graphicImage value="/resources/images/#{locale}.png" width="32" height="16" />
+      </p:column>
+      <p:column>  
+        #{localeBean.getDisplayLanguage(locale)}
+      </p:column>
+    </p:selectOneMenu>
+    <p:commandLink process="@this changeLocaleForm:langCode" actionListener="#{testsBean.changeLocale}" 
+      action="#{localeBean.changeLangCode}" styleClass="localeButton" oncomplete="submitForm('testsForm');">
+      
+      <h:graphicImage id="changeLangCodeImage" styleClass="links" value="#{resource['images:reset.png']}" />
+      <p:tooltip for="changeLangCodeImage">
+        #{msgs.CHANGE_LANG}
+      </p:tooltip>
+    </p:commandLink>
+  </h:form>
+</ui:composition>
+</html>

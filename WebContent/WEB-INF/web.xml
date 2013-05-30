@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="GePEC" version="2.5">
+  <description>Generador automático de pruebas de evaluación continua UNED 2011</description>
+  <display-name>Generador de pruebas de evaluación continua</display-name>
+  <context-param>
+    <param-name>javax.faces.DEFAULT_SUFFIX</param-name>
+    <param-value>.xhtml</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.FACELETS_DEVELOPMENT</param-name>
+    <param-value>false</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.FACELETS_REFRESH_PERIOD</param-name>
+    <param-value>1</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.FACELETS_SKIP_COMMENTS</param-name>
+    <param-value>true</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.LIBRARIES</param-name>
+    <param-value>/components/gepec.taglib.xml</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.PROJECT_STAGE</param-name>
+    <param-value>Development</param-value>
+  </context-param>
+  <context-param>
+    <description>State saving method: 'client' or 'server' (=default). See JSF Specification 2.5.2</description>
+    <param-name>javax.faces.STATE_SAVING_METHOD</param-name>
+    <param-value>server</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.servlet.jsp.jstl.fmt.localizationContext</param-name>
+    <param-value>resources.application</param-value>
+  </context-param>
+  <context-param>
+    <param-name>primefaces.THEME</param-name>
+    <param-value>#{themeSwitcherBean.theme}</param-value>
+  </context-param>
+  <context-param>
+    <param-name>primefaces.THEME_FORMS</param-name>
+    <param-value>false</param-value>
+  </context-param>
+  <context-param>
+    <param-name>com.sun.faces.expressionFactory</param-name>
+    <param-value>org.jboss.el.ExpressionFactoryImpl</param-value>
+  </context-param>
+  <context-param>
+    <param-name>javax.faces.DATETIMECONVERTER_DEFAULT_TIMEZONE_IS_SYSTEM_TIMEZONE</param-name>
+    <param-value>true</param-value>
+  </context-param>
+  <filter>
+    <filter-name>PrimeFaces FileUpload Filter</filter-name>
+    <filter-class>org.primefaces.webapp.filter.FileUploadFilter</filter-class>
+    <init-param>
+      <param-name>thresholdSize</param-name>
+      <param-value>2097152</param-value>
+    </init-param>
+  </filter>
+  <filter-mapping>
+    <filter-name>PrimeFaces FileUpload Filter</filter-name>
+    <servlet-name>Faces Servlet</servlet-name>
+  </filter-mapping>
+  <filter>
+    <display-name>Encoding Filter</display-name>
+    <filter-name>Encoding Filter</filter-name>
+    <filter-class>es.uned.lsi.gepec.web.filters.EncodingFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>Encoding Filter</filter-name>
+    <servlet-name>Faces Servlet</servlet-name>
+  </filter-mapping>
+  <servlet>
+    <servlet-name>Faces Servlet</servlet-name>
+    <servlet-class>javax.faces.webapp.FacesServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Faces Servlet</servlet-name>
+    <url-pattern>*.jsf</url-pattern>
+    <url-pattern>/faces/*</url-pattern>
+  </servlet-mapping>
+  <welcome-file-list>
+    <welcome-file>index.jsp</welcome-file>
+  </welcome-file-list>
+  <error-page>
+    <error-code>404</error-code>
+    <location>/WEB-INF/pages/error404.jsp</location>
+  </error-page>
+  <error-page>
+    <error-code>500</error-code>
+    <location>/WEB-INF/pages/error500.jsp</location>
+  </error-page>
+  <error-page>
+    <exception-type>javax.faces.application.ViewExpiredException</exception-type>
+    <location>/WEB-INF/pages/error_expired.jsp</location>
+  </error-page>
+</web-app>

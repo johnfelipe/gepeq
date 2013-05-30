@@ -1,0 +1,1855 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.ADD_TEST_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_test.xhtml" />
+  </ui:define>
+  
+  <ui:define name="menu">
+    <ui:include src="/WEB-INF/pages/menu_test.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputScript library="javascript" name="om.js" />
+    <h:outputScript library="javascript" name="calendar_locales.js" />    
+    <h:outputScript library="javascript" name="test.js" />
+	<h:outputStylesheet library="css" name="test.css" />	
+    
+    <h:form id="testForm"  onkeypress="preventEnterSubmit(event);">
+      <p:wizard id="testFormWizard" backLabel="#{msgs.PREV}" nextLabel="#{msgs.NEXT}" backProcess="true" 
+        flowListener="#{testBean.changeStep}">
+        
+        <p:tab id="general" title="#{msgs.COMMON_DATA}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="generalMessages" rendered="#{testBean.activeTestTabName=='general'}" />
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnLabelsGeneral,columnInputsGeneral')}">
+              
+              #{msgs.TEST_NAME}
+              <h:inputText id="nameInput" style="width:545px;" maxlength="50" value="#{testBean.name}" />
+              #{msgs.CATEGORY}
+              <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:545px;" 
+                value="#{testBean.categoryId}" var="testCategoryId">
+                
+                <f:selectItems value="#{testBean.testsCategoriesIds}" var="catId" 
+                  itemLabel="#{testBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                <p:column>
+                  #{testBean.getLocalizedCategoryLongName(testCategoryId,65)}
+                </p:column>
+              </p:selectOneMenu>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnTestTitleLabel,columnTestTitleInput')}">
+              
+              #{msgs.TEST_TITLE}
+              <h:inputText id="titleInput" style="width:230px;" maxlength="25" value="#{testBean.title}" />
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnDescriptionLabel,columnDescriptionInput')}">
+              
+              #{msgs.DESCRIPTION}
+              <p:inputTextarea id="descriptionInput" value="#{testBean.description}" maxHeight="100" 
+                styleClass="descriptionTextArea" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAssessementLabel,columnAssessementInput,columnAssessementTip')}">
+              
+              #{msgs.ASSESSEMENT}
+              <p:selectOneMenu id="assessementInput" styleClass="combo" style="width:200px;" 
+                value="#{testBean.assessementId}">
+                
+                <p:ajax process="@this" update="assessementTip" />
+                <f:selectItems value="#{testBean.assessements}" var="assessement" 
+                  itemLabel="#{msgs[assessement.type]}" itemValue="#{assessement.id}" />
+              </p:selectOneMenu>
+              <h:outputText id="assessementTip" value="#{testBean.assessementTip}" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnScoreTypeLabel,columnScoreTypeInput,columnScoreTypeTip')}">
+              
+              #{msgs.SCORE}
+              <p:selectOneMenu id="scoreTypeInput" styleClass="combo" style="width:140px;"
+                value="#{testBean.scoreTypeId}">
+                
+                <f:attribute name="property" value="scoreType" />
+                <p:ajax listener="#{testBean.changeProperty}" process="@this" 
+                  update="scoreTypeTip testForm:sectionsAccordion" />
+                <f:selectItems value="#{testBean.scoreTypes}" var="scoreType" 
+                  itemLabel="#{msgs[scoreType.type]}" itemValue="#{scoreType.id}" />
+              </p:selectOneMenu>
+              <h:outputText id="scoreTypeTip" value="#{testBean.scoreTypeTip}" />
+            </h:panelGrid>
+            <p:accordionPanel id="generalAccordion" styleClass="accordion" style="margin-top:5px;">
+              <p:ajax event="tabChange" listener="#{testBean.changeActiveGeneralTab}" 
+                update="@this testForm:generalMessages" />
+              <p:tab title="#{msgs.USERS}">
+                <h:panelGrid columns="2" cellpadding="5" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnAllUsersAllowedLabel,columnAllUsersAllowedInput')}" 
+                  styleClass="allUsersAllowedGrid" rowClasses="topAlignRow">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.ALLUSERSALLOWED_LABEL}" />
+                  <p:selectBooleanCheckbox id="allUsersAllowed" value="#{testBean.allUsersAllowed}">
+                    <f:attribute name="property" value="allUsersAllowed" />
+                    <p:ajax listener="#{testBean.changeProperty}" 
+                      process="@this testForm:generalAccordion:allowAdminReports" 
+                      update="testForm:generalAccordion:usersPanelGroup" />
+                  </p:selectBooleanCheckbox>
+                </h:panelGrid>
+                <h:panelGroup id="usersPanelGroup">
+                  <ui:fragment rendered="#{!testBean.allUsersAllowed}">
+                    <h:panelGroup layout="block" styleClass="alignTop">
+                      <h:panelGrid columns="2" cellpadding="0" styleClass="usersTopGrid" 
+                        columnClasses="usersLabel,usersButtons">
+                        
+                        <h:panelGroup>
+                          <h:outputText id="usersAllowedLabel" style="font-size:110%;font-weight:bold;" 
+                            value="#{msgs.USERS}:" />
+                          <p:tooltip for="usersAllowedLabel">
+                            #{msgs.USERS_ALLOWED}
+                          </p:tooltip>
+                        </h:panelGroup>
+                        <h:panelGroup>
+                          <p:commandButton id="addUsersButton" value="#{msgs.ADD_USERS}" styleClass="button" 
+                            image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddUsers}" 
+                            immediate="true" update="addUsersDialog" />
+                        </h:panelGroup>
+                      </h:panelGrid>
+                    </h:panelGroup>
+                    <p:outputPanel id="usersPanel">
+                      <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
+                        emptyMessage="#{msgs.NO_USERS}" value="#{testBean.testUsers}" var="user"
+                        paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                        paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                        
+                        <p:column styleClass="columnUser" sortBy="#{user.nick}">
+                          <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+                          #{user.nick}
+                        </p:column>
+                        <p:column styleClass="columnRole" sortBy="#{user.userType.type}">
+                          <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+                          <h:outputText id="userTypeDescription" value="#{user.userType.type}"/>
+                          <p:tooltip for="userTypeDescription" style="max-width:330px;">
+                            #{user.userType.description}
+                          </p:tooltip>
+                        </p:column>
+                        <p:column styleClass="columnOmUser">
+                          <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                            rendered="#{!user.gepeqUser}" />
+                        </p:column>
+                        <p:column styleClass="columnDelete">
+                          <p:commandLink actionListener="#{testBean.removeUser}" immediate="true" 
+                            process="@this" update="testForm:generalAccordion:usersPanel">
+                            
+                            <f:attribute name="user" value="#{user}" />
+                            <h:graphicImage id="removeUserImage" styleClass="links" 
+                              value="#{resource['images:delete.png']}" />
+                            <p:tooltip for="removeUserImage">
+                              #{msgs.REMOVE_USER}
+                            </p:tooltip>
+                          </p:commandLink> 
+                        </p:column>
+                      </p:dataTable>
+                    </p:outputPanel>
+                  </ui:fragment>
+                </h:panelGroup>
+                <h:panelGroup layout="block" styleClass="alignTop">
+                  <h:panelGrid columns="2" cellpadding="0" styleClass="adminsTopGrid" 
+                    columnClasses="adminsLabel,adminsButtons">
+                    
+                    <h:panelGroup>
+                      <h:outputText id="adminsLabel" style="font-size:110%;font-weight:bold;"
+                        value="#{msgs.ADMINS}:" />
+                      <p:tooltip for="adminsLabel">
+                        <h:outputText value="#{msgs.ADMINS_TIP}" escape="false" />
+                      </p:tooltip>
+                    </h:panelGroup>
+                    <h:panelGroup>
+                      <p:commandButton id="addAdminsButton" value="#{msgs.ADD_ADMINS}" styleClass="button" 
+                        image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddAdmins}" 
+                        immediate="true" update="addAdminsDialog" />
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </h:panelGroup>
+                <p:outputPanel id="adminsPanel">
+                  <p:dataTable id="adminsTable" styleClass="adminsTable" rowStyleClass="dataRow" 
+                    emptyMessage="#{msgs.NO_ADMINS}" value="#{testBean.testAdmins}" var="admin"
+                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                    paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    
+                    <p:column styleClass="columnUser" sortBy="#{admin.nick}">
+                      <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+                      #{admin.nick}
+                    </p:column>
+                    <p:column styleClass="columnRole" sortBy="#{admin.userType.type}">
+                      <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+                      <h:outputText id="adminTypeDescription" value="#{admin.userType.type}"/>
+                      <p:tooltip for="adminTypeDescription" style="max-width:330px;">
+                        #{admin.userType.description}
+                      </p:tooltip>
+                    </p:column>
+                    <p:column styleClass="columnOmUser">
+                      <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                        rendered="#{!admin.gepeqUser}" />
+                    </p:column>
+                    <p:column styleClass="columnDelete">
+                      <p:commandLink actionListener="#{testBean.removeAdmin}" immediate="true" process="@this" 
+                        update="testForm:generalAccordion:adminsPanel">
+                        
+                        <f:attribute name="admin" value="#{admin}" /> 
+                        <h:graphicImage id="removeAdminImage" styleClass="links" 
+                          value="#{resource['images:delete.png']}" />
+                        <p:tooltip for="removeAdminImage">
+                          #{msgs.REMOVE_ADMIN}
+                        </p:tooltip>
+                      </p:commandLink>
+                    </p:column>
+                  </p:dataTable>
+                </p:outputPanel>
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnAllowAdminReportsLabel,columnAllowAdminReportsInput')}">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.ALLOW_ADMINS_REPORTS}" />
+                  <p:selectOneMenu id="allowAdminReports" value="#{testBean.allowAdminReports}" 
+                    styleClass="combo">
+                    
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                </h:panelGrid>
+              </p:tab>
+              <p:tab title="#{msgs.CALENDAR}">
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+                  columnClasses="columnRestrictDatesLabel,columnRestrictDatesInput">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.RESTRICT_DATES}" />
+                  <p:selectBooleanCheckbox id="restrictDates" value="#{testBean.restrictDates}">
+                    <f:attribute name="property" value="restrictDates" />
+                    <p:ajax listener="#{testBean.changeProperty}"
+                      process="@this testForm:generalAccordion:startDate testForm:generalAccordion:closeDate testForm:generalAccordion:warningDate" 
+                      update="testForm:generalAccordion:startCloseWarningDatesPanelGroup" />
+                  </p:selectBooleanCheckbox>
+                </h:panelGrid>
+                <h:panelGroup id="startCloseWarningDatesPanelGroup">
+                  <ui:fragment rendered="#{testBean.restrictDates}">
+                    <h:inputHidden id="startDateHidden" value="#{testBean.startDateHidden}" />
+                    <h:inputHidden id="closeDateHidden" value="#{testBean.closeDateHidden}" />
+                    <h:inputHidden id="warningDateHidden" value="#{testBean.warningDateHidden}" />
+                    <h:panelGrid columns="6" cellpadding="2" 
+                      columnClasses="#{localizationService.getLocalizedStyleClasses('columnDatesLeftLabels,columnDatesLeftInputs,columnDatesLeftResets,columnDatesRightLabels,columnDatesRightInputs,columnDatesRightResets')}"
+                      rowClasses="topAlignRow">
+                      
+                      <h:outputText style="font-size:110%;" value="#{msgs.START_DATE}" />
+                      <p:calendar id="startDate" widgetVar="startDate" pattern="#{msgs.DATE_PATTERN}" 
+                        value="#{testBean.startDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                        popupIconOnly="true" navigator="true" readOnlyInputText="true">
+                        
+                        <p:ajax event="dateSelect" listener="#{testBean.changeStartDate}" 
+                          update="testForm:generalAccordion:startDateHidden" />
+                      </p:calendar>
+                      <p:commandLink actionListener="#{testBean.resetStartDate}" immediate="true" 
+                        update="testForm:generalAccordion:startDate testForm:generalAccordion:startDateHidden" 
+                        onclick="clearDate(startDate);">
+                        
+                        <h:graphicImage id="resetStartDateImage" styleClass="links" 
+                          value="#{resource['images:reset.png']}" />
+                        <p:tooltip for="resetStartDateImage">
+                          #{msgs.RESET}
+                        </p:tooltip>
+                      </p:commandLink>
+                      <h:outputText style="font-size:110%;" value="#{msgs.CLOSE_DATE}" />
+                      <p:calendar id="closeDate" widgetVar="closeDate" pattern="#{msgs.DATE_PATTERN}" 
+                        value="#{testBean.closeDate}" mode="popup"  showOn="both" showButtonPanel="true" 
+                        popupIconOnly="true" navigator="true" readOnlyInputText="true">
+                        
+                        <p:ajax event="dateSelect" listener="#{testBean.changeCloseDate}" 
+                          update="testForm:generalAccordion:closeDateHidden" />
+                      </p:calendar>
+                      <p:commandLink actionListener="#{testBean.resetCloseDate}" immediate="true" 
+                        update="testForm:generalAccordion:closeDate testForm:generalAccordion:closeDateHidden" 
+                        onclick="clearDate(closeDate);">
+                        
+                        <h:graphicImage id="resetCloseDateImage" styleClass="links" 
+                          value="#{resource['images:reset.png']}" />
+                        <p:tooltip for="resetCloseDateImage">
+                          #{msgs.RESET}
+                        </p:tooltip>
+                      </p:commandLink>
+                      <h:outputText style="font-size:110%;" value="#{msgs.WARNING_DATE}" />
+                      <p:calendar id="warningDate" widgetVar="warningDate" pattern="#{msgs.DATE_PATTERN}" 
+                        value="#{testBean.warningDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                        popupIconOnly="true" navigator="true" readOnlyInputText="true">
+                        
+                        <p:ajax event="dateSelect" listener="#{testBean.changeWarningDate}" 
+                          update="testForm:generalAccordion:warningDateHidden" />
+                      </p:calendar>
+                      <p:commandLink actionListener="#{testBean.resetWarningDate}" immediate="true" 
+                        update="testForm:generalAccordion:warningDate testForm:generalAccordion:warningDateHidden"
+                        onclick="clearDate(warningDate);">
+                        
+                        <h:graphicImage id="resetWarningDateImage" styleClass="links" 
+                          value="#{resource['images:reset.png']}" />
+                        <p:tooltip for="resetWarningDateImage">
+                          #{msgs.RESET}
+                        </p:tooltip>
+                      </p:commandLink>
+                    </h:panelGrid>
+                  </ui:fragment>
+                </h:panelGroup>
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+                  columnClasses="columnRestrictFeedbackDateLabel,columnRestrictFeedbackDateInput">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.RESTRICT_DATE_FEEDBACK}" />
+                  <p:selectBooleanCheckbox id="restrictFeedbackDate" value="#{testBean.restrictFeedbackDate}">
+                    <f:attribute name="property" value="restrictFeedbackDate" />
+                    <p:ajax listener="#{testBean.changeProperty}" 
+                      process="@this testForm:generalAccordion:feedbackDate" 
+                      update="testForm:generalAccordion:feedbackDatePanelGroup" />
+                  </p:selectBooleanCheckbox>
+                </h:panelGrid>
+                <h:panelGroup id="feedbackDatePanelGroup">
+                  <ui:fragment rendered="#{testBean.restrictFeedbackDate}">
+                    <h:inputHidden id="feedbackDateHidden" value="#{testBean.feedbackDateHidden}" />
+                    <h:panelGrid columns="3" cellpadding="2" 
+                      columnClasses="#{localizationService.getLocalizedStyleClasses('columnFeedbackDateLabel,columnFeedbackDateInput,columnFeedbackDateReset')}" 
+                      rowClasses="topAlignRow">
+                      
+                      <h:outputText style="font-size:110%;" value="#{msgs.FEEDBACK_DATE}" />
+                      <p:calendar id="feedbackDate" widgetVar="feedbackDate" pattern="#{msgs.DATE_PATTERN}" 
+                        value="#{testBean.feedbackDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                        popupIconOnly="true" navigator="true" readOnlyInputText="true">
+                        
+                        <p:ajax event="dateSelect" listener="#{testBean.changeFeedbackDate}" 
+                          update="testForm:generalAccordion:feedbackDateHidden" />
+                      </p:calendar>
+                      <p:commandLink actionListener="#{testBean.resetFeedbackDate}" immediate="true" 
+                        update="testForm:generalAccordion:feedbackDate testForm:generalAccordion:feedbackDateHidden"
+                        onclick="clearDate(feedbackDate);">
+                        
+                        <h:graphicImage id="resetFeedbackDateImage" styleClass="links" 
+                          value="#{resource['images:reset.png']}" />
+                        <p:tooltip for="resetFeedbackDateImage">
+                          #{msgs.RESET}
+                        </p:tooltip>
+                      </p:commandLink>
+                    </h:panelGrid>
+                  </ui:fragment>
+                </h:panelGroup>
+              </p:tab>
+              <p:tab title="#{msgs.CONFIGURATION}">
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnConfigurationLabels,columnConfigurationInputs')}">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.FREESUMMARY_LABEL}" />
+                  <p:selectOneMenu id="freeSummary" value="#{testBean.freeSummary}" styleClass="combo">
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.FREESTOP_LABEL}" />
+                  <p:selectOneMenu id="freeStop" value="#{testBean.freeStop}" styleClass="combo">
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.SUMMARYQUESTIONS_LABEL}" />
+                  <p:selectOneMenu id="summaryQuestions" value="#{testBean.summaryQuestions}" 
+                    styleClass="combo">
+                    
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.SUMMARYSCORES_LABEL}" />
+                  <p:selectOneMenu id="summaryScores" value="#{testBean.summaryScores}" styleClass="combo">
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.SUMMARYATTEMPTS_LABEL}" />
+                  <p:selectOneMenu id="summaryAttempts" value="#{testBean.summaryAttempts}" 
+                    styleClass="combo">
+                    
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.NAVIGATION_LABEL}" />
+                  <p:selectOneMenu id="navigation" value="#{testBean.navigation}" styleClass="combo">
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                    <p:ajax process="@this testForm:nameInput testForm:categoryInput testForm:titleInput testForm:descriptionInput testForm:assessementInput testForm:generalAccordion:freeSummary testForm:generalAccordion:freeStop testForm:generalAccordion:summaryQuestions testForm:generalAccordion:summaryScores testForm:generalAccordion:summaryAttempts testForm:generalAccordion:navLocation testForm:generalAccordion:redoQuestions testForm:generalAccordion:redoTest" 
+                      update="testForm:testFormWizard" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.NAVLOCATION_LABEL}" />
+                  <p:selectOneMenu id="navLocation" styleClass="combo" value="#{testBean.navLocationId}">
+                    <f:selectItems value="#{testBean.navLocations}" var="navLocation" 
+                      itemLabel="#{msgs[navLocation.location]}" itemValue="#{navLocation.id}" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.REDOQUESTION_LABEL}" />
+                  <p:selectOneMenu id="redoQuestions" styleClass="combo" value="#{testBean.redoQuestionId}">
+                    <f:selectItems value="#{testBean.redoQuestions}" var="redoQuestion" 
+                      itemLabel="#{msgs[redoQuestion.value]}" itemValue="#{redoQuestion.id}" />
+                  </p:selectOneMenu>
+                  <h:outputText style="font-size:110%;" value="#{msgs.REDOTEST_LABEL}" />
+                  <p:selectOneMenu id="redoTest" value="#{testBean.redoTest}" styleClass="combo">
+                    <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                    <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                  </p:selectOneMenu>
+                </h:panelGrid>
+              </p:tab>
+              <p:tab title="#{msgs.ADDRESSES}">
+                <h:panelGroup layout="block" styleClass="assessementAlignTop">
+                  <h:panelGrid columns="2" cellpadding="0" styleClass="assessementTopGrid" 
+                    columnClasses="assessementLabel,assessementAddressPanel">
+                    
+                    <h:panelGroup>
+                      <h:outputText id="assessementLabel" value="#{msgs.ASSESSEMENT}:" 
+                        style="font-size:110%;font-weight:bold;" />
+                      <p:tooltip for="assessementLabel">
+                        <h:outputText value="#{msgs.ASSESSEMENT_TIP}" escape="false"/>
+                      </p:tooltip>
+                    </h:panelGroup>
+                    <h:panelGroup layout="block">
+                      <p:commandButton id="addAssessementAddressButton" value="#{msgs.ADD_ADDRESS}" 
+                        styleClass="button" image="ui-icon ui-icon-plus"
+                        actionListener="#{testBean.showAddEvaluator}" immediate="true" 
+                        update="addAssessementAddressDialog testForm:generalMessages" />
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </h:panelGroup>
+                <p:outputPanel id="assessementAddressesPanel">
+                  <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" 
+                    rowStyleClass="dataRow" emptyMessage="#{msgs.NO_EVALUATORS}" 
+                    value="#{testBean.evaluators}" var="evaluator"
+                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                    paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    
+                    <p:column styleClass="columnFiltering" sortBy="#{evaluator.filteringString}">
+                      <f:facet name="header">#{msgs.FILTERING}</f:facet>
+                      #{evaluator.filteringString}
+                    </p:column>
+                    <p:column styleClass="columnAddress" sortBy="#{evaluator.evaluator}">
+                      <f:facet name="header">#{msgs.ADDRESS}</f:facet>
+                      #{evaluator.evaluator}
+                    </p:column>
+                    <p:column styleClass="columnEdit">
+                      <p:commandLink actionListener="#{testBean.showEditEvaluator}" immediate="true" 
+                        update="addAssessementAddressDialog testForm:generalMessages">
+                        
+                        <f:attribute name="evaluator" value="#{evaluator}" />
+                        <h:graphicImage id="editAssessementAddressImage" styleClass="links" 
+                          value="#{resource['images:edit16.png']}" />
+                        <p:tooltip for="editAssessementAddressImage">
+                          #{msgs.EDIT_ADDRESS}
+                        </p:tooltip>
+                      </p:commandLink>
+                    </p:column>
+                    <p:column styleClass="columnDelete">
+                      <p:commandLink actionListener="#{testBean.removeEvaluator}" immediate="true" process="@this" 
+                        update="testForm:generalAccordion:assessementAddressesPanel testForm:generalMessages">
+                        
+                        <f:attribute name="evaluator" value="#{evaluator}" />
+                        <h:graphicImage id="removeEvaluatorImage" styleClass="links" 
+                          value="#{resource['images:delete.png']}" />
+                        <p:tooltip for="removeEvaluatorImage">
+                          #{msgs.REMOVE_ADDRESS}
+                        </p:tooltip>
+                      </p:commandLink> 
+                    </p:column>
+                  </p:dataTable>
+                </p:outputPanel>
+                <h:panelGroup layout="block" styleClass="techSupportAlignTop">
+                  <h:panelGrid columns="2" cellpadding="0" styleClass="techSupportTopGrid" 
+                    columnClasses="techSupportLabel,techSupportAddressPanel">
+                    
+                    <h:panelGroup>
+                      <h:outputText id="techSupportLabel" value="#{msgs.TECH_SUPPORT}:" 
+                        style="font-size:110%;font-weight:bold;" />
+                      <p:tooltip for="techSupportLabel">
+                        <h:outputText value="#{msgs.TECH_SUPPORT_TIP}" escape="false"/>
+                      </p:tooltip>
+                    </h:panelGroup>
+                    <h:panelGroup layout="block">
+                      <p:commandButton id="addTechSupportAddressButton" value="#{msgs.ADD_ADDRESS}"
+                        styleClass="button" image="ui-icon ui-icon-plus" 
+                        actionListener="#{testBean.showAddSupportContact}" immediate="true"  
+                        update="addTechSupportAddressDialog testForm:generalMessages" />
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </h:panelGroup>
+                <p:outputPanel id="techSupportAddressesPanel">
+                  <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" 
+                    rowStyleClass="dataRow" emptyMessage="#{msgs.NO_TECH_SUPPORT}" 
+                    value="#{testBean.supportContacts}" var="supportContact"
+                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                    paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    
+                    <p:column styleClass="columnFiltering" sortBy="#{supportContact.filteringString}">
+                      <f:facet name="header">#{msgs.FILTERING}</f:facet>
+                      #{supportContact.filteringString}
+                    </p:column>
+                    <p:column styleClass="columnAddress" sortBy="#{supportContact}">
+                      <f:facet name="header">#{msgs.ADDRESS}</f:facet>
+                      #{supportContact.supportContact}
+                    </p:column>
+                    <p:column styleClass="columnEdit">
+                      <p:commandLink actionListener="#{testBean.showEditSupportContact}" immediate="true" 
+                        update="addTechSupportAddressDialog testForm:generalMessages">
+                        
+                        <f:attribute name="supportContact" value="#{supportContact}" />
+                        <h:graphicImage id="editTechSupportAddressImage" styleClass="links" 
+                          value="#{resource['images:edit16.png']}" />
+                        <p:tooltip for="editTechSupportAddressImage">
+                          #{msgs.EDIT_ADDRESS}
+                        </p:tooltip>
+                      </p:commandLink>
+                    </p:column>
+                    <p:column styleClass="columnDelete">
+                      <p:commandLink actionListener="#{testBean.removeSupportContact}" immediate="true" 
+                        process="@this" 
+                        update="testForm:generalAccordion:techSupportAddressesPanel testForm:generalMessages">
+                        
+                        <f:attribute name="supportContact" value="#{supportContact}" />
+                        <h:graphicImage id="removeSupportContactImage" styleClass="links" 
+                          value="#{resource['images:delete.png']}" />
+                        <p:tooltip for="removeSupportContactImage">
+                          #{msgs.REMOVE_ADDRESS}
+                        </p:tooltip>
+                      </p:commandLink> 
+                    </p:column>
+                  </p:dataTable>
+                </p:outputPanel>
+              </p:tab>
+            </p:accordionPanel>
+          </p:panel>
+        </p:tab>
+        <p:tab id="presentation" title="#{msgs.PRESENTATION}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="presentationMessages" rendered="#{testBean.activeTestTabName=='presentation'}" />
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="columnPresentationTitleLabel,columnPresentationTitleInput">
+              
+              <h:outputText style="font-size:110%;" value="#{msgs.PRESENTATION_TITLE}" />
+              <h:inputText id="presentationTitle" style="width:310px;" maxlength="25" 
+                value="#{testBean.presentationTitle}" />
+            </h:panelGrid>
+            <h:panelGroup layout="block" styleClass="leftAlignTop">
+              <h:outputText style="font-size:110%;font-weight:bold;" value="#{msgs.CONTENT}:" />   
+            </h:panelGroup>
+            <p:editor id="presentationText" widgetVar="presentationText" width="730" 
+              value="#{testBean.presentation}" />
+          </p:panel>
+        </p:tab>
+        <p:tab id="sections" title="#{msgs.SECTIONS}">
+          <p:panel id="sectionsPanel" styleClass="panelTab">
+            <p:messages id="sectionsMessages" rendered="#{testBean.activeTestTabName=='sections'}" />
+            <h:panelGroup layout="block" styleClass="rightAlignTopAccordion">
+              <p:commandButton id="reSortSections" value="#{msgs.RE_SORT}" styleClass="confirmButton" 
+                image="ui-icon ui-icon-triangle-2-n-s" immediate="true" 
+                actionListener="#{testBean.showReSortSections}" 
+                update="resortSectionsDialog testForm:sectionsMessages" 
+                disabled="#{!testBean.enabledReSortSections}" />
+              <p:commandButton value="#{msgs.ADD_SECTION}" styleClass="confirmButton" 
+                style="margin-right:5px;" image="ui-icon ui-icon-plus" immediate="true" 
+                actionListener="#{testBean.addSection}" 
+                update="testForm:reSortSections testForm:sectionsAccordion testForm:sectionsMessages" />
+            </h:panelGroup>
+            <p:accordionPanel id="sectionsAccordion" widgetVar="sectionsAccordion" styleClass="accordion"
+              value="#{testBean.sections}" var="section">
+              
+              <p:ajax event="tabChange" listener="#{testBean.changeActiveSection}" process="@this"
+                update="@this testForm:sectionsMessages" />
+              <p:tab title="#{testBean.getSectionName(section)}">
+		        <p:outputPanel id="randomPanel">
+                  <h:panelGrid id="sectionNamesGrid" columns="4" cellpadding="5" rowClasses="topAlignRow" 
+                    columnClasses="sectionNameLabel,sectionNameInput,sectionTitleLabel,sectionTitleInput">
+		            
+		            <h:outputText value="#{msgs.NAME}" style="font-size:120%;" />
+		            <h:inputText id="sectionName" style="width:180px;font-size:110%;" maxlength="15" 
+		              value="#{section.name}" />
+                    <h:outputText value="#{msgs.SECTION_TITLE}" style="font-size:120%;" />
+                    <h:inputText id="sectionTitle" style="width:290px;font-size:110%;" maxlength="25" 
+                      value="#{section.title}" />
+                    <h:outputText value="#{msgs.WEIGHT}" style="font-size:120%;" 
+                      rendered="#{testBean.sectionsWeightsDisplayed}" />
+                    <p:spinner id="sectionWeight" value="#{section.weight}" min="#{testBean.minWeight}" 
+                      max="#{testBean.maxWeight}" rendered="#{testBean.sectionsWeightsDisplayed}" 
+                      converter="SpinnerIntegerConverter">
+                      
+                      <f:attribute name="property" value="sectionWeight" />
+                      <f:attribute name="section" value="#{section}" />
+                      <p:ajax listener="#{testBean.changeProperty}" 
+                        process="@this" update="@this" />
+                    </p:spinner>
+		          </h:panelGrid>
+		          <h:panelGrid id="shuffleRandomGrid" columns="4" cellpadding="5" rowClasses="topAlignRow"
+		            columnClasses="#{localizationService.getLocalizedStyleClasses('shuffleLabel,shuffleInput,randomLabel,randomInput')}">
+		            
+		            <h:outputText value="#{msgs.SHUFFLE_QUESTIONS}" style="font-size:120%;" />
+                    <p:selectBooleanCheckbox id="shuffle" value="#{section.shuffle}">
+                      <f:attribute name="property" value="shuffle" />
+                      <f:attribute name="section" value="#{section}" />
+                      <p:ajax listener="#{testBean.changeProperty}" process="@this" 
+                        update="random,randomQuantityPanelGroup" />
+                    </p:selectBooleanCheckbox>
+		            <h:outputText value="#{msgs.RANDOM_QUESTIONS}" style="font-size:120%;" />
+                    <p:selectBooleanCheckbox id="random" value="#{section.random}" 
+                      disabled="#{!section.shuffle}">
+                      
+                      <f:attribute name="property" value="random" />
+                      <f:attribute name="section" value="#{section}" />
+                      <p:ajax listener="#{testBean.changeProperty}" process="@this" 
+                        update="randomQuantityPanelGroup questionsPanel" />
+                    </p:selectBooleanCheckbox>
+		          </h:panelGrid>
+                  <h:panelGroup id="randomQuantityPanelGroup" layout="block" styleClass="alignTop">
+                    <h:panelGrid columns="4" cellpadding="0" styleClass="randomQuantityTopGrid"
+                      rowClasses="randomQuantityGridRow" 
+                      columnClasses="randomQuantityLabel,randomQuantityInput,randomQuantityQuestionsNumber,questionsSectionButtons">
+                      
+                      <h:outputText value="#{msgs.QUESTIONS_QUANTITY}" style="font-size:120%;" 
+                        rendered="#{section.shuffle and section.random}" />
+                      <p:spinner id="randomQuantity" value="#{section.randomQuantity}" 
+                        min="#{section.questionOrdersSize==0 ? 0 : 1 }" max="#{section.questionOrdersSize}" 
+                        converter="SpinnerIntegerConverter" size="2" 
+                        rendered="#{section.shuffle and section.random}">
+                        
+                        <f:attribute name="property" value="randomQuantity" />
+                        <f:attribute name="section" value="#{section}" />
+                        <p:ajax listener="#{testBean.changeProperty}" process="@this" 
+                          update="@this testForm:sectionsMessages" />
+                      </p:spinner>
+                      <h:outputText value="(#{section.questionOrdersSize} #{section.questionOrdersSize==1 ? msgs.AVAILABLE_QUESTION : msgs.AVAILABLE_QUESTIONS })" 
+                         rendered="#{section.shuffle and section.random}" />
+                      <h:outputText value="" rendered="#{not section.shuffle or not section.random}" />
+                      <h:outputText value="" rendered="#{not section.shuffle or not section.random}" />
+                      <h:outputText value="" rendered="#{not section.shuffle or not section.random}" />
+                      
+                      <h:panelGroup styleClass="questionsSectionButtonsGroup">
+                        <p:commandButton id="reSortQuestions" value="#{msgs.RE_SORT}" styleClass="button" 
+                          image="ui-icon ui-icon-triangle-2-n-s" actionListener="#{testBean.showReSortQuestions}" 
+                          immediate="true" update="resortQuestionsDialog testForm:sectionsMessages" 
+                          disabled="#{!testBean.isEnabledReSortQuestions(section)}" />
+                        <p:commandButton id="addQuestionsButton" value="#{msgs.ADD_QUESTIONS}" styleClass="button" 
+                          image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddQuestions}"
+                          immediate="true" update="addQuestionsDialog testForm:sectionsMessages" />
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </h:panelGroup>
+		        </p:outputPanel>
+		        <p:outputPanel id="questionsPanel">
+	              <p:dataTable id="questionsSection" styleClass="questionsTable" rowStyleClass="dataRow" 
+	                emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder"
+	                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+	                paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+	                
+	                <p:column styleClass="columnOrder" sortBy="#{questionOrder.order}">
+    	              <f:facet name="header"></f:facet>
+	          	      #{questionOrder.order}
+	                </p:column>
+	                <p:column styleClass="columnType" sortBy="#{questionOrder.question.type}"
+	                  sortFunction="#{testBean.sortQuestionTypes}">
+	                  
+    	              <f:facet name="header"></f:facet>
+    	              <h:graphicImage id="questionOrderQuestionTypeImage" 
+    	                url="/resources/images/#{questionOrder.question.type}.gif" />
+    	              <p:tooltip for="questionOrderQuestionTypeImage">
+    	                #{msgs[questionOrder.question.type]}
+    	              </p:tooltip>
+                    </p:column>
+                    <p:column styleClass="columnName" sortBy="#{questionOrder.question.name}">
+    	              <f:facet name="header">#{msgs.QUESTION}</f:facet>
+          	          #{questionOrder.question.name}
+                    </p:column>
+                    <p:column styleClass="columnCategory" 
+                      sortBy="#{testBean.getLocalizedCategoryName(questionOrder.question.category)}">
+                      
+    	              <f:facet name="header">#{msgs.CATEGORY}</f:facet>
+                      <h:outputText id="categoryName" 
+                        value="#{testBean.getLocalizedCategoryName(questionOrder.question.category)}" />
+                      <p:tooltip for="categoryName">
+                        #{testBean.getLocalizedCategoryLongName(questionOrder.question.category)}
+                      </p:tooltip>
+                    </p:column>
+                    <p:column styleClass="columnAuthor" sortBy="#{questionOrder.question.createdBy.nick}">
+                      <f:facet name="header">#{msgs.AUTHOR}</f:facet>
+                      <h:outputText value="#{questionOrder.question.createdBy.nick}" />
+                    </p:column>
+                    <p:column styleClass="columnLevel" sortBy="#{questionOrder.question.level}">
+    	              <f:facet name="header">#{msgs.LEVEL}</f:facet>
+                      <h:outputText id="questionOrderQuestionLevelColor" 
+                        value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+                        styleClass="#{questionOrder.question.levelString}" />
+                      <p:tooltip for="questionOrderQuestionLevelColor">
+                        #{msgs[questionOrder.question.levelString]}
+                      </p:tooltip>
+                    </p:column>
+                    <p:column styleClass="columnDate" sortBy="#{questionOrder.question.timemodified}">
+    	              <f:facet name="header">#{msgs.DATE}</f:facet> 
+    	              <h:outputText value="#{questionOrder.question.timemodified}">
+    	    	        <f:convertDateTime dateStyle="short" />
+    	              </h:outputText> 
+                    </p:column>
+                    <p:column styleClass="columnWeight">
+                      <f:facet name="header">#{msgs.WEIGHT}</f:facet>
+                      <p:spinner id="questionOrderWeight" value="#{questionOrder.weight}" 
+                        min="#{testBean.minWeight}" max="#{testBean.maxWeight}" 
+                        styleClass="#{section.random ? 'readOnlySpin' : ''}" readonly="#{section.random}" 
+                        converter="SpinnerIntegerConverter">
+                        
+                        <f:attribute name="property" value="questionOrderWeight" />
+                        <f:attribute name="section" value="#{section}" />
+                        <f:attribute name="questionOrder" value="#{questionOrder}" />
+                        <p:ajax listener="#{testBean.changeProperty}" process="@this" update="@this" />
+                      </p:spinner>
+                    </p:column>
+                    <p:column styleClass="columnDelete">
+	                  <p:commandLink actionListener="#{testBean.removeQuestion}" immediate="true" 
+	                    update="testForm:sectionsAccordion testForm:sectionsMessages">
+      			      
+		                <f:attribute name="questionOrder" value="#{questionOrder.order}" />
+			            <h:graphicImage id="removeQuestionOrderImage" styleClass="links" 
+			              value="#{resource['images:delete.png']}" />
+			            <p:tooltip for="removeQuestionOrderImage">
+			              #{msgs.REMOVE_QUESTION}
+			            </p:tooltip>
+		              </p:commandLink> 
+                    </p:column>
+                    <p:column styleClass="columnOM">
+                      <p:commandLink action="#{testBean.viewOM(questionOrder.question.id)}" 
+                        onstart="buildingDialog.show()" 
+                        oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" immediate="true" 
+                        update="testForm:sectionsMessages testForm:sectionsAccordion" 
+                        rendered="#{testBean.isViewOMQuestionEnabled(questionOrder.question)}">
+      			        
+		      	        <h:graphicImage id="viewOMQuestionOrderImage" styleClass="links" 
+		      	          value="#{resource['images:om16.png']}" />
+		      	        <p:tooltip for="viewOMQuestionOrderImage">
+		      	          #{msgs.OM_PREVIEW}
+		      	        </p:tooltip>
+		              </p:commandLink>
+                    </p:column>
+                  </p:dataTable>
+		        </p:outputPanel>
+		        <h:panelGroup layout="block" styleClass="rightAlignBottom">
+		          <p:commandButton id="removeSectionButton" value="#{msgs.DELETE_SECTION}" 
+		            styleClass="button" image="ui-icon ui-icon-trash" 
+		            actionListener="#{testBean.removeSection}" immediate="true" 
+		            update="testForm:reSortSections testForm:sectionsAccordion testForm:sectionsMessages" 
+		            disabled="#{!testBean.enabledRemoveSection}">
+		            
+                    <f:attribute name="order" value="#{section.order}" />
+		          </p:commandButton>
+		        </h:panelGroup>
+		      </p:tab>
+            </p:accordionPanel>
+          </p:panel>
+        </p:tab>
+        <p:tab id="preliminarySummary" title="#{msgs.PRELIMINARY_SUMMARY}" rendered="#{testBean.navigation}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="preliminarySummaryMessages" 
+              rendered="#{testBean.activeTestTabName=='preliminarySummary'}" />
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+              columnClasses="columnPreliminarySummaryLabels,columnPreliminarySummaryInputs">
+              
+              <h:outputText style="font-size:110%;" value="#{msgs.PRELIMINARY_SUMMARY_TITLE}" />
+              <h:inputText id="preliminarySummaryTitle" style="width:310px;" maxlength="25" 
+                value="#{testBean.preliminarySummaryTitle}" />
+              <h:outputText style="font-size:110%;" value="#{msgs.PRELIMINARY_SUMMARY_CONFIRM_BUTTON}" />
+              <h:inputText id="preliminarySummaryButton" style="width:530px;" maxlength="50" 
+                value="#{testBean.preliminarySummaryButton}" />
+            </h:panelGrid>
+            <h:panelGroup layout="block" styleClass="leftAlignTop">
+              <h:outputText style="font-size:110%;font-weight:bold;" value="#{msgs.CONTENT}:" />   
+            </h:panelGroup>
+            <p:editor id="preliminarySummaryText" widgetVar="preliminarySummaryText" width="730" 
+              value="#{testBean.preliminarySummary}" />
+          </p:panel>
+        </p:tab>
+        <p:tab id="feedback" title="#{msgs.FEEDBACK}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="feedbackMessages" rendered="#{testBean.activeTestTabName=='feedback'}" />
+            <p:accordionPanel id="feedbackAccordion" widgetVar="feedbackAccordion" styleClass="accordion" 
+              style="margin-top:5px;">
+              
+              <p:ajax event="tabChange" process="@this" update="@none" 
+                onstart="feedbackAccordionOnTabChangeStart();" 
+                oncomplete="feedbackAccordionOnTabChangeComplete();" />
+              <p:tab title="#{msgs.SUMMARY}">
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+                  columnClasses="columnDisplaySummaryLabel,columnDisplaySummaryInput">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_SUMMARY}" />
+                  <p:selectBooleanCheckbox id="feedbackDisplaySummary" widgetVar="feedbackDisplaySummary" 
+                    value="#{testBean.feedbackDisplaySummary}">
+                    
+                    <f:attribute name="property" value="feedbackDisplaySummary" />
+                    <p:ajax listener="#{testBean.changeProperty}" 
+                      process="@this feedbackDisplaySummaryPanelGroup" update="feedbackDisplaySummaryPanelGroup" 
+                      onstart="feedbackDisplaySummaryOnChangeStart();" 
+                      oncomplete="feedbackDisplaySummaryOnChangeComplete();" />
+                  </p:selectBooleanCheckbox>
+                </h:panelGrid>
+                <h:panelGroup id="feedbackDisplaySummaryPanelGroup">
+                  <ui:fragment rendered="#{testBean.feedbackDisplaySummary}">
+                    <h:panelGroup layout="block" styleClass="leftAlignTop">
+                      <h:outputText style="font-size:110%;font-weight:bold;" value="#{msgs.SUMMARY_TEXT}:" />
+                    </h:panelGroup>
+                    <p:editor id="feedbackSummaryPrevious" widgetVar="feedbackSummaryPrevious" width="670" 
+                      height="150" value="#{testBean.feedbackSummaryPrevious}" />
+                    <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow" 
+                      columnClasses="columnDisplaySummaryMarksLabel,columnDisplaySummaryMarksInput,columnDisplaySummaryAttemptsLabel,columnDisplaySummaryAttemptsInput">
+                      
+                      <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_MARKS}" />
+                      <p:selectOneMenu id="feedbackDisplaySummaryMarks" 
+                        value="#{testBean.feedbackDisplaySummaryMarks}" styleClass="combo">
+                      
+                        <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                        <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                      </p:selectOneMenu>
+                      <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_ATTEMPTS}" />
+                      <p:selectOneMenu id="feedbackDisplaySummaryAttempts" 
+                        value="#{testBean.feedbackDisplaySummaryAttempts}" styleClass="combo">
+                        
+                        <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                        <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                      </p:selectOneMenu>
+                    </h:panelGrid>
+                  </ui:fragment>
+                </h:panelGroup>
+              </p:tab>
+              <p:tab title="#{msgs.SCORES}">
+                <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnDisplayScoresLabel,columnDisplayScoresInput')}">
+                  
+                  <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_SCORES}" />
+                  <p:selectBooleanCheckbox id="feedbackDisplayScores" widgetVar="feedbackDisplayScores" 
+                    value="#{testBean.feedbackDisplayScores}">
+                    
+                    <f:attribute name="property" value="feedbackDisplayScores" />
+                    <p:ajax listener="#{testBean.changeProperty}" 
+                      process="@this feedbackDisplayScoresPanelGroup" update="feedbackDisplayScoresPanelGroup" 
+                      onstart="feedbackDisplayScoresOnChangeStart();" 
+                      oncomplete="feedbackDisplayScoresOnChangeComplete();" />
+                  </p:selectBooleanCheckbox>
+                </h:panelGrid>
+                <h:panelGroup id="feedbackDisplayScoresPanelGroup">
+                  <ui:fragment rendered="#{testBean.feedbackDisplayScores}">
+                    <h:panelGroup layout="block" styleClass="leftAlignTop">
+                      <h:outputText style="font-size:110%;font-weight:bold;" value="#{msgs.SCORES_TEXT}:" />
+                    </h:panelGroup>
+                    <p:editor id="feedbackScoresPrevious" widgetVar="feedbackScoresPrevious" width="670" 
+                      height="150" value="#{testBean.feedbackScoresPrevious}" />
+                    <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow" 
+                      columnClasses="columnDisplayScoresMarksLabel,columnDisplayScoresMarksInput,columnDisplayScoresPercentagesLabel,columnDisplayScoresPercentagesInput">
+                      
+                      <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_MARKS}" />
+                      <p:selectOneMenu id="feedbackDisplayScoresMarks" 
+                        value="#{testBean.feedbackDisplayScoresMarks}" styleClass="combo">
+                        
+                        <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                        <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                      </p:selectOneMenu>
+                      <h:outputText style="font-size:110%;" value="#{msgs.DISPLAY_PERCENTAGES}" />
+                      <p:selectOneMenu id="feedbackDisplayScoresPercentages" 
+                        value="#{testBean.feedbackDisplayScoresPercentages}" styleClass="combo">
+                        
+                        <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                        <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                      </p:selectOneMenu>
+                    </h:panelGrid>
+                  </ui:fragment>
+                </h:panelGroup>
+              </p:tab>
+              <p:tab title="#{msgs.ADVANCED_FEEDBACK}">
+                <h:panelGroup layout="block" styleClass="leftAlignTop">
+                  <h:outputText style="font-size:110%;font-weight:bold;" 
+                    value="#{msgs.ADVANCED_FEEDBACKS_PREVIOUS_TEXT}:" />
+                </h:panelGroup>
+                <p:editor id="feedbackAdvancedPrevious" widgetVar="feedbackAdvancedPrevious" width="670" 
+                  height="150" value="#{testBean.feedbackAdvancedPrevious}" />
+                <h:panelGroup layout="block" styleClass="advancedFeedbacksRightAlignTop">
+                  <p:commandButton id="reSortFeedbacks" value="#{msgs.RE_SORT}" styleClass="button" 
+                    image="ui-icon ui-icon-triangle-2-n-s" actionListener="#{testBean.showReSortFeedbacks}" 
+                    immediate="true" update="resortFeedbacksDialog" 
+                    disabled="#{!testBean.enabledReSortFeedbacks}" />
+                  <p:commandButton id="addFeedbackButton" value="#{msgs.ADD_FEEDBACK}" styleClass="button" 
+                    image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddFeedback}" 
+                    immediate="true" update="addFeedbackDialog" />
+                </h:panelGroup>
+                <p:dataTable id="feedbacksTable" styleClass="feedbacksTable" rowStyleClass="dataRow" 
+                  emptyMessage="#{msgs.NO_FEEDBACKS}" value="#{testBean.feedbacks}" var="feedback" 
+                  paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                  paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                  
+                  <p:column styleClass="columnOrder" sortBy="#{feedback.position}">
+                    <f:facet name="header"></f:facet>
+                    #{feedback.position}
+                  </p:column>
+                  <p:column styleClass="columnCondition" sortBy="#{feedback.conditionString}">
+                    <f:facet name="header">#{msgs.CONDITION}</f:facet>
+                    #{feedback.conditionString}
+                  </p:column>
+                  <p:column styleClass="columnContent" sortBy="#{feedback.plainContent}">
+                    <f:facet name="header">#{msgs.CONTENT}</f:facet>
+                    <h:panelGroup layout="block" styleClass="feedbackHtmlContentPreview">
+                      <h:outputText escape="false" value="#{feedback.htmlContent}" />
+                    </h:panelGroup>
+                  </p:column>
+                  <p:column styleClass="columnEdit">
+                    <p:commandLink actionListener="#{testBean.showEditFeedback}" immediate="true" 
+                      update="addFeedbackDialog">
+                      
+                      <f:attribute name="feedback" value="#{feedback}" />
+                      <h:graphicImage id="editFeedbackImage" styleClass="links" 
+                        value="#{resource['images:edit16.png']}" />
+                      <p:tooltip for="editFeedbackImage">
+                        #{msgs.EDIT_FEEDBACK}
+                      </p:tooltip>
+                    </p:commandLink>
+                  </p:column>
+                  <p:column styleClass="columnDelete">
+                    <p:commandLink actionListener="#{testBean.removeFeedback}" immediate="true" 
+                      update="testForm:feedbackAccordion:reSortFeedbacks testForm:feedbackAccordion:feedbacksTable">
+                      
+                      <f:attribute name="feedback" value="#{feedback}" />
+                      <h:graphicImage id="deleteFeedbackImage" styleClass="links" 
+                        value="#{resource['images:delete.png']}" />
+                      <p:tooltip for="deleteFeedbackImage">
+                        #{msgs.DELETE_FEEDBACK}
+                      </p:tooltip>
+                    </p:commandLink> 
+                  </p:column>
+                </p:dataTable>
+                <h:panelGroup layout="block" styleClass="advancedFeedbacksLeftAlignTop">
+                  <h:outputText style="font-size:110%;font-weight:bold;" 
+                    value="#{msgs.ADVANCED_FEEDBACKS_NEXT_TEXT}:" />
+                </h:panelGroup>
+                <p:editor id="feedbackAdvancedNext" widgetVar="feedbackAdvancedNext" width="670" height="150" 
+                  value="#{testBean.feedbackAdvancedNext}" />
+              </p:tab>
+            </p:accordionPanel>
+          </p:panel>
+        </p:tab>
+        <p:tab id="confirmation" title="#{msgs.CONFIRM}">
+          <p:panel styleClass="panelTab">
+            <p:messages id="confirmationMessages" rendered="#{testBean.activeTestTabName=='confirmation'}" />
+            <h:panelGroup layout="block" style="text-align:center;">
+              <p>
+                <h:outputText value="#{msgs.TEST_CONFIRMATION}" escape="false" />
+              </p>
+              <p:commandButton id="saveButton" value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
+                image="ui-icon ui-icon-disk" action="#{testBean.saveTest}"
+                onclick="presentationText.saveHTML();preliminarySummaryText.saveHTML();feedbackSummaryPrevious.saveHTML();feedbackScoresPrevious.saveHTML();feedbackAdvancedPrevious.saveHTML();feedbackAdvancedNext.saveHTML();" />
+              <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" 
+                styleClass="confirmButtons" image="ui-icon ui-icon-cancel" action="tests" />
+            </h:panelGroup>
+          </p:panel>
+        </p:tab>
+      </p:wizard>
+	</h:form>
+	
+    <p:dialog widgetVar="addQuestionsDialog" id="addQuestionsDialog" styleClass="dialog" width="775" 
+      height="440" header="#{msgs.ADD_QUESTIONS}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('addQuestionsDialog');">
+      
+      <h:form id="addQuestionsForm">
+        <p:messages id="questionsMessages" />
+        <p:panel id="questionsFilterPanel" styleClass="dialogPanel">
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="categoryLabelColumn,categoryInputColumn,includeSubcategoriesLabelColumn,includeSubcategoriesInputColumn">
+            
+            #{msgs.CATEGORY}:
+            <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:400px;" panelStyle="width:550px;"
+              value="#{testBean.filterCategoryId}" var="filterCategoryId">
+              
+              <p:ajax event="change" process="addQuestionsForm:questionsFilterPanel" 
+                update="addQuestionsForm:questionsFilterPanel" />
+              <f:selectItems value="#{testBean.specialCategoriesFilters}" var="catFilter" 
+                itemLabel="#{testBean.getSpecialCategoryFilterName(catFilter)}" 
+                itemValue="#{catFilter.id}" />
+              <f:selectItems value="#{testBean.questionsCategories}" var="cat" 
+                itemLabel="#{testBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+              <p:column>
+                #{testBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+              </p:column>
+		    </p:selectOneMenu>
+		    <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" 
+		      rendered="#{testBean.filterCategoryId&gt;0}" />
+            <p:selectBooleanCheckbox id="includeSubcategories" 
+              value="#{testBean.filterIncludeSubcategories}" rendered="#{testBean.filterCategoryId&gt;0}" /> 
+		  </h:panelGrid>
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="questionLevelLabelColumn,questionLevelInputColumn,questionTypeLabelColumn,questionTypeInputColumn,applyFilterButtonColumn">
+		    
+		    #{msgs.DIF}:
+            <p:selectOneMenu id="filterQuestionLevel" styleClass="combo" 
+              style="width:150px;margin-right:15px;" var="l" value="#{testBean.filterQuestionLevel}">
+		      
+		      <f:selectItem itemLabel="#{localizationService.getAllOptions('DIF_GEN')}" itemValue="" />
+		      <f:selectItems value="#{testBean.questionLevels}" var="level" itemLabel="#{msgs[level]}" 
+		        itemValue="#{level}" />
+              <p:column styleClass="columnLevel">
+                <h:outputText value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" styleClass="#{l}" />
+              </p:column>
+              <p:column style="font-size:85% !important;">
+                #{msgs[l]}
+              </p:column>
+		    </p:selectOneMenu>
+		    #{msgs.QUESTION_TYPES}: 
+		    <p:selectOneMenu id="filterQuestionType" styleClass="combo" style="width:230px;" var="t" 
+		      value="#{testBean.filterQuestionType}">
+		      
+		      <f:selectItem itemLabel="#{localizationService.getAllOptions('QUESTION_TYPES_GEN')}" 
+		        itemValue="" />
+		      <f:selectItems value="#{questionTypesService.questionTypes}" var="type" 
+		        itemLabel="#{msgs[type]}" itemValue="#{type}" />
+              <p:column styleClass="columnIcon">
+                <p:graphicImage value="/resources/images/#{t}.gif" width="16" height="16" />
+              </p:column>
+              <p:column style="font-size:85% !important;">
+                #{msgs[t]}
+              </p:column>
+		    </p:selectOneMenu>
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testBean.applyQuestionsFilter}" 
+              process="addQuestionsForm:questionsFilterPanel" 
+              update="addQuestionsForm:questionsPickerPanel addQuestionsForm:questionsMessages" />
+		  </h:panelGrid>
+        </p:panel>
+        <p:panel id="questionsPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="questionsPickList" styleClass="questionsPickList" 
+            value="#{testBean.filteredQuestionsDualList}" var="question" itemValue="#{question}" 
+            converter="QuestionConverter" iconOnly="true" showTargetControls="true">
+        	
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_QUESTIONS_HEADER}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_QUESTIONS_HEADER}</f:facet>
+            <p:column styleClass="columnIcon"> 
+              <p:graphicImage value="/resources/images/#{question.type}.gif" width="16" height="16" />
+            </p:column>
+            <p:column styleClass="columnLevel">
+    	      <h:outputText id="addQuestionLevelColor" value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+    	        styleClass="#{question.levelString}" />
+    	      <p:tooltip for="addQuestionLevelColor">
+    	        #{msgs[question.levelString]}
+    	      </p:tooltip>
+            </p:column>
+            <p:column>  
+              #{question.name}
+            </p:column>  
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+	      <p:commandButton ajax="false" styleClass="confirmButtons" value="${msgs.ACCEPT}" 
+	        actionListener="#{testBean.acceptAddQuestions}" oncomplete="addQuestionsDialog.hide()" />
+          <p:commandButton styleClass="confirmButtons" value="#{msgs.CANCEL}" 
+            onclick="addQuestionsDialog.hide()" />
+	    </h:panelGroup>
+	  </h:form>
+	</p:dialog>
+	
+    <p:dialog widgetVar="buildingDialog" id="buildingDialog" styleClass="dialog" width="200" height="50" 
+      header="#{msgs.DEPLOYING_QUESTION}" showEffect="clip" draggable="false" closable="false" resizable="false"
+      modal="true">
+      
+      <h:panelGrid columns="2">
+        <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" height="32" 
+          width="32" />
+        #{msgs.PLEASE_WAIT}
+      </h:panelGrid>
+    </p:dialog>
+	
+    <p:dialog widgetVar="addUsersDialog" id="addUsersDialog" styleClass="dialog" width="740" height="400" 
+      header="#{msgs.ADD_USERS}" modal="true" closable="true" draggable="false" resizable="false"
+      onShow="centerDialog('addUsersDialog');">
+      
+      <h:form id="usersDialogForm">
+        <p:panel id="usersFilterPanel" styleClass="dialogPanel">
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow" 
+            columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+            
+            #{msgs.ROLE}
+            <p:selectOneMenu id="filterUserRoleId" styleClass="combo" style="width:210px;" 
+              value="#{testBean.filterUsersUserTypeId}">
+              
+              <p:ajax event="change" process="usersDialogForm:usersFilterPanel" 
+                update="usersDialogForm:usersFilterPanel" /> 
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+              <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+              <f:selectItems value="#{testBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                itemValue="#{userType.id}" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+              rendered="#{testBean.filterUsersUserTypeId&lt;=0}" />
+            <p:selectBooleanCheckbox id="includeOmUsers" value="#{testBean.filterUsersIncludeOmUsers}" 
+              rendered="#{testBean.filterUsersUserTypeId&lt;=0}" />
+            <h:outputText value="" rendered="#{testBean.filterUsersUserTypeId&gt;0}" />
+            <h:outputText value="" rendered="#{testBean.filterUsersUserTypeId&gt;0}" />
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testBean.applyUsersFilter}" process="usersDialogForm:usersFilterPanel" 
+              update="usersDialogForm:usersPickerPanel" />
+          </h:panelGrid>
+        </p:panel>
+        <p:panel id="usersPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="usersPickList" styleClass="usersPickList" value="#{testBean.usersDualList}" 
+            var="user" itemLabel="#{user}" itemValue="#{user}" converter="UserConverter" iconOnly="true">
+            
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_USERS_HEADER}</f:facet>
+            <p:column styleClass="columnUserPick">
+              #{user.nick}
+            </p:column>
+            <p:column styleClass="columnRolePick">
+              #{user.userType.type}
+            </p:column>
+            <p:column styleClass="columnOmUserPick">
+              <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                rendered="#{!user.gepeqUser}" />
+            </p:column>
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+            actionListener="#{testBean.acceptAddUsers}" oncomplete="addUsersDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="addUsersDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="addAdminsDialog" id="addAdminsDialog" styleClass="dialog" width="740" height="400" 
+      header="#{msgs.ADD_ADMINS}" modal="true" closable="true" draggable="false" resizable="false"
+      onShow="centerDialog('addAdminsDialog');">
+      
+      <h:form id="adminsDialogForm">
+        <p:panel id="adminsFilterPanel" styleClass="dialogPanel">
+          <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+            
+            #{msgs.ROLE}
+            <p:selectOneMenu id="filterAdminRoleId" styleClass="combo" style="width:210px;" 
+              value="#{testBean.filterAdminsUserTypeId}">
+              
+              <p:ajax event="change" process="adminsDialogForm:adminsFilterPanel" 
+                update="adminsDialogForm:adminsFilterPanel" /> 
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+              <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+              <f:selectItems value="#{testBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                itemValue="#{userType.id}" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+              rendered="#{testBean.filterAdminsUserTypeId&lt;=0}" />
+            <p:selectBooleanCheckbox id="includeOmUsers" value="#{testBean.filterAdminsIncludeOmUsers}" 
+              rendered="#{testBean.filterAdminsUserTypeId&lt;=0}" />
+            <h:outputText value="" rendered="#{testBean.filterAdminsUserTypeId&gt;0}" />
+            <h:outputText value="" rendered="#{testBean.filterAdminsUserTypeId&gt;0}" />
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testBean.applyAdminsFilter}" process="adminsDialogForm:adminsFilterPanel" 
+              update="adminsDialogForm:adminsPickerPanel" />
+          </h:panelGrid>
+        </p:panel>
+        <p:panel id="adminsPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="adminsPickList" styleClass="adminsPickList" value="#{testBean.adminsDualList}" 
+            var="admin" itemLabel="#{admin}" itemValue="#{admin}" converter="UserConverter" iconOnly="true">
+            
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_ADMINS_HEADER}</f:facet>
+            <p:column styleClass="columnUserPick">
+              #{admin.nick}
+            </p:column>
+            <p:column styleClass="columnRolePick">
+              #{admin.userType.type}
+            </p:column>
+            <p:column styleClass="columnOmUserPick">
+              <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                rendered="#{!admin.gepeqUser}" />
+            </p:column>
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+            actionListener="#{testBean.acceptAddAdmins}" oncomplete="addAdminsDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="addAdminsDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="addTechSupportAddressDialog" id="addTechSupportAddressDialog" styleClass="dialog" 
+      width="750" height="410" header="#{testBean.addEditSupportContactTitle}" modal="true" closable="true" 
+      draggable="false" resizable="false" onShow="centerDialog('addTechSupportAddressDialog');">
+      
+      <h:form id="techSupportAddressDialogForm">
+        <p:growl id="techSupportAddressDialogMessages" showDetail="true" sticky="true" 
+          itemClass="#{testBean.supportContactDialogDisplayed ? '' : 'invisible' }" />
+        <p:panel id="techSupportAddressFilterPanel" styleClass="dialogPanel" 
+          style="border-width:0px;height:320px;">
+          
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressFilterTypeLabelColumn,addressFilterTypeInputColumn,addressFilterSubtypeLabelColumn,addressFilterSubtypeInputColumn">
+            
+            #{msgs.FILTER_TYPE}
+            <p:selectOneMenu id="supportContactFilterType" styleClass="combo" style="width:170px;" 
+              value="#{testBean.supportContactFilterType}">
+              
+              <p:ajax event="change" listener="#{testBean.changeSupportContactFilterType}" 
+                process="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                update="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                onstart="changeSupportContactFilterTypeStart();" />
+              <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
+              <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
+              rendered="#{testBean.supportContactFilterSubtypeEnabled}" />
+            <p:selectOneMenu id="supportContactFilterSubtype" styleClass="combo" style="width:280px;" 
+              value="#{testBean.supportContactFilterSubtype}" 
+              rendered="#{testBean.supportContactFilterSubtypeEnabled}">
+              
+              <p:ajax event="change" listener="#{testBean.changeSupportContactFilterSubtype}" 
+                process="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                update="techSupportAddressDialogForm:techSupportAddressFilterPanel" 
+                onstart="changeSupportContactFilterSubtypeStart();" />
+              <f:selectItems value="#{testBean.supportContactFilterSubtypes}" var="subtype" 
+                itemLabel="#{msgs[subtype]}" itemValue="#{subtype}" />
+            </p:selectOneMenu>
+          </h:panelGrid>
+          
+          <h:panelGroup layout="block" rendered="#{testBean.supportContactFilterType=='NO_FILTER'}" 
+            styleClass="noFilterTip">
+            
+            <h:panelGroup styleClass="noFilterTipSpan">
+              <h:panelGroup styleClass="noFilterTipContent">
+                <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_NO_FILTER_TEXT}" escape="false" 
+                  styleClass="noFilterTipText" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGroup>
+          
+          <h:panelGroup rendered="#{testBean.supportContactFilterType=='USER_FILTER' and testBean.supportContactFilterSubtype=='USERS_SELECTION'}">
+            <p:panel id="supportContactFilterUsersFilterPanel" styleClass="dialogPanel" style="margin-bottom:0px;">
+              <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+                columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+                
+                #{msgs.ROLE}
+                <p:selectOneMenu id="filterSupportContactFilterUserRoleId" styleClass="combo" style="width:200px;" 
+                  value="#{testBean.filterSupportContactFilterUsersUserTypeId}">
+                  
+                  <p:ajax event="change" 
+                    process="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" 
+                    update="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" /> 
+                  <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                  <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                  <f:selectItems value="#{testBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                    itemValue="#{userType.id}" />
+                </p:selectOneMenu>
+                <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                  rendered="#{testBean.filterSupportContactFilterUsersUserTypeId&lt;=0}" />
+                <p:selectBooleanCheckbox id="includeOmUsers" 
+                  value="#{testBean.filterSupportContactFilterUsersIncludeOmUsers}" 
+                  rendered="#{testBean.filterSupportContactFilterUsersUserTypeId&lt;=0}" />
+                <h:outputText value="" rendered="#{testBean.filterSupportContactFilterUsersUserTypeId&gt;0}" />
+                <h:outputText value="" rendered="#{testBean.filterSupportContactFilterUsersUserTypeId&gt;0}" />
+                <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                  actionListener="#{testBean.applySupportContactFilterUsersFilter}" 
+                  process="techSupportAddressDialogForm:supportContactFilterUsersFilterPanel" 
+                  update="techSupportAddressDialogForm:supportContactFilterUsersPickerPanel techSupportAddressDialogForm:supportContactFilterUsersList" 
+                  onstart="applySupportContactFilterUsersFilterStart();" />
+              </h:panelGrid>
+            </p:panel>
+            <h:inputHidden id="supportContactFilterUsersIdsHidden" 
+              value="#{testBean.supportContactFilterUsersIdsHidden}" />            
+            <p:panel id="supportContactFilterUsersPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="supportContactFilterUsersList" styleClass="supportContactFilterUsersPickList" 
+                value="#{testBean.evaluatorFilterUsersDualList}" var="user" itemLabel="#{user}" itemValue="#{user}" 
+                converter="UserConverter" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.TECH_SUPPORT_USERS_HEADER}</f:facet>
+                <p:column styleClass="columnUserPick">
+                  #{user.nick}
+                </p:column>
+                <p:column styleClass="columnRolePick">
+                  #{user.userType.type}
+                </p:column>
+                <p:column styleClass="columnOmUserPick">
+                  <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                    rendered="#{!user.gepeqUser}" />
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.supportContactFilterType=='USER_FILTER' and testBean.supportContactFilterSubtype=='RANGE_NAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_USER_FILTER_RANGE_NAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_NAME}
+              <p:selectOneMenu id="filterSupportContactRangeNameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterSupportContactRangeNameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterSupportContactRangeNameLowerLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeNameUpperLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeNameUpperLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterSupportContactRangeNameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterSupportContactRangeNameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterSupportContactRangeNameUpperLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeNameLowerLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeNameLowerLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.supportContactFilterType=='USER_FILTER' and testBean.supportContactFilterSubtype=='RANGE_SURNAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.TECH_SUPPORT_ADDRESS_USER_FILTER_RANGE_SURNAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_SURNAME}
+              <p:selectOneMenu id="filterSupportContactRangeSurnameLowerLimit" styleClass="combo" 
+                style="width:50px;" value="#{testBean.filterSupportContactRangeSurnameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterSupportContactRangeSurnameLowerLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeSurnameUpperLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeSurnameUpperLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterSupportContactRangeSurnameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterSupportContactRangeSurnameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterSupportContactRangeSurnameUpperLimit}" 
+                  process="@this techSupportAddressDialogForm:filterSupportContactRangeSurnameLowerLimit" 
+                  update="techSupportAddressDialogForm:filterSupportContactRangeSurnameLowerLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+        </p:panel>
+        <p:panel id="techSupportAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
+          <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressLabelColumn,addressInputColumn">
+            
+            #{msgs.ADDRESS}
+            <h:inputText id="supportContactAddress" style="width:580px;" value="#{testBean.supportContact}" />
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom" style="margin-top:-20px;">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptAddSupportContact}" 
+            update="testForm:generalAccordion:techSupportAddressesTable techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+            onstart="acceptAddSupportContactStart();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+            actionListener="#{testBean.cancelAddSupportContact}"  
+            update="techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+            onclick="addTechSupportAddressDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="addAssessementAddressDialog" id="addAssessementAddressDialog" styleClass="dialog" 
+      width="750" height="410" header="#{testBean.addEditEvaluatorTitle}" modal="true" closable="true" 
+      draggable="false" resizable="false" onShow="centerDialog('addAssessementAddressDialog');">
+      
+      <h:form id="assessementAddressDialogForm">
+        <p:growl id="assessementAddressDialogMessages" showDetail="true" sticky="true" 
+          itemClass="#{testBean.evaluatorDialogDisplayed ? '' : 'invisible' }" />
+        <p:panel id="assessementAddressFilterPanel" styleClass="dialogPanel" style="border-width:0px;height:320px;">
+          <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressFilterTypeLabelColumn,addressFilterTypeInputColumn,addressFilterSubtypeLabelColumn,addressFilterSubtypeInputColumn">
+            
+            #{msgs.FILTER_TYPE}
+            <p:selectOneMenu id="evaluatorFilterType" styleClass="combo" style="width:170px;" 
+              value="#{testBean.evaluatorFilterType}">
+              
+              <p:ajax event="change" listener="#{testBean.changeEvaluatorFilterType}" 
+                process="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                update="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                onstart="changeEvaluatorFilterTypeStart();" />
+              <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
+              <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.FILTER_SUBTYPE}" rendered="#{testBean.evaluatorFilterSubtypeEnabled}" />
+            <p:selectOneMenu id="evaluatorFilterSubtype" styleClass="combo" style="width:280px;" 
+              value="#{testBean.evaluatorFilterSubtype}" rendered="#{testBean.evaluatorFilterSubtypeEnabled}">
+              
+              <p:ajax event="change" listener="#{testBean.changeEvaluatorFilterSubtype}" 
+                process="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                update="assessementAddressDialogForm:assessementAddressFilterPanel" 
+                onstart="changeEvaluatorFilterSubtypeStart();" />
+              <f:selectItems value="#{testBean.evaluatorFilterSubtypes}" var="subtype" itemLabel="#{msgs[subtype]}" 
+                itemValue="#{subtype}" />
+            </p:selectOneMenu>
+          </h:panelGrid>
+          
+          <h:panelGroup layout="block" rendered="#{testBean.evaluatorFilterType=='NO_FILTER'}" 
+            styleClass="noFilterTip">
+            
+            <h:panelGroup styleClass="noFilterTipSpan">
+              <h:panelGroup styleClass="noFilterTipContent">
+                <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_NO_FILTER_TEXT}" escape="false" 
+                  styleClass="noFilterTipText" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGroup>
+          
+          <h:panelGroup rendered="#{testBean.evaluatorFilterType=='USER_FILTER' and testBean.evaluatorFilterSubtype=='USERS_SELECTION'}">
+            <p:panel id="evaluatorFilterUsersFilterPanel" styleClass="dialogPanel" style="margin-bottom:0px;">
+              <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
+                columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+                
+                #{msgs.ROLE}
+                <p:selectOneMenu id="filterEvaluatorFilterUserRoleId" styleClass="combo" style="width:200px;" 
+                  value="#{testBean.filterEvaluatorFilterUsersUserTypeId}">
+                  
+                  <p:ajax event="change" 
+                    process="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" 
+                    update="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" /> 
+                  <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                  <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                  <f:selectItems value="#{testBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                    itemValue="#{userType.id}" />
+                </p:selectOneMenu>
+                <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                  rendered="#{testBean.filterEvaluatorFilterUsersUserTypeId&lt;=0}" />
+                <p:selectBooleanCheckbox id="includeOmUsers" 
+                  value="#{testBean.filterEvaluatorFilterUsersIncludeOmUsers}" 
+                  rendered="#{testBean.filterEvaluatorFilterUsersUserTypeId&lt;=0}" />
+                <h:outputText value="" rendered="#{testBean.filterEvaluatorFilterUsersUserTypeId&gt;0}" />
+                <h:outputText value="" rendered="#{testBean.filterEvaluatorFilterUsersUserTypeId&gt;0}" />
+                <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                  actionListener="#{testBean.applyEvaluatorFilterUsersFilter}" 
+                  process="assessementAddressDialogForm:evaluatorFilterUsersFilterPanel" 
+                  update="assessementAddressDialogForm:evaluatorFilterUsersPickerPanel assessementAddressDialogForm:evaluatorFilterUsersList" 
+                  onstart="applyEvaluatorFilterUsersFilterStart();" />
+              </h:panelGrid>
+            </p:panel>
+            <h:inputHidden id="evaluatorFilterUsersIdsHidden" value="#{testBean.evaluatorFilterUsersIdsHidden}" />            
+            <p:panel id="evaluatorFilterUsersPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="evaluatorFilterUsersList" styleClass="evaluatorFilterUsersPickList" 
+                value="#{testBean.evaluatorFilterUsersDualList}" 
+                var="user" itemLabel="#{user}" itemValue="#{user}" converter="UserConverter" iconOnly="true"
+                dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.ASSESSEMENT_USERS_HEADER}</f:facet>
+                <p:column styleClass="columnUserPick">
+                  #{user.nick}
+                </p:column>
+                <p:column styleClass="columnRolePick">
+                  #{user.userType.type}
+                </p:column>
+                <p:column styleClass="columnOmUserPick">
+                  <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                    rendered="#{!user.gepeqUser}" />
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.evaluatorFilterType=='USER_FILTER' and testBean.evaluatorFilterSubtype=='RANGE_NAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_USER_FILTER_RANGE_NAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_NAME}
+              <p:selectOneMenu id="filterEvaluatorRangeNameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterEvaluatorRangeNameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterEvaluatorRangeNameLowerLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeNameUpperLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeNameUpperLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterEvaluatorRangeNameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterEvaluatorRangeNameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterEvaluatorRangeNameUpperLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeNameLowerLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeNameLowerLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.evaluatorFilterType=='USER_FILTER' and testBean.evaluatorFilterSubtype=='RANGE_SURNAME'}">
+            <h:panelGroup layout="block" styleClass="userFilterTip">
+              <h:panelGroup styleClass="userFilterTipSpan">
+                <h:panelGroup styleClass="userFilterTipContent">
+                  <h:outputText value="#{msgs.ASSESSEMENT_ADDRESS_USER_FILTER_RANGE_SURNAME_TEXT}" escape="false" 
+                    styleClass="userFilterTipText" />
+                </h:panelGroup>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <h:panelGrid columns="4" cellpadding="5" rowClasses="topAlignRow"
+              columnClasses="filterRangeLowerLimitLabelColumn,filterRangeLowerLimitInputColumn,filterRangeUpperLimitLabelColumn,filterRangeUpperLimitInputColumn">
+              
+              #{msgs.FILTER_RANGE_SURNAME}
+              <p:selectOneMenu id="filterEvaluatorRangeSurnameLowerLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterEvaluatorRangeSurnameLowerLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterEvaluatorRangeSurnameLowerLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeSurnameUpperLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeSurnameUpperLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+              #{msgs.FILTER_RANGE_TO}
+              <p:selectOneMenu id="filterEvaluatorRangeSurnameUpperLimit" styleClass="combo" style="width:50px;" 
+                value="#{testBean.filterEvaluatorRangeSurnameUpperLimit}">
+                
+                <p:ajax event="change" listener="#{testBean.changeFilterEvaluatorRangeSurnameUpperLimit}" 
+                  process="@this assessementAddressDialogForm:filterEvaluatorRangeSurnameLowerLimit" 
+                  update="assessementAddressDialogForm:filterEvaluatorRangeSurnameLowerLimit" />
+                <f:selectItems value="#{testBean.letters}" var="letter" itemLabel="#{letter}" 
+                  itemValue="#{letter}" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+          </h:panelGroup>
+        </p:panel>
+        <!-- ;background:#fff;background-color:rgba(255,255,255,0); -->
+        <p:panel id="assessementAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
+          <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="addressLabelColumn,addressInputColumn">
+            
+            #{msgs.ADDRESS}
+            <h:inputText id="evaluatorAddress" style="width:580px;" value="#{testBean.evaluator}" />
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom" style="margin-top:-20px;">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptAddEvaluator}" 
+            update="testForm:generalAccordion:assessementAddressesTable assessementAddressDialogForm:assessementAddressDialogMessages" 
+            onstart="acceptAddEvaluatorStart();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+            actionListener="#{testBean.cancelAddEvaluator}"  
+            update="assessementAddressDialogForm:assessementAddressDialogMessages" 
+            onclick="addAssessementAddressDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+	
+    <p:dialog widgetVar="resortQuestionsDialog" id="resortQuestionsDialog" styleClass="dialog" width="510" 
+      height="320" header="#{msgs.RE_SORT_QUESTIONS}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('resortQuestionsDialog');">
+      
+      <h:form id="resortQuestionsDialogForm">
+        <p:panel styleClass="dialogPanel" style="border-width:0px;">
+          <p:orderList styleClass="questionsOrderList" iconOnly="true" 
+            value="#{testBean.currentSection.questionOrdersSorting}" var="questionOrder" 
+            itemValue="#{questionOrder}" converter="QuestionOrderBeanConverter">
+            
+            <f:facet name="caption">#{msgs.QUESTIONS}</f:facet>
+            <p:column styleClass="columnIcon"> 
+              <p:graphicImage value="/resources/images/#{questionOrder.question.type}.gif" 
+                width="16" height="16" />
+            </p:column>
+            <p:column styleClass="columnLevel">
+              <h:outputText id="reSortQuestionLevelColor" 
+                value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+                styleClass="#{questionOrder.question.levelString}" />
+              <p:tooltip for="reSortQuestionLevelColor">
+                #{msgs[questionOrder.question.levelString]}
+              </p:tooltip>
+            </p:column>
+            <p:column>  
+              #{questionOrder.question.name}
+            </p:column>  
+          </p:orderList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptReSortQuestions}" oncomplete="resortQuestionsDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="resortQuestionsDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="resortSectionsDialog" id="resortSectionsDialog" styleClass="dialog" width="800" 
+      height="320" header="#{msgs.RE_SORT_SECTIONS}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('resortSectionsDialog');">
+      
+      <h:form id="resortSectionsDialogForm">
+        <p:panel styleClass="dialogPanel" style="border-width:0px;">
+          <p:orderList styleClass="sectionsOrderList" iconOnly="true" value="#{testBean.sectionsSorting}" 
+            var="section" itemValue="#{section}" converter="SectionBeanConverter">
+            
+            <f:facet name="caption">#{msgs.SECTIONS}</f:facet>
+            <p:column styleClass="columnSectionName">
+              <h:outputText value="#{testBean.getNumberedSectionName(section)}" style="font-weight:bold;" />
+            </p:column>
+            <p:column styleClass="columnSectionQuestionsNumber">
+               #{section.questionOrdersSize} #{section.questionOrdersSize==1 ? msgs.AVAILABLE_QUESTION : msgs.AVAILABLE_QUESTIONS }
+            </p:column>
+            <p:column styleClass="columnSectionShuffle">
+              #{section.shuffle ? msgs.SECTION_SHUFFLE : msgs.SECTION_NO_SHUFFLE }
+            </p:column>
+            <p:column styleClass="columnSectionRandom">
+              #{section.random ? section.randomQuantity : '' } #{section.random ? msgs.SECTION_RANDOM : '' }
+            </p:column>
+            <p:column styleClass="columnSectionQuestions">
+              #{section.questionsString}
+            </p:column>
+          </p:orderList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptReSortQuestions}" oncomplete="resortSectionsDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="resortSectionsDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="addFeedbackDialog" id="addFeedbackDialog" styleClass="dialog" width="710" 
+      height="#{testBean.feedbackDialogHeight}" header="#{testBean.addEditFeedbackTitle}" modal="true" 
+      closable="true" draggable="false" resizable="false" onShow="centerDialog('addFeedbackDialog');">
+        
+      <h:form id="feedbackDialogForm" onkeypress="preventEnterSubmit(event);">
+        <p:panel styleClass="dialogPanel">
+          <p>#{msgs.CONTENT}:</p>
+          <p:editor id="feedbackHtmlContent" widgetVar="feedbackHtmlContent" width="635" height="150" 
+            value="#{testBean.currentFeedback.htmlContent}" />
+          <h:panelGrid columns="2" cellpadding="5" style="text-align:center;"
+            columnClasses="columnFeedbackSectionsLabel,columnFeedbackSectionsInput" 
+            rendered="#{testBean.sectionsSize>1}">
+            
+            #{msgs.SECTION_TO_CHECK}:
+            <p:selectOneMenu styleClass="combo" style="width:300px;" 
+              value="#{testBean.currentFeedbackConditionSection}" converter="SectionBeanConverter">
+              
+              <p:ajax listener="#{testBean.currentFeedback.condition.changeSection}" process="@this" 
+                update="feedbackDialogForm:conditionalValuesPanelGroup" />
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('SECTION_GEN')}" itemValue="" />
+              <f:selectItems value="#{testBean.sections}" var="section" 
+                itemLabel="#{testBean.getNumberedSectionName(section)}" itemValue="#{section}" />
+            </p:selectOneMenu>
+          </h:panelGrid>
+          <h:panelGrid columns="4" cellpadding="5" style="text-align:center;"
+            columnClasses="columnFeedbackConditionDisplayLabel,columnFeedbackConditionComparatorInput,columnFeedbackConditionValues">
+            
+            #{msgs.DISPLAY_IF_SCORE}
+            <p:selectOneMenu styleClass="combo" value="#{testBean.currentFeedbackConditionComparator}" 
+              style="width:190px;">
+              
+              <p:ajax listener="#{testBean.currentFeedback.condition.changeComparator}" process="@this" 
+                update="feedbackDialogForm:conditionalValuesPanelGroup" />
+              <f:selectItems value="#{testBean.numberComparators}" var="comparator" 
+                itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+            </p:selectOneMenu>
+            <h:panelGroup id="conditionalValuesPanelGroup">
+              <p:spinner id="conditionalCmp" value="#{testBean.currentFeedback.condition.conditionalCmp}" 
+                min="#{testBean.currentFeedback.condition.minValueConditionalCmp}"
+                max="#{testBean.currentFeedback.condition.maxValueConditionalCmp}" 
+                style="width:50px;vertical-align:top;" converter="SpinnerIntegerConverter" 
+                rendered="#{!testBean.currentFeedback.condition.between}">
+                
+                <p:ajax listener="#{testBean.changeFeedbackConditionalCmp}" process="@this" update="@this" />
+              </p:spinner>
+              <ui:fragment rendered="#{testBean.currentFeedback.condition.between}">
+                <p:spinner id="conditionalBetweenMin" 
+                  value="#{testBean.currentFeedback.condition.conditionalBetweenMin}" min="0" 
+                  max="#{testBean.currentFeedback.condition.conditionalBetweenMax}" 
+                  style="width:50px;margin-right:2px;vertical-align:top;" converter="SpinnerIntegerConverter">
+                  
+                  <p:ajax listener="#{testBean.changeFeedbackConditionalBetweenMin}" process="@this" 
+                    update="@this feedbackDialogForm:conditionalBetweenMax" />
+                </p:spinner>
+                <h:outputText value="#{msgs.BETWEEN_AND}" 
+                  style="display:inline-block;width:20px;text-align:center;vertical-align:top;" />
+                <p:spinner id="conditionalBetweenMax" 
+                  value="#{testBean.currentFeedback.condition.conditionalBetweenMax}" 
+                  min="#{testBean.currentFeedback.condition.conditionalBetweenMin}" 
+                  max="#{testBean.currentFeedback.condition.maxConditionalValue}" 
+                  style="width:50px;margin-left:2px;vertical-align:top;" converter="SpinnerIntegerConverter">
+                  
+                  <p:ajax listener="#{testBean.changeFeedbackConditionalBetweenMax}" process="@this" 
+                    update="@this feedbackDialogForm:conditionalBetweenMin" />
+                </p:spinner>
+              </ui:fragment>
+              <p:selectOneMenu styleClass="combo" style="width:90px;margin-left:10px;" 
+                value="#{testBean.currentFeedbackConditionUnit}">
+                
+                <p:ajax listener="#{testBean.currentFeedback.condition.changeUnit}" process="@this" 
+                  update="feedbackDialogForm:conditionalValuesPanelGroup" />
+                <f:selectItems value="#{testBean.conditionalUnits}" var="unit" itemLabel="#{msgs[unit]}"
+                  itemValue="#{unit}" />
+              </p:selectOneMenu>
+            </h:panelGroup>
+          </h:panelGrid>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptAddFeedback}" process="@form" 
+            update="@form testForm:feedbackAccordion:feedbacksTable" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="addFeedbackDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="resortFeedbacksDialog" id="resortFeedbacksDialog" styleClass="dialog" width="800" 
+      height="320" header="#{msgs.RE_SORT_FEEDBACKS}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('resortFeedbacksDialog');">
+      
+      <h:form id="resortFeedbacksDialogForm">
+        <p:panel styleClass="dialogPanel" style="border-width:0px;">
+          <p:orderList iconOnly="true" styleClass="feedbacksOrderList" value="#{testBean.feedbacksSorting}" 
+            var="feedback" itemValue="#{feedback}" converter="TestFeedbackBeanConverter">
+            
+            <f:facet name="caption">#{msgs.FEEDBACKS}</f:facet>
+            <p:column styleClass="columnOrder">
+              #{feedback.position}
+            </p:column>
+            <p:column styleClass="columnCondition">
+              #{feedback.conditionString}
+            </p:column>
+            <p:column styleClass="columnContent" style="text-align:left;">
+              <f:facet name="header">#{msgs.CONTENT}</f:facet>
+              <h:panelGroup layout="block" styleClass="feedbackItemHtmlContentPreview">
+                <h:outputText escape="false" value="#{feedback.htmlContent}" />
+              </h:panelGroup>
+            </p:column>
+          </p:orderList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+            actionListener="#{testBean.acceptReSortFeedbacks}" oncomplete="resortFeedbacksDialog.hide();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            onclick="resortFeedbacksDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+         some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+         Moreover p:dialog provides more control... for example forcing user to click a button 
+         to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+         some actions after user interaction even on cancel. -->
+    
+    <p:dialog widgetVar="confirmDeleteSectionDialog" id="confirmDeleteSectionDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false"
+      resizable="false" onShow="centerDialog('confirmDeleteSectionDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_DELETE_SECTION}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteSectionDialog.hide();" 
+              actionListener="#{testBean.removeSection}" update="testForm:sectionsAccordion" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteSectionDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="confirmDeleteQuestionDialog" id="confirmDeleteQuestionDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false"
+      resizable="false" onShow="centerDialog('confirmDeleteQuestionDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_REMOVE_QUESTION_FROM_SECTION}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteQuestionDialog.hide();" 
+              actionListener="#{testBean.removeQuestion}" update="testForm:sectionsAccordion" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteQuestionDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="confirmChangePropertyDialog" id="confirmChangePropertyDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+      onShow="centerDialog('confirmChangePropertyDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_CHANGE_PROPERTY_FOR_FEEDBACKS}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmChangePropertyDialog.hide();"
+              actionListener="#{testBean.confirmChangeProperty}" update="testForm:testFormWizard" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmChangePropertyDialog.hide();" 
+              actionListener="#{testBean.rollbackProperty}" 
+              update="testForm:testFormTabs:scoreTypeInput testForm:testFormTabs:scoreTypeTip testForm:sectionsAccordion" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="confirmCancelTestDialog" id="confirmCancelTestDialog" styleClass="dialog" 
+      header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+      onShow="centerDialog('confirmCancelTestDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_CANCEL_TEST}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" ajax="false" action="#{testBean.cancelTest}" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmCancelTestDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>
+</html>

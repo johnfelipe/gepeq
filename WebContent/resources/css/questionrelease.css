@@ -1,0 +1,468 @@
+/* ©UNED */
+.usersPickList .ui-picklist-list {
+    width:310px;
+}
+
+.ui-wizard-content {
+	font-size:90%;,
+}
+
+.ui-wizard-navbar {
+	font-size:75%;
+}
+
+.ui-wizard-step-title {
+	font-size:85%;
+}
+
+.ui-tabs-panel {
+	font-size:90%;
+	padding:0px;
+}
+
+.ui-tabs-nav {
+	font-size:85%;
+}
+
+.ui-messages-error {
+    font-size:95% !important;
+}
+
+.panelTab {
+	width:99%;	
+}
+
+.ui-messages-error {
+    font-size:90% !important;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.dialogPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.ui-selectonemenu-item {
+    font-size:85% !important;
+}
+
+.columnCommonDataLabels {
+    vertical-align:middle;
+    padding-top:8px;
+	padding-bottom:12px;
+	width:130px;
+}
+
+.columnCommonDataInputs {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnThumb {
+    vertical-align:middle;
+    width:40px;
+}
+
+.columnImageName {
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+.columnDifficultyLevelLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnDifficultyLevelInput {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+	width:250px;
+}
+
+.columnAuthorLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:50px;
+}
+
+.columnAuthorInput {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnQuestionTextLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnQuestionTextInput {
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+/* ------------------------------------- */
+/* Allow user to do test input (Spanish) */
+/* ------------------------------------- */
+.columnAllUsersAllowedLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:350px;
+    /*width:320px;*/
+}
+
+.columnAllUsersAllowedInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------------- */
+
+/* ------------------------------------- */
+/* Allow user to do test input (English) */
+/* ------------------------------------- */
+.columnAllUsersAllowedLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+    /*width:180px;*/
+}
+
+.columnAllUsersAllowedInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+}
+/* ------------------------------------- */
+
+.columnRestrictDatesLabel, .columnRestrictFeedbackDateLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    padding-right:10px;
+}
+
+.columnRestrictDatesInput, .columnRestrictFeedbackDateInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+/* ------------------------- */
+/* Calendar inputs (Spanish) */
+/* ------------------------- */
+.columnDatesLeftLabels {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.columnDatesLeftInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesLeftResets {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.columnDatesRightLabels {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.columnDatesRightInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesRightResets {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDeleteDateLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:220px;
+}
+
+.columnDeleteDateInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDeleteDateReset {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ------------------------- */
+
+/* -------------------------- */
+/* Calendar inputs  (English) */
+/* -------------------------- */
+.columnDatesLeftLabelsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnDatesLeftInputsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesLeftResetsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.columnDatesRightLabelsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.columnDatesRightInputsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDatesRightResetsEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDeleteDateLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.columnDeleteDateInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.columnDeleteDateResetEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* -------------------------- */
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.button {
+    font-size:85% !important;
+}
+
+.allUsersAllowedGrid {
+    margin-bottom:-20px;
+}
+
+.usersTopGrid, .adminsTopGrid  {
+    width:100%;
+}
+
+.usersLabel {
+    text-align:left;
+    width:340px;
+}
+
+.usersButtons {
+    float:right;
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.alignTop {
+    width:100%;
+    margin-top:10px; 
+    margin-bottom:5px;
+}
+
+.topAlignRow {
+	vertical-align:top;
+	margin-top:10px;
+	margin-bottom:10px;
+}
+
+.centerAlignBottom {
+    text-align:center;  
+    width:100%; 
+    margin-top:5px;
+    margin-bottom:-5px;
+}
+
+.confirmButtons {
+    margin:10px;
+    font-size:85% !important;
+}
+
+.roleLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.roleInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:220px;
+}
+
+.includeOmUsersLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.includeOmUsersInputColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.applyUsersFilterButtonColumn {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.questionTextArea {
+	width:550px; 
+	height:75px;
+}
+
+.usersTable {
+    font-size:90% !important;
+	width:100%;
+	padding-bottom:10px;
+}
+
+.dataRow {
+    padding:5px;
+    margin:5px;
+}
+
+.columnUser {
+    width:220px;
+}
+
+.columnRole {
+    width:220px;
+}
+
+.columnOmUser {
+    width:20px;
+    text-align:center;
+}
+
+.columnDelete {
+    width:20px;
+    text-align:center;
+}
+
+.columnUserPick {
+    width:150px;
+}
+
+.columnRolePick {
+    width:120px;
+}
+
+.columnOmUserPick {
+    text-align:center;
+}
+
+/** Modified styles for calendar control (default calendar control was too big) */
+.ui-datepicker-title {
+    font-size:90%;
+}
+
+.ui-datepicker {
+	width:200px;
+}
+
+.ui-datepicker table {
+    margin-bottom:0px;
+}
+
+.ui-datepicker th {
+    padding-bottom:0em;
+}
+
+.ui-datepicker td {
+    font-size:90%;
+}
+
+.ui-slider .ui-slider-handle {
+    width:0.2em;
+}
+
+.ui-timepicker-div {
+    font-size:90%;
+    margin-top:0px;
+}
+
+.ui-slider-horizontal .ui-slider-handle {
+    margin-left:-0.2em;
+}
+
+.ui-progressbar {
+    height:0.8em;
+}
+
+.ui-datepicker-buttonpane {
+    font-size:80%;
+}

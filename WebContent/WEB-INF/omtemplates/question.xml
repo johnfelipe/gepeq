@@ -1,0 +1,38 @@
+<!-- For now only <question class="${GenericQuestion}"> is supported by OpenMark authoring tool, 
+     so changing it will produce errors -->
+<question class="${GenericQuestion}">
+<scoring>
+<!-- Please note that for now only marks=3 is supported by OpenMark Authoring Tool,
+     so changing this value can produce unpredictable score results or even errors -->
+<marks>3</marks>
+</scoring>
+<layout>
+<row height="0"/>
+<column width="296"/>
+<column width="296"/>
+</layout>
+<box background="input" gridx="0" gridy="0" id="inputbox">
+${QuestionImageGap}
+${QuestionTextGap}
+<!-- IMPORTANT: You need to add here at least one answer component -->
+<gap/>
+${SubmitButton}
+${PassButton}
+</box>
+<box background="answer" display="no" gridx="1" gridy="0" id="answerbox">
+<t id="right">${CorrectGap}${CorrectImageGap}</t>
+<t id="wrong">${IncorrectGap}${IncorrectImageGap}</t>
+<t id="still">${StillGap}</t>
+<t id="pass">${PassGap}${PassImageGap}</t>
+<!-- You can add here fixed feedbacks -->
+<t id="feedback">
+    <!-- You can add here normal feedbacks -->
+</t>
+<t id="answer">${FinalGap}${FinalImageGap}</t>
+${TryAgainButton}
+${NextQuestionButton}
+</box>
+<!-- Summary line is not really needed but improves report output -->
+<summaryline>Attempt <summaryattribute attribute="attempt"/>: Selected answer: <summaryattribute attribute="answerline"/>
+</summaryline>
+</question>

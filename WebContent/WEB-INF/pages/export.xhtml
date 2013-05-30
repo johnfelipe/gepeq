@@ -1,0 +1,85 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.EXPORT_TITLE}</ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js"/>
+    <h:outputStylesheet library="css" name="export.css"/>
+	
+	<p:outputPanel styleClass="exportPanel">
+	  <h:form styleClass="exportForm" onkeypress="preventEnterSubmit(event);">
+	    <p:panel styleClass="buttonPanel">
+	  	  <p:commandButton value="#{msgs.EXP}" styleClass="button" 
+	  	    ajax="false" action="#{exportBean.exportQuestions}" 
+            image="ui-icon ui-icon-circle-arrow-e">
+	  	  </p:commandButton>  
+        </p:panel>
+	    
+	    <p:panel id="questionsPanel">
+	  	  <h:panelGrid columns="2" cellpadding="5" 
+	  	    columnClasses="columnLabels" rowClasses="topAlignRow">
+        	<h:outputText value="#{msgs.CATEGORY}:" />
+	  		<p:selectOneMenu styleClass="combo" style="width: 500px;" 
+	  		  value="#{exportBean.categoryId}">
+        	  <f:selectItems value="#{exportBean.categories}" var="cat" itemValue="#{cat.id}"
+                itemLabel="#{categoriesService.getLocalizedCategory(cat)}" />
+              <p:ajax event="change" process="questionsPanel" update="pickList"/>
+            </p:selectOneMenu>
+          </h:panelGrid>
+          <h:panelGrid columns="4" cellpadding="5" 
+	  	    columnClasses="columnLabels,,columnLabels," rowClasses="topAlignRow">  
+            <h:outputText value="#{msgs.TYPE}:" />
+        	<p:selectOneMenu styleClass="combo" style="width: 250px; margin-right: 30px;" 
+        	  value="#{exportBean.type}" var="l">
+        	  <f:selectItem itemLabel="#{msgs.ALL_OPTIONS_F}" itemValue="" />
+        	  <f:selectItems value="#{questionTypesService.questionTypes}" var="type"
+                itemLabel="#{msgs[type.name]}" itemValue="#{type.name}" />
+              <p:ajax event="change" process="questionsPanel" update="pickList"/>
+              <p:column styleClass="columnLevel"> 
+                <p:graphicImage value="/resources/images/#{type}.png"  
+                  width="35" height="20"/>
+              </p:column>  
+              <p:column>  
+                #{msgs[type]}
+              </p:column>   
+            </p:selectOneMenu>
+		    #{msgs.DIF}:
+        	<p:selectOneMenu styleClass="combo" style="width: 250px;" 
+        	  value="#{exportBean.level}" var="l">
+        	  <f:selectItem itemLabel="#{msgs.ALL_OPTIONS_F}" itemValue="" />
+        	  <f:selectItems value="#{questionsService.questionLevels}" var="level"
+                itemLabel="#{msgs[level]}" itemValue="#{level}" />
+              <p:ajax event="change" process="questionsPanel" update="pickList"/>
+              <p:column styleClass="columnLevel"> 
+                <p:graphicImage value="/resources/images/#{l}.png"  
+                  width="35" height="20"/>
+              </p:column>  
+              <p:column>  
+                #{msgs[l]}
+              </p:column>   
+            </p:selectOneMenu>
+          </h:panelGrid>
+        </p:panel>
+        	  
+        <p:pickList id="pickList" value="#{exportBean.questions}" iconOnly="true"
+          var="question" converter="QuestionConverter" effect="blind"
+          itemLabel="#{question.name}"  itemValue="#{question}" 
+          addLabel="#{msgs.ADD}" addAllLabel="#{msgs.ADD_ALL}"
+          removeLabel="#{msgs.REMOVE}" removeAllLabel="#{msgs.REMOVE_ALL}" />           
+	  </h:form>
+	</p:outputPanel>
+  </ui:define>
+</ui:composition>
+</html>

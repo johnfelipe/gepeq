@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ©UNED -->
+<Configuration>
+  <!-- Folder where resources are uploaded -->
+  <ResourcesFolder>gepec_resources</ResourcesFolder>
+  
+  <!-- OpenMark Developer URL -->
+  <OmUrl>http://localhost:8080/om</OmUrl>
+  
+  <!-- OpenMark Test Navigator (preview environment) URL -->
+  <OmTnUrl>http://localhost:8080/om-tn</OmTnUrl>
+  
+  <!-- OpenMark Question Engine (preview environment) URL -->
+  <OmQeUrl>http://localhost:8080/om-qe</OmQeUrl>
+  
+  <!-- OpenMark Test Navigator (publication environment) URL -->
+  <OmTnProUrl>http://localhost:8080/om-tn-pro</OmTnProUrl>
+  
+  <!-- Folder where questions and required resources are copied before compilation -->
+  <OmQuestionsFolder>om_questions</OmQuestionsFolder>
+  
+  <!-- QTI import/export folders -->
+  <ImportQuestionsFolder>imported_questions</ImportQuestionsFolder>
+  <ExportQuestionsFolder>exported_questions</ExportQuestionsFolder>
+  
+  <!-- Temporal folder. Used for temporal uploading of resources for previewing -->
+  <TmpFolder>tmp</TmpFolder>
+  
+  <!-- Proxy settings: Uncomment and set next options only if your web application is behind a proxy -->
+  <!--
+  <Proxy-URL></Proxy-URL>
+  <Proxy-Port></Proxy-Port>
+  <Proxy-Username></Proxy-Username>
+  <Proxy-Password></Proxy-Password>
+  <Non-Proxy-Hosts></Non-Proxy-Hosts>
+  -->
+  
+  <!-- OpenMark Test Navigator web services encryption passwords: Uncomment and set next options only if 
+       you configure OpenMark Test Navigator web services to use encryption for some arguments -->
+  <!--
+  <OmTnEncryptionPassword></OmTnEncryptionPassword>
+  <OmTnProEncryptionPassword></OmTnProEncryptionPassword>
+  -->
+</Configuration>

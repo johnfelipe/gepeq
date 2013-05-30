@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deploy>
+	<question>samples.uned.simulation</question>
+	<access><users world="yes"/></access>
+	<dates><open>yes</open></dates>
+</deploy>

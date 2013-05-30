@@ -1,0 +1,8 @@
+OpenMark online assessment - Test result - %%TEST_NAME%% - %%USER_NAME%% 
+
+%%USER_NAME%% has submitted test '%%TEST_NAME%%' at %%TIME%%
+
+%%TEST_REPORT%%
+
+Please do not reply to this email, which was generated automatically by the
+OpenMark online assessment system.

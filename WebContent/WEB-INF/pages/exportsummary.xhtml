@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.EXPORT_TITLE}</ui:define>
+  
+  <ui:define name="content">
+    <h:outputStylesheet library="css" name="export.css" />
+	
+	<p:outputPanel styleClass="exportPanel">
+	  <h:form id="filterForm" styleClass="exportForm">
+	  <p:panel styleClass="summaryPanel">
+	  	#{msgs.EXPORT_COMPLETE}
+	  	<p:separator styleClass="separator" />
+	  	
+	  	<ui:repeat var="file" value="#{exportSummaryBean.files}">
+	  	  <div class="linkDiv">
+          <h:commandLink value="#{file.name}" styleClass="commandLink">
+            <h:graphicImage library="images" name="xml.png" 
+              styleClass="links" height="32" width="32"/>
+            <p:fileDownload value="#{file}" />
+          </h:commandLink>
+          </div>
+	  	</ui:repeat>
+	  </p:panel>  
+	  </h:form>
+	</p:outputPanel>
+  </ui:define>
+</ui:composition>
+</html>

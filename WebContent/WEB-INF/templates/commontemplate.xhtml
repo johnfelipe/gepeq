@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+  
+  <h:head>
+    <title><ui:insert name="pageTitle">#{msgs.TITLE}</ui:insert></title>   
+    <h:outputStylesheet library="css" name="style.css" />
+  </h:head>
+  
+  <h:panelGroup id="viewEnabled" />
+  
+  <h:panelGroup layout="block" styleClass="main">
+    <h:panelGroup layout="block" styleClass="header">
+      <ui:include src="/WEB-INF/pages/header.xhtml" />
+    </h:panelGroup>
+    
+    <h:panelGroup layout="block" styleClass="container">
+      <ui:insert name="body">
+        <h:panelGrid columns="2" columnClasses="menu,content">
+          <h:panelGroup>
+            <ui:insert name="menu">
+              <ui:include src="/WEB-INF/pages/menu.xhtml" />
+            </ui:insert>
+          </h:panelGroup>
+          <h:panelGroup>
+            <p:ajaxStatus style="width:22px; height:5px; float:right;">
+              <f:facet name="start">  
+                <h:graphicImage library="images" name="loading.gif" />  
+              </f:facet>
+              <f:facet name="complete">  
+                <h:outputText value="" />  
+              </f:facet>  
+            </p:ajaxStatus> 
+            <span class="ui-panel ui-widget title">
+              <ui:insert name="contentTitle">#{msgs.OPTION}</ui:insert>
+            </span>
+            <hr />
+            <div style="margin-top: 15px;">
+              <ui:insert name="content">
+                <div style="margin-left:auto; margin-right:auto; width:400px">
+                  <h:graphicImage library="images" name="nocontent.png" style="width:400px;"/>
+                </div>
+              </ui:insert>
+            </div>
+          </h:panelGroup>
+        </h:panelGrid>
+      </ui:insert>
+    </h:panelGroup>
+   
+    <h:panelGroup layout="block" styleClass="footer">
+      <ui:include src="/WEB-INF/pages/footer.xhtml" />
+    </h:panelGroup>
+  </h:panelGroup>
+  
+</html>

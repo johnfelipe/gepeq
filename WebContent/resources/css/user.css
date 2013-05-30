@@ -1,0 +1,128 @@
+/* ©UNED */
+.ui-wizard-content {
+	font-size:90%;
+}
+
+.ui-wizard-navbar {
+	font-size:75%;
+}
+
+.ui-wizard-step-title {
+	font-size:85%;
+}
+
+.ui-tabs-panel {
+	font-size:90%;
+	padding:0px;
+}
+
+.ui-tabs-nav {
+	font-size:75%;
+}
+
+.ui-spinner-input {
+    width:77px;
+    font-size:85% !important;
+}
+
+.ui-selectonemenu-item {
+    font-size:85% !important;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.panelTab {
+	width:99%;	
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.commonDataLabels {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.commonDataInputs {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.displayUserPermissionsLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:370px;
+}
+
+.displayUserPermissionsInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.rightAlign {
+    text-align:right;  
+    width:100%; 
+}
+
+.confirmButtons {
+    margin:10px;
+    font-size:85% !important;
+}
+
+.ui-messages-error {
+	font-size:90% !important;
+}
+
+/* Permissions table */
+.permissionsTable {
+    width:100%;
+    font-size:90% !important;
+}
+
+.headerRow {
+}
+
+.dataRow {
+    padding:5px;
+    margin:5px;
+}
+
+.columnPermission {
+	width:245px;
+}
+
+.columnStatus {
+    width:150px;
+    text-align:center;
+}
+
+.columnType {
+    width:70px;
+    text-align:center;
+}
+
+.columnValue {
+    width:100px;
+    text-align:center;
+    padding-left:0px;
+}
+
+.columnEdit {
+    width:20px;
+	text-align:center;
+}
+
+.columnReset {
+    width:20px;
+    text-align:center;
+}

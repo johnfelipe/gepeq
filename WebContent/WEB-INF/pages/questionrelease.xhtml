@@ -1,0 +1,382 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+  
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+    <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+    <ui:define name="contentTitle">#{msgs.PUBLISH_QUESTION}</ui:define>
+    
+    <ui:define name="changelocale">
+      <ui:include src="/WEB-INF/pages/changelocale_questionrelease.xhtml" />
+    </ui:define>
+    
+    <ui:define name="menu">
+      <ui:include src="/WEB-INF/pages/menu_questionrelease.xhtml" />
+    </ui:define>
+    
+    <ui:define name="content">
+    
+      <h:outputScript library="javascript" name="form_utils.js" />
+      <h:outputScript library="javascript" name="calendar_locales.js" />    
+      <h:outputStylesheet library="css" name="questionrelease.css" />
+      
+      <h:form id="questionReleaseForm" onkeypress="preventEnterSubmit(event);">
+        <p:wizard backLabel="#{msgs.PREV}" nextLabel="#{msgs.NEXT}" backProcess="true" 
+          flowListener="#{questionReleaseBean.changeStep}">
+          
+          <p:tab id="general" title="#{msgs.COMMON_DATA}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="generalMessages" 
+                rendered="#{questionReleaseBean.activeQuestionReleaseTabName=='general'}" />
+              <h:panelGrid columns="2" cellpadding="5" 
+                columnClasses="columnCommonDataLabels,columnCommonDataInputs" rowClasses="topAlignRow">
+                
+                #{msgs.NAME}
+                <h:inputText styleClass="readonlyInput" style="width:550px;" 
+                  value="#{questionReleaseBean.questionRelease.question.name}" readonly="true" />
+                #{msgs.CATEGORY}
+                <h:inputText styleClass="readonlyInput" style="width:550px;" 
+                  value="#{questionReleaseBean.getLocalizedCategoryLongName(questionReleaseBean.questionRelease.question.category)}" 
+                  readonly="true" />
+                #{msgs.QUESTION_TYPES}
+                <h:inputText styleClass="readonlyInput" style="width:240px;"
+                  value="#{msgs[questionReleaseBean.questionRelease.question.type]}" readonly="true" />
+              </h:panelGrid>
+              <h:panelGrid columns="4" cellpadding="5" 
+                columnClasses="columnDifficultyLevelLabel,columnDifficultyLevelInput,columnAuthorLabel,columnAuthorInput" 
+                rowClasses="topAlignRow">
+                
+                #{msgs.DIF_LEVEL}
+                <h:inputText styleClass="readonlyInput" style="width:240px;" 
+                  value="#{msgs[questionReleaseBean.questionRelease.question.level]}" readonly="true" />
+                #{msgs.AUTHOR}
+                <h:inputText styleClass="readonlyInput" style="width:230px;" 
+                  value="#{questionReleaseBean.questionRelease.question.createdBy.nick}" readonly="true" />
+              </h:panelGrid>
+              <h:panelGrid columns="2" columnClasses="columnCommonDataLabels,columnCommonDataInputs" 
+                rowClasses="topAlignRow" rendered="#{questionReleaseBean.questionRelease.question.resource!=null}">
+                
+                <h:outputText style="margin-left:5px;margin-right:5px;" value="#{msgs.IMAGE}" />
+                <h:panelGrid columns="2" columnClasses="columnThumb,columnImageName">
+                  <p:graphicImage value="#{questionReleaseBean.questionRelease.question.resource.fileName}" 
+                    width="35" height="20" style="margin-left:15px;" />
+                  <h:outputText style="margin-right:5px;" 
+                    value="#{questionReleaseBean.questionRelease.question.resource.name}" />
+                </h:panelGrid>
+              </h:panelGrid>
+              <h:panelGrid columns="2" cellpadding="5" 
+                columnClasses="columnQuestionTextLabel,columnQuestionTextInput" rowClasses="topAlignRow">
+                
+                #{msgs.QUESTION_TEXT}
+                <p:inputTextarea styleClass="readonlyInput questionTextArea" 
+                  value="#{questionReleaseBean.questionRelease.question.questionText}" maxHeight="200" 
+                  readonly="true" />
+              </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow">
+              #{msgs.DISPLAY_EQUATIONS}
+              <h:inputText styleClass="readonlyInput" style="width:40px;text-align:center;" 
+                value="#{questionReleaseBean.displayEquations}" />
+            </h:panelGrid>
+            </p:panel>
+          </p:tab>
+          <p:tab id="users" title="#{msgs.USERS}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="usersMessages" 
+                rendered="#{questionReleaseBean.activeQuestionReleaseTabName=='users'}" />
+              <h:panelGrid columns="2" cellpadding="5" 
+                columnClasses="#{localizationService.getLocalizedStyleClasses('columnAllUsersAllowedLabel,columnAllUsersAllowedInput')}" 
+                styleClass="allUsersAllowedGrid" style="margin-bottom:5px;" rowClasses="topAlignRow">
+                
+                #{msgs.ALLUSERSALLOWED_QUESTION_LABEL}
+                <p:selectBooleanCheckbox id="allUsersAllowed" value="#{questionReleaseBean.allUsersAllowed}">
+                  <f:attribute name="property" value="allUsersAllowed" />
+                  <p:ajax listener="#{questionReleaseBean.changeProperty}" process="@this" 
+                    update="questionReleaseForm:usersPanelGroup" />
+                </p:selectBooleanCheckbox>
+              </h:panelGrid>
+              <h:panelGroup id="usersPanelGroup">
+                <ui:fragment rendered="#{!questionReleaseBean.allUsersAllowed}">
+                  <h:panelGroup layout="block" styleClass="alignTop" style="margin-top:-10px;">
+                    <h:panelGrid columns="2" cellpadding="0" styleClass="usersTopGrid" 
+                      columnClasses="usersLabel,usersButtons">
+                      
+                      <h:panelGroup>
+                        <h:outputText id="usersAllowedLabel" style="font-weight:bold;" value="#{msgs.USERS}:" />
+                        <p:tooltip for="usersAllowedLabel">
+                          #{msgs.USERS_ALLOWED}
+                        </p:tooltip>
+                      </h:panelGroup>
+                      <h:panelGroup>
+                        <p:commandButton id="addUsersButton" value="#{msgs.ADD_USERS}" styleClass="button" 
+                          image="ui-icon ui-icon-plus" actionListener="#{questionReleaseBean.showAddUsers}" 
+                          immediate="true" update="addUsersDialog" />
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </h:panelGroup>
+                  <p:outputPanel id="usersPanel">
+                    <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
+                      emptyMessage="#{msgs.NO_USERS}" 
+                      value="#{questionReleaseBean.questionRelease.users}" var="user"
+                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                      paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                      
+                      <p:column styleClass="columnUser" sortBy="#{user.nick}">
+                        <f:facet name="header">#{msgs.USER_NICK}</f:facet>
+                        #{user.nick}
+                      </p:column>
+                      <p:column styleClass="columnRole" sortBy="#{user.userType.type}">
+                        <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
+                        <h:outputText id="userTypeDescription" value="#{user.userType.type}"/>
+                        <p:tooltip for="userTypeDescription" style="max-width:330px;">
+                          #{user.userType.description}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnOmUser">
+                        <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                          rendered="#{!user.gepeqUser}" />
+                      </p:column>
+                      <p:column styleClass="columnDelete">
+                        <p:commandLink actionListener="#{questionReleaseBean.removeUser}" immediate="true" 
+                          process="@this" update="questionReleaseForm:usersPanel">
+                          
+                          <f:attribute name="user" value="#{user}" />
+                          <h:graphicImage id="removeUserImage" styleClass="links" 
+                            value="#{resource['images:delete.png']}" />
+                          <p:tooltip for="removeUserImage">
+                            #{msgs.REMOVE_USER}
+                          </p:tooltip>
+                        </p:commandLink> 
+                      </p:column>
+                    </p:dataTable>
+                  </p:outputPanel>
+                </ui:fragment>
+              </h:panelGroup>
+            </p:panel>
+          </p:tab>
+          <p:tab id="calendar" title="#{msgs.CALENDAR}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="calendarMessages" 
+                rendered="#{questionReleaseBean.activeQuestionReleaseTabName=='calendar'}" />
+              <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
+                columnClasses="columnRestrictDatesLabel,columnRestrictDatesInput">
+                
+                #{msgs.RESTRICT_DATES_QUESTION}
+                <p:selectBooleanCheckbox id="restrictDates" value="#{questionReleaseBean.restrictDates}">
+                  <f:attribute name="property" value="restrictDates" />
+                  <p:ajax listener="#{questionReleaseBean.changeProperty}" 
+                    process="@this questionReleaseForm:startDate questionReleaseForm:closeDate questionReleaseForm:warningDate" 
+                    update="questionReleaseForm:startCloseWarningDatesPanelGroup" />
+                </p:selectBooleanCheckbox>
+              </h:panelGrid>
+              <h:panelGroup id="startCloseWarningDatesPanelGroup">
+                <ui:fragment rendered="#{questionReleaseBean.restrictDates}">
+                  <h:inputHidden id="startDateHidden" value="#{questionReleaseBean.startDateHidden}" />
+                  <h:inputHidden id="closeDateHidden" value="#{questionReleaseBean.closeDateHidden}" />
+                  <h:inputHidden id="warningDateHidden" value="#{questionReleaseBean.warningDateHidden}" />
+                  <h:panelGrid columns="6" cellpadding="2" 
+                    columnClasses="#{localizationService.getLocalizedStyleClasses('columnDatesLeftLabels,columnDatesLeftInputs,columnDatesLeftResets,columnDatesRightLabels,columnDatesRightInputs,columnDatesRightResets')}"
+                    rowClasses="topAlignRow">
+                    
+                    #{msgs.START_DATE}
+                    <p:calendar id="startDate" widgetVar="startDate" pattern="#{msgs.DATE_PATTERN}" 
+                      value="#{questionReleaseBean.startDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                      popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                      
+                      <p:ajax event="dateSelect" listener="#{questionReleaseBean.changeStartDate}" 
+                        update="questionReleaseForm:startDateHidden" />
+                    </p:calendar>
+                    <p:commandLink actionListener="#{questionReleaseBean.resetStartDate}" immediate="true" 
+                      update="questionReleaseForm:startDate questionReleaseForm:startDateHidden" 
+                      onclick="clearDate(startDate);">
+                      
+                      <h:graphicImage id="resetStartDateImage" styleClass="links" 
+                        value="#{resource['images:reset.png']}" />
+                      <p:tooltip for="resetStartDateImage">
+                        #{msgs.RESET}
+                      </p:tooltip>
+                    </p:commandLink>
+                    #{msgs.CLOSE_DATE}
+                    <p:calendar id="closeDate" widgetVar="closeDate" pattern="#{msgs.DATE_PATTERN}" 
+                      value="#{questionReleaseBean.closeDate}" mode="popup"  showOn="both" showButtonPanel="true" 
+                      popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                      
+                      <p:ajax event="dateSelect" listener="#{questionReleaseBean.changeCloseDate}" 
+                        update="questionReleaseForm:closeDateHidden" />
+                    </p:calendar>
+                    <p:commandLink actionListener="#{questionReleaseBean.resetCloseDate}" immediate="true" 
+                      update="questionReleaseForm:closeDate questionReleaseForm:closeDateHidden" 
+                      onclick="clearDate(closeDate);">
+                      
+                      <h:graphicImage id="resetCloseDateImage" styleClass="links" 
+                        value="#{resource['images:reset.png']}" />
+                      <p:tooltip for="resetCloseDateImage">
+                        #{msgs.RESET}
+                      </p:tooltip>
+                    </p:commandLink>
+                    #{msgs.WARNING_DATE}
+                    <p:calendar id="warningDate" widgetVar="warningDate" pattern="#{msgs.DATE_PATTERN}" 
+                      value="#{questionReleaseBean.warningDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                      popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                      
+                      <p:ajax event="dateSelect" listener="#{questionReleaseBean.changeWarningDate}" 
+                        update="questionReleaseForm:warningDateHidden" />
+                    </p:calendar>
+                    <p:commandLink actionListener="#{questionReleaseBean.resetWarningDate}" immediate="true" 
+                      update="questionReleaseForm:warningDate questionReleaseForm:warningDateHidden"
+                      onclick="clearDate(warningDate);">
+                      
+                      <h:graphicImage id="resetWarningDateImage" styleClass="links" 
+                        value="#{resource['images:reset.png']}" />
+                      <p:tooltip for="resetWarningDateImage">
+                        #{msgs.RESET}
+                      </p:tooltip>
+                    </p:commandLink>
+                  </h:panelGrid>
+                </ui:fragment>
+              </h:panelGroup>
+              <h:panelGroup id="deleteDatePanelGroup">
+                <h:inputHidden id="deleteDateHidden" value="#{questionReleaseBean.deleteDateHidden}" />
+                <h:panelGrid columns="3" cellpadding="2" 
+                  columnClasses="#{localizationService.getLocalizedStyleClasses('columnDeleteDateLabel,columnDeleteDateInput,columnDeleteDateReset')}"
+                  rowClasses="topAlignRow">
+                  
+                  #{msgs.DELETE_DATE}
+                  <p:calendar id="deleteDate" widgetVar="deleteDate" pattern="#{msgs.DATE_PATTERN}" 
+                    value="#{questionReleaseBean.deleteDate}" mode="popup" showOn="both" showButtonPanel="true" 
+                    popupIconOnly="true" navigator="true" readOnlyInputText="true" style="font-size:90%;">
+                    
+                    <p:ajax event="dateSelect" listener="#{questionReleaseBean.changeDeleteDate}" 
+                      update="questionReleaseForm:deleteDateHidden" />
+                  </p:calendar>
+                  <p:commandLink actionListener="#{questionReleaseBean.resetDeleteDate}" immediate="true" 
+                    update="questionReleaseForm:deleteDate questionReleaseForm:deleteDateHidden" 
+                    onclick="clearDate(deleteDate);">
+                    
+                    <h:graphicImage id="resetDeleteDateImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip for="resetDeleteDateImage">
+                      #{msgs.RESET}
+                    </p:tooltip>
+                  </p:commandLink>
+                </h:panelGrid>
+              </h:panelGroup>
+            </p:panel>
+          </p:tab>
+          <p:tab id="confirmation" title="#{msgs.CONFIRM}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="confirmationMessages" 
+                rendered="#{questionReleaseBean.activeQuestionReleaseTabName=='confirmation'}" />
+              <h:panelGroup layout="block" style="text-align:center;">
+                <p>
+                  <h:outputText value="#{msgs.PUBLISH_QUESTION_CONFIRMATION}" escape="false" />
+                </p>
+                <p:commandButton id="publishButton" value="#{msgs.PUBLISH}" ajax="false" 
+                  styleClass="confirmButtons" image="ui-icon ui-icon-check" 
+                  action="#{questionReleaseBean.publishQuestion}" onclick="publishingDialog.show()" 
+                  disabled="#{!questionReleaseBean.publishAllowed}" />
+                <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
+                  image="ui-icon ui-icon-cancel" action="publication" />
+              </h:panelGroup>
+            </p:panel>
+          </p:tab>
+        </p:wizard>
+      </h:form>
+      
+      <p:dialog widgetVar="addUsersDialog" id="addUsersDialog" styleClass="dialog" width="740" height="390" 
+        header="#{msgs.ADD_USERS}" modal="true" closable="true" draggable="false" resizable="false"
+        onShow="centerDialog('addUsersDialog');">
+        
+        <h:form id="usersDialogForm">
+          <p:panel id="usersFilterPanel" styleClass="dialogPanel">
+            <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow" 
+              columnClasses="roleLabelColumn,roleInputColumn,includeOmUsersLabelColumn,includeOmUsersInputColumn,applyUsersFilterButtonColumn">
+              
+              #{msgs.ROLE}
+              <p:selectOneMenu id="filterUserRoleId" styleClass="combo" style="width:210px;" 
+                value="#{questionReleaseBean.filterUsersUserTypeId}">
+                
+                <p:ajax event="change" process="usersDialogForm:usersFilterPanel" 
+                  update="usersDialogForm:usersFilterPanel" /> 
+                <f:selectItem itemLabel="#{localizationService.getAllOptions('ROLE_GEN')}" itemValue="#{0}" />
+                <f:selectItem itemLabel="#{localizationService.getNoneOptions('ROLE_GEN')}" itemValue="#{-1}" />
+                <f:selectItems value="#{questionReleaseBean.userTypes}" var="userType" itemLabel="#{userType.type}" 
+                  itemValue="#{userType.id}" />
+              </p:selectOneMenu>
+              <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
+                rendered="#{questionReleaseBean.filterUsersUserTypeId&lt;=0}" />
+              <p:selectBooleanCheckbox id="includeOmUsers" value="#{questionReleaseBean.filterUsersIncludeOmUsers}" 
+                rendered="#{questionReleaseBean.filterUsersUserTypeId&lt;=0}" />
+              <h:outputText value="" rendered="#{questionReleaseBean.filterUsersUserTypeId&gt;0}" />
+              <h:outputText value="" rendered="#{questionReleaseBean.filterUsersUserTypeId&gt;0}" />
+              <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                actionListener="#{questionReleaseBean.applyUsersFilter}" process="usersDialogForm:usersFilterPanel" 
+                update="usersDialogForm:usersPickerPanel" />
+            </h:panelGrid>
+          </p:panel>
+          <p:panel id="usersPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+            <p:pickList id="usersPickList" styleClass="usersPickList" value="#{questionReleaseBean.usersDualList}" 
+              var="user" itemLabel="#{user}" itemValue="#{user}" converter="UserConverter" iconOnly="true">
+              
+              <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
+              <f:facet name="targetCaption">#{msgs.ADD_USERS_HEADER}</f:facet>
+              <p:column styleClass="columnUserPick">
+                #{user.nick}
+              </p:column>
+              <p:column styleClass="columnRolePick">
+                #{user.userType.type}
+              </p:column>
+              <p:column styleClass="columnOmUserPick">
+                <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
+                  rendered="#{!user.gepeqUser}" />
+              </p:column>
+            </p:pickList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+              actionListener="#{questionReleaseBean.acceptAddUsers}" oncomplete="addUsersDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" onclick="addUsersDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="publishingDialog" id="publishingDialog" styleClass="dialog" width="200" 
+        height="50" header="#{msgs.PUBLISHING_QUESTION}" showEffect="clip" draggable="false" closable="false" 
+        resizable="false" modal="true">
+        
+        <h:form>
+          <h:panelGrid columns="2">
+            <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" height="32" width="32" />
+            #{msgs.PLEASE_WAIT}
+          </h:panelGrid>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="confirmCancelPublishQuestionDialog" id="confirmCancelPublishQuestionDialog"
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false"
+        resizable="false" onShow="centerDialog('confirmCancelPublishQuestionDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs.CONFIRM_CANCEL_PUBLISH_QUESTION}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" ajax="false" 
+                action="#{questionReleaseBean.cancelPublishQuestion}" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmCancelPublishQuestionDialog.hide();" 
+                type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+    </ui:define>
+  </ui:composition>
+</html>

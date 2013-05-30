@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/questiontemplate.xhtml">
+    <ui:define name="answers">
+      <h:outputStylesheet library="css" name="omxml.css" />
+      <p:outputPanel id="answersPanel">
+        <h:panelGroup layout="block" styleClass="alignTop">
+          #{msgs.XML_CONTENT_INSERT_QUESTION_XML_CODE}
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="alignTop">
+          #{msgs.XML_CONTENT_CAN_USE_SPECIAL_VARIABLES}<br/>
+          (<h:outputText id="seeVariables" value="#{msgs.XML_CONTENT_SEE_VARIABLES}" />)
+          <p:tooltip for="seeVariables" style="max-width:730px;">
+            <table class="seeVariablesTable">
+              <tr>
+                <th class="seeVariablesTableFirstVariableCell">#{msgs.VARIABLE}</th>
+                <th class="seeVariableTableFirstMeaningCell">#{msgs.MEANING}</th>
+                <th class="seeVariablesTableSecondVariableCell">#{msgs.VARIABLE}</th>
+                <th class="seeVariableTableSecondMeaningCell">#{msgs.MEANING}</th>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_GENERIC_QUESTION_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_GENERIC_QUESTION_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_QUESTION_IMAGE_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_QUESTION_IMAGE_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_QUESTION_TEXT_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_QUESTION_TEXT_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_SUBMIT_BUTTON_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_SUBMIT_BUTTON_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_BUTTON_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_BUTTON_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_CORRECT_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_CORRECT_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_CORRECT_IMAGE_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_CORRECT_IMAGE_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_INCORRECT_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_INCORRECT_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_INCORRECT_IMAGE_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_INCORRECT_IMAGE_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_STILL_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_STILL_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_IMAGE_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_PASS_IMAGE_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_FINAL_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_FINAL_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_FINAL_IMAGE_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_FINAL_IMAGE_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_RESOURCE_I_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_RESOURCE_I_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableSecondVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_RESOURCE_NAME_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_RESOURCE_NAME_MEANING}" escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_TRY_AGAIN_BUTTON_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableFirstMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_TRY_AGAIN_BUTTON_MEANING}" escape="false" />
+                </td>
+                <td class="seeVariablesTableFirstVariableCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_NEXT_QUESTION_BUTTON_VARIABLE}" styleClass="variableName" />
+                </td>
+                <td class="seeVariableTableSecondMeaningCell">
+                  <h:outputText value="#{msgs.XML_CONTENT_NEXT_QUESTION_BUTTON_MEANING}" escape="false" />
+                </td>
+              </tr>
+            </table>
+            <h:outputText value="#{msgs.XML_CONTENT_GAP_SUFFIX}" escape="false" />
+          </p:tooltip>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="alignTop">
+          <p:inputTextarea id="xmlContent" value="#{questionBean.xmlContent}" maxHeight="230" 
+            styleClass="xmlContentTextArea" />
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="alignTop">
+          <h:outputText value="#{msgs.WARNING}" styleClass="warningLabel" />: #{msgs.XML_CONTENT_WARNING_ONLY_VALIDATES_XML_DOCUMENT}
+        </h:panelGroup>
+      </p:outputPanel>
+    </ui:define>
+    <ui:define name="resources">
+      <p:outputPanel id="resourcesPanel">
+        <h:panelGroup layout="block"  styleClass="rightAlignTopAccordion">
+          <p:commandButton id="reSortResources" value="#{msgs.RE_SORT}" image="ui-icon ui-icon-triangle-2-n-s" 
+            styleClass="rightButton" immediate="true" actionListener="#{questionBean.showReSortResources}" 
+            update="resortResourcesDialog questionForm:resourcesMessages" 
+            disabled="#{!questionBean.enabledReSortResources}" />
+          <p:commandButton value="#{msgs.ADD_RESOURCE}" image="ui-icon ui-icon-plus" styleClass="rightButton" 
+            actionListener="#{questionBean.addResource}" immediate="true" 
+            update="questionForm:reSortResources questionForm:questionResourcesPanel questionForm:resourcesMessages" />
+        </h:panelGroup>
+        <p:panel id="questionResourcesPanel" styleClass="dialogPanel" 
+          style="min-height:325px;border-width:0px;text-align:center;">
+          
+          <ui:fragment rendered="#{questionBean.resourcesSize==0}">
+            <h:panelGrid columns="1" style="width:99%;height:310px;text-align:center;vertical-align:middle;">
+              <p><h:outputText value="#{msgs.NO_QUESTION_RESOURCES}" style="font-weight:bold;" /></p>
+            </h:panelGrid>
+          </ui:fragment>
+          <ui:fragment rendered="#{questionBean.resourcesSize!=0}">
+            <p:accordionPanel id="questionResourcesAccordion" styleClass="accordion" style="text-align:left;" 
+              value="#{questionBean.question.questionResourcesSortedByPosition}" var="questionResource" 
+              widgetVar="questionResourcesAccordion">
+              
+              <p:ajax event="tabChange" listener="#{questionBean.changeActiveQuestionResource}" 
+                update="@this questionForm:resourcesMessages" />
+              <p:tab title="#{questionBean.getResourceTitle(questionResource)}">
+                <h:panelGrid columns="4" cellpadding="5" 
+                  columnClasses="columnQuestionResourceNameLabel,columnQuestionResourceNameInput,columnQuestionResourceImageLabel,columnQuestionResourceImageInput" 
+                  rowClasses="topAlignRow">
+                  
+                  <h:outputText value="#{msgs.NAME}" style="font-size:120%;" />
+                  <h:inputText id="questionResourceName" style="width:180px;" maxlength="15" 
+                    value="#{questionResource.name}" />
+                  <h:outputText value="#{msgs.IMAGE}" style="font-size:120%;" />
+                  <h:panelGroup>
+                    <p:commandButton id="selectNewImageQuestionResourceButton" value="#{msgs.SELECT_IMAGE}" 
+                      styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                      update="selectImageDialog questionForm:resourcesMessages" 
+                      rendered="#{questionResource.resource.id==-1}" />
+                    <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
+                      rendered="#{questionResource.resource.id!=-1}">
+                      
+                      <p:graphicImage value="#{questionResource.resource.fileName}" width="35" height="20" />
+                      <h:outputText style="margin-right:5px;" value="#{questionResource.resource.name}" />
+                      <p:commandButton id="selectImageQuestionResourceButton" value="#{msgs.SELECT_IMAGE}" 
+                        styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                        update="selectImageDialog questionForm:resourcesMessages" />
+                    </h:panelGrid>
+                  </h:panelGroup>
+                </h:panelGrid>
+                <h:panelGrid columns="1" cellpadding="5" columnClasses="columnDeleteQuestionResourceButton" 
+                  rowClasses="topAlignRow">
+                  
+                  <p:commandButton value="#{msgs.DELETE_RESOURCE}" styleClass="questionResourceButton" 
+                    style="margin-right:7px;" image="ui-icon ui-icon-trash" 
+                    actionListener="#{questionBean.removeResource}" immediate="true" 
+                    update="questionForm:reSortResources questionForm:questionResourcesPanel questionForm:resourcesMessages">
+                    
+                    <f:attribute name="position" value="#{questionResource.position}" />
+                  </p:commandButton>
+                </h:panelGrid>
+              </p:tab>
+            </p:accordionPanel>
+          </ui:fragment>
+        </p:panel>
+      </p:outputPanel>
+    </ui:define>
+  </ui:composition>
+</html>

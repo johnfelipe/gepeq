@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions targetNamespace="http://axis.uned.qengine.om" xmlns:apachesoap="http://xml.apache.org/xml-soap" xmlns:impl="http://axis.uned.qengine.om" xmlns:intf="http://axis.uned.qengine.om" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<!--WSDL created by Apache Axis version: 1.4
+Built on Apr 22, 2006 (06:55:48 PDT)-->
+ <wsdl:types>
+  <schema elementFormDefault="qualified" targetNamespace="http://axis.uned.qengine.om" xmlns="http://www.w3.org/2001/XMLSchema">
+   <element name="deleteQuestionFromCache">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteQuestionFromCacheResponse">
+    <complexType/>
+   </element>
+  </schema>
+ </wsdl:types>
+
+   <wsdl:message name="deleteQuestionFromCacheResponse">
+
+      <wsdl:part element="impl:deleteQuestionFromCacheResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteQuestionFromCacheRequest">
+
+      <wsdl:part element="impl:deleteQuestionFromCache" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:portType name="OmQe">
+
+      <wsdl:operation name="deleteQuestionFromCache">
+
+         <wsdl:input message="impl:deleteQuestionFromCacheRequest" name="deleteQuestionFromCacheRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:deleteQuestionFromCacheResponse" name="deleteQuestionFromCacheResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:portType>
+
+   <wsdl:binding name="OmQeSoapBinding" type="impl:OmQe">
+
+      <wsdlsoap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+      <wsdl:operation name="deleteQuestionFromCache">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="deleteQuestionFromCacheRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="deleteQuestionFromCacheResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:binding>
+
+   <wsdl:service name="OmQeService">
+
+      <wsdl:port binding="impl:OmQeSoapBinding" name="OmQe">
+
+         <wsdlsoap:address location="http://localhost:8080/om-qe/services/OmQe"/>
+
+      </wsdl:port>
+
+   </wsdl:service>
+
+</wsdl:definitions>

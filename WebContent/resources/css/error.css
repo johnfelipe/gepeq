@@ -1,0 +1,20 @@
+/* ©UNED */
+.panelTab {
+	width:99%;	
+}
+
+.confirmButtons {
+    margin:10px;
+    font-size:85% !important;
+}
+
+.ui-messages-error {
+	font-size:90% !important;
+}
+
+.centerAlignBottom {
+    text-align:center;
+    width:100%;
+    margin-top:5px;
+    margin-bottom:-5px;
+}

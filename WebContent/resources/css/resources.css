@@ -1,0 +1,148 @@
+/* ©UNED */
+.ui-growl-message {
+    font-size:90% !important;
+}
+
+.resourcesPanel {
+	font-size:80%;
+}
+
+.filterPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.newResourceForm {
+	text-align:right;
+}
+
+.newResourceButton {
+	font-size:95% !important; 
+	margin-bottom:10px;
+}
+
+.resourcesGridPanel {
+	text-align:center;
+}
+
+.resourceInfo {
+	width:100%;
+}
+
+.links {
+	margin-top:2px;
+    margin-left:5px;
+    margin-right:5px;
+}
+
+.categoryLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.categoryComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:460px;
+}
+
+.includeSubcategoriesLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.includeSubcategoriesOptionColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.mimeTypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.mimeTypeComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    /* width:505px; */
+    width:210px;
+}
+
+.copyrightLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.copyrightComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:215px;
+}
+
+.applyFilterButtonColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.copyrightsComboPanel {
+	width:260px;
+}
+
+.rightAlign {
+    text-align:right; 
+    width:100%;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.resourcePreview {
+    width:100%;
+    height:100px;
+    text-align:center;
+}
+
+.resourcePreviewSpan {
+    width:150px;
+    height:100px;
+}
+
+.resourcePreviewContent {
+    width:150px;
+    height:100px;
+    display:table-cell;
+    text-align:center;
+    vertical-align:middle;
+}
+
+.resourceDetail {
+	width:450px;
+	height:355px;
+	display:table-cell;
+    text-align:center;
+	vertical-align:middle;
+}

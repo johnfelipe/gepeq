@@ -1,0 +1,287 @@
+/* ©UNED */
+.ui-tabs-panel {
+    font-size:90%;
+    padding:0px;
+}
+
+.ui-tabs-nav {
+    font-size:85%;
+}
+
+.ui-growl-message {
+    font-size:90% !important;
+}
+
+.newUserButton, .newRoleButton {
+    text-align:right; 
+    margin-bottom:8px;
+    width:100%;
+}
+
+.wijmo-wijmenu {
+	width: 140px;
+}
+
+.wijmo-wijmenu-list {
+	width: 105%;
+	padding-left: 0px;
+	padding-right: 0px;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.button {
+    font-size:85% !important;
+}
+
+.publicationPanel {
+    font-size:90%;
+}
+
+.publicationForm {
+    vertical-align:middle;
+    width:100%;
+}
+
+.filterPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.topAlignRow {
+    vertical-align:top;
+    margin-top:10px;
+    margin-bottom:10px;
+}
+
+.categoryLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.categoryComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:410px;
+}
+
+/*
+.categoryComboPanel {
+   width:450px;
+}
+*/
+
+.includeSubcategoriesLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.includeSubcategoriesOptionColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.questionLevelLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.questionLevelComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:270px;
+}
+
+.questionTypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.questionTypeComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.questionPublicationStatusLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.questionPublicationStatusComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:370px;
+}
+
+.applyFilterQuestionButtonColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.testPublicationStatusLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.testPublicationStatusComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:150px;
+}
+
+.testDisplayOldVersionsLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+}
+
+.testDisplayOldVersionsOptionColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+}
+
+.applyFilterTestButtonColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.dataRow {
+	padding:5px;
+	margin:5px;
+}
+
+/* Questions releases table */
+.questionsReleasesTable, .testsReleasesTable {
+    width:100%;
+}
+
+.headerRow {
+}
+
+.dataRow {
+    padding:5px;
+    margin:5px;
+}
+
+.columnType {
+    width:16px;
+    text-align:left;
+}
+
+.columnQuestionName {
+	width:160px;
+}
+
+.columnTestName {
+	width:170px;
+}
+
+.columnCategory {
+    width:120px;
+}
+
+.columnAuthor {
+    width:70px;
+}
+
+.columnLevel {
+    width:50px;
+    text-align:center;
+}
+
+.columnIcon {
+    width:18px;
+    text-align:center;
+}
+
+.VERY_EASY {
+    background-color:green;
+    color:green;
+}
+
+.EASY {
+    background-color:blue;
+    color:blue;
+}
+
+.NORMAL {
+    background-color:yellow;
+    color:yellow;
+}
+
+.HARD {
+    background-color:orange;
+    color:orange;
+}
+
+.VERY_HARD {
+    background-color:red;
+    color:red;
+}
+
+.columnDate {
+    width:55px;
+    text-align:center;
+}
+
+.columnVersion {
+	width:80px;
+	text-align:center;
+}
+
+.columnOM {
+    width:16px;
+    text-align:left;
+}
+
+.columnPublish {
+    width:16px;
+    text-align:left;
+}
+
+.columnUnpublish {
+    width:16px;
+    text-align:left;
+}
+
+.columnPublicationStatus {
+    width:16px;
+    text-align:left;
+}

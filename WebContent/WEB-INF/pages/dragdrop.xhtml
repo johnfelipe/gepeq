@@ -1,0 +1,226 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/questiontemplate.xhtml">
+    <ui:define name="answers">
+      <h:outputStylesheet library="css" name="dragdrop.css" />
+      
+      <!-- TODO estos campos ocultos son para que no de un fallo al guardar ya que estos campos existen en BD
+                aunque aun no se usan -->
+      <h:inputHidden id="clusteredDrags" value="#{questionBean.question.clusteredDrags}" />
+      <h:inputHidden id="clusteredDrops" value="#{questionBean.question.clusteredDrops}" />
+      
+      <p:outputPanel id="answersPanel">
+	    <p:panel style="margin-bottom:5px;" header="#{msgs.CONFIGURATION_OPTIONS}">
+	      <h:panelGrid columns="4" cellpadding="5" 
+	        columnClasses="#{localizationService.getLocalizedStyleClasses('columnConfigOptionsLeftLabel,columnConfigOptionsLeftInput,columnConfigOptionsRightLabel,columnConfigOptionsRightInput')}"
+	      	rowClasses="topAlignRow">
+	      	
+            #{msgs.REUSABLE_DRAGGABLE_ITEMS}
+            <p:selectOneMenu id="infinite" value="#{questionBean.question.infinite}" styleClass="combo">
+              <p:ajax listener="#{questionBean.changeInfinite}" 
+                update="@this confirmChangePropertyDialog questionForm:answersAccordion questionForm:answersMessages" />
+              <f:attribute name="property" value="infinite" />
+	          <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+	          <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+	        </p:selectOneMenu>
+            #{msgs.ADD_ANSWERS_BORDERS} 
+            <p:selectOneMenu id="forceBorders" value="#{questionBean.question.forceBorders}" styleClass="combo">
+	          <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+	          <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+	        </p:selectOneMenu>     
+            #{msgs.SHUFFLE_DRAGGABLE_ITEMS}
+            <p:selectOneMenu id="shuffleDrags" value="#{questionBean.question.shuffleDrags}" styleClass="combo">
+              <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+              <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+            </p:selectOneMenu>
+            #{msgs.SHUFFLE_ANSWERS} 
+            <p:selectOneMenu id="shuffleDrops" value="#{questionBean.question.shuffleDrops}" styleClass="combo">
+              <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+              <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+            </p:selectOneMenu>     
+	      </h:panelGrid>
+	  	</p:panel>
+        <h:panelGroup layout="block" styleClass="accordionAlignTop">
+          <h:panelGrid columns="2" cellpadding="0" styleClass="draggableItemsTopGrid" 
+            columnClasses="draggableItemsLabel,draggableItemsButtons">
+            
+            <h:panelGroup>
+              <h:outputText value="#{msgs.DRAGGABLE_ITEMS}:" style="font-weight:bold;" />
+            </h:panelGroup>
+            <h:panelGroup layout="block" styleClass="rightAlignTopAccordion">
+              <p:commandButton id="reSortDraggableItems" value="#{msgs.RE_SORT}" 
+                image="ui-icon ui-icon-triangle-2-n-s" styleClass="rightButton" immediate="true" 
+                actionListener="#{questionBean.showReSortDraggableItems}" 
+                update="resortDraggableItemsDialog questionForm:answersMessages" 
+                disabled="#{!questionBean.enabledReSortDraggableItems}" />
+              <p:commandButton value="#{msgs.ADD_DRAGGABLE_ITEM}" image="ui-icon ui-icon-plus" 
+                styleClass="rightButton" actionListener="#{questionBean.addDraggableItem}" immediate="true" 
+                update="questionForm:reSortDraggableItems questionForm:draggableItemsAccordion questionForm:answersAccordion questionForm:answersMessages" />
+            </h:panelGroup>
+          </h:panelGrid>
+        </h:panelGroup>
+        <p:accordionPanel id="draggableItemsAccordion" styleClass="accordion" 
+          value="#{questionBean.question.getDraggableItemsSortedByPosition(1)}" var="draggableItem"
+          widgetVar="draggableItemsAccordion">
+          
+          <p:ajax event="tabChange" listener="#{questionBean.changeActiveDraggableItem}" 
+            update="@this questionForm:answersAccordion questionForm:answersMessages" />
+          <p:tab title="#{questionBean.getDraggableItemTitle(draggableItem)}">
+            <h:panelGrid columns="4" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnDraggableItemNameLabel,columnDraggableItemNameInput,columnDraggableItemFixedLabel,columnDraggableItemFixedInput')}" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.NAME}" />
+              <h:inputText id="draggableItemName" style="width:180px;" maxlength="15" value="#{draggableItem.name}">
+                <p:ajax listener="#{questionBean.changeDraggableItemName}" 
+                  update="questionForm:answersAccordion questionForm:answersMessages" />
+              </h:inputText>
+              <h:outputText value="#{msgs.FIX_POSITION}" style="font-size:120%" />
+              <p:selectOneMenu id="draggableItemFixed" value="#{draggableItem.fixed}" styleClass="combo">
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnDragDropDraggableItemImageLabel,columnDragDropDraggableItemImageInput" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%;" value="#{msgs.IMAGE}" />
+              <h:panelGroup>
+                <p:commandButton id="selectNewImageDraggableItemButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                  actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                  update="selectImageDialog questionForm:answersMessages" 
+                  rendered="#{draggableItem.resource==null}" />
+                <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
+                  rendered="#{draggableItem.resource!=null}">
+                  
+                  <p:graphicImage value="#{draggableItem.resource.fileName}" width="35" height="20" />
+                  <h:outputText style="margin-right:5px;" value="#{draggableItem.resource.name}" />
+                  <p:commandButton id="selectImageDraggableItemButton" value="#{msgs.SELECT_IMAGE}" 
+                    styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                    update="selectImageDialog questionForm:answersMessages" />
+                </h:panelGrid>
+              </h:panelGroup>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnDragDropDraggableItemContentLabel,columnDragDropDraggableItemContentInput" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.CONTENT}" />
+              <p:inputTextarea id="draggableItemText" value="#{draggableItem.text}" maxHeight="200"
+                styleClass="draggableItemTextArea" />
+            </h:panelGrid>
+            <h:panelGrid columns="1" cellpadding="5" columnClasses="columnDeleteDraggableItemButton" 
+              rowClasses="topAlignRow">
+              
+              <p:commandButton value="#{msgs.DELETE_DRAGGABLE_ITEM}" styleClass="draggableItemButton" 
+                style="margin-right:7px;" image="ui-icon ui-icon-trash" 
+                actionListener="#{questionBean.removeDraggableItem}" immediate="true" 
+                update="questionForm:reSortDraggableItems questionForm:draggableItemsAccordion questionForm:answersAccordion questionForm:answersMessages confirmDeleteDraggableItemDialog" 
+                disabled="#{!questionBean.removeDraggableItemEnabled}">
+                
+                <f:attribute name="group" value="#{draggableItem.group}" />
+                <f:attribute name="position" value="#{draggableItem.position}" />
+              </p:commandButton>
+            </h:panelGrid>
+          </p:tab>
+        </p:accordionPanel>
+        <h:panelGroup layout="block" styleClass="accordionAlignTop">
+          <h:panelGrid columns="2" cellpadding="0" styleClass="droppableAnswersTopGrid" 
+            columnClasses="droppableAnswersLabel,droppableAnswersButtons">
+            
+            <h:panelGroup>
+              <h:outputText value="#{msgs.ANSWERS}:" style="font-weight:bold;" />
+            </h:panelGroup>
+            <h:panelGroup layout="block"  styleClass="rightAlignTopAccordion">
+              <p:commandButton id="reSortDroppableAnswers" value="#{msgs.RE_SORT}" 
+                image="ui-icon ui-icon-triangle-2-n-s" styleClass="rightButton" immediate="true" 
+                actionListener="#{questionBean.showReSortDroppableAnswers}" 
+                update="resortDroppableAnswersDialog questionForm:answersMessages" 
+                disabled="#{!questionBean.enabledReSortDroppableAnswers}" />
+              <p:commandButton value="#{msgs.ADD_ANSWER}" image="ui-icon ui-icon-plus" styleClass="rightButton" 
+                actionListener="#{questionBean.addDroppableAnswer}" immediate="true" 
+                update="questionForm:reSortDroppableAnswers questionForm:answersAccordion questionForm:answersMessages" />
+            </h:panelGroup>
+          </h:panelGrid>
+        </h:panelGroup>
+        <p:accordionPanel id="answersAccordion" styleClass="accordion"
+          value="#{questionBean.question.getDroppableAnswersSortedByPosition(1)}" var="answer"
+          widgetVar="answersAccordion">
+          
+          <p:ajax event="tabChange" listener="#{questionBean.changeActiveAnswer}" 
+            update="@this questionForm:draggableItemsAccordion questionForm:answersMessages" />
+          <p:tab title="#{questionBean.getDroppableAnswerTitle(answer)}">
+            <h:panelGrid columns="4" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAnswerNameLabel,columnAnswerNameInput,columnAnswerFixedLabel,columnAnswerFixedInput')}" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.NAME}" />
+              <h:inputText id="answerName" style="width:180px;" maxlength="15" value="#{answer.name}" />
+              
+              <h:outputText value="#{msgs.FIX_POSITION}" style="font-size:120%" />
+              <p:selectOneMenu id="answerFixed" value="#{answer.fixed}" styleClass="combo">
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnDragDropAnswerImageLabel,columnDragDropAnswerImageInput" rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%;" value="#{msgs.IMAGE}" />
+              <h:panelGroup>
+                <p:commandButton id="selectNewImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                  actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                  update="selectImageDialog questionForm:answersMessages" rendered="#{answer.resource==null}" />
+                <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
+                  rendered="#{answer.resource!=null}">
+                  
+                  <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" />
+                  <h:outputText style="margin-right:5px;" value="#{answer.resource.name}" />
+                  <p:commandButton id="selectImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                    actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                    update="selectImageDialog questionForm:answersMessages" />
+                </h:panelGrid>
+              </h:panelGroup>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnDragDropAnswerContentLabel,columnDragDropAnswerContentInput" rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.CONTENT}" />
+              <p:inputTextarea id="answerText" value="#{answer.text}" maxHeight="200" styleClass="answerTextArea" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnCorrectAnswerLabel,columnCorrectAnswerInput,columnDeleteAnswerButton')}" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText value="#{msgs.CORRECT_ANSWER}" style="font-size:120%" />
+              <p:selectOneMenu id="rightAnswer" value="#{answer.rightAnswerPosition}" style="width:200px;">
+                <f:selectItem itemLabel="(#{msgs.EMPTY})" itemValue="#{0}" />
+                <f:selectItems value="#{questionBean.getAvailableDraggableItemsForDroppableAnswer(answer)}" 
+                  var="draggableItem" itemLabel="#{questionBean.getNumberedDraggableItemName(draggableItem)}" 
+                  itemValue="#{draggableItem.position}" />
+              </p:selectOneMenu>
+              <p:commandButton value="#{msgs.DELETE_ANSWER}" styleClass="answerButton" style="margin-right:7px;" 
+                image="ui-icon ui-icon-trash" actionListener="#{questionBean.removeDroppableAnswer}" immediate="true" 
+                update="questionForm:reSortDroppableAnswers questionForm:draggableItemsAccordion questionForm:answersAccordion questionForm:answersMessages" 
+                disabled="#{!questionBean.removeDroppableAnswerEnabled}">
+                
+                <f:attribute name="group" value="#{answer.group}" />
+                <f:attribute name="position" value="#{answer.position}" />
+              </p:commandButton>
+            </h:panelGrid>
+          </p:tab>
+        </p:accordionPanel>
+      </p:outputPanel>
+    </ui:define>
+  </ui:composition>
+</html>

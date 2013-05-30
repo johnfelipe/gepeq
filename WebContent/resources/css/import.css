@@ -1,0 +1,56 @@
+/* ©UNED */
+.importPanel {
+	font-size: 80%;
+}
+
+.importForm {
+	width: 100%;
+}
+
+.columnLabels {
+	padding-top: 8px;
+	padding-bottom: 12px;
+	width: 75px;
+	text-align: left;
+}
+
+.topAlignRow {
+	vertical-align: top;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+.ui-selectonemenu-item {
+   font-size: 85% !important;
+}
+
+.combo {
+    font-size: 90% !important;
+    text-align: left;
+}
+
+.fileUpload {
+	font-size: 85% !important;
+}
+
+.columnButton {
+	width: 100px;
+	text-align: right;
+	vertical-align: top;
+	padding-right: 0px;
+}
+
+.button {
+	font-size: 85% !important; 
+	margin-left: 10px;
+}
+
+.ui-messages-error {
+	font-size: 85% !important;
+}
+
+.ui-messages-info {
+	font-size: 85% !important;
+}
+
+

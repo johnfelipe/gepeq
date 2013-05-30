@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition>
+  <p:panel styleClass="changeTheme" rendered="#{userSessionService.logged}">
+	<h:form id="themechanger" styleClass="changeThemeForm">
+	  <h:outputText value="#{msgs.CHANGE_THEME}"/>
+	  <p:themeSwitcher value="#{themeSwitcherBean.theme}" styleClass="themeSwitcher" 
+	    panelStyleClass="themeSwitcherPanel" effect="fade">
+	        
+   	    <f:selectItems value="#{themeSwitcherBean.themes}" />   
+   		<p:ajax listener="#{themeSwitcherBean.saveTheme}" /> 
+	  </p:themeSwitcher>
+	</h:form>
+  </p:panel>
+</ui:composition>
+</html>

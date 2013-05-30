@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions targetNamespace="http://axis.uned.devservlet.om" xmlns:apachesoap="http://xml.apache.org/xml-soap" xmlns:impl="http://axis.uned.devservlet.om" xmlns:intf="http://axis.uned.devservlet.om" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<!--WSDL created by Apache Axis version: 1.4
+Built on Apr 22, 2006 (06:55:48 PDT)-->
+ <wsdl:types>
+  <schema elementFormDefault="qualified" targetNamespace="http://axis.uned.devservlet.om" xmlns="http://www.w3.org/2001/XMLSchema">
+   <element name="createQuestion">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+      <element name="path" type="xsd:string"/>
+      <element maxOccurs="unbounded" name="extraPackages" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="createQuestionResponse">
+    <complexType/>
+   </element>
+   <element name="buildQuestion">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="buildQuestionResponse">
+    <complexType>
+     <sequence>
+      <element name="buildQuestionReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteQuestion">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteQuestionResponse">
+    <complexType/>
+   </element>
+   <element name="existQuestionJar">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existQuestionJarResponse">
+    <complexType>
+     <sequence>
+      <element name="existQuestionJarReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionJarLastModified">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionJarLastModifiedResponse">
+    <complexType>
+     <sequence>
+      <element name="getQuestionJarLastModifiedReturn" type="xsd:long"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="downloadQuestionJar">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="downloadQuestionJarResponse">
+    <complexType>
+     <sequence>
+      <element maxOccurs="unbounded" name="downloadQuestionJarReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+  </schema>
+ </wsdl:types>
+
+   <wsdl:message name="downloadQuestionJarRequest">
+
+      <wsdl:part element="impl:downloadQuestionJar" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="downloadQuestionJarResponse">
+
+      <wsdl:part element="impl:downloadQuestionJarResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteQuestionResponse">
+
+      <wsdl:part element="impl:deleteQuestionResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="buildQuestionRequest">
+
+      <wsdl:part element="impl:buildQuestion" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionJarLastModifiedRequest">
+
+      <wsdl:part element="impl:getQuestionJarLastModified" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="createQuestionRequest">
+
+      <wsdl:part element="impl:createQuestion" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteQuestionRequest">
+
+      <wsdl:part element="impl:deleteQuestion" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="buildQuestionResponse">
+
+      <wsdl:part element="impl:buildQuestionResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionJarLastModifiedResponse">
+
+      <wsdl:part element="impl:getQuestionJarLastModifiedResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionJarRequest">
+
+      <wsdl:part element="impl:existQuestionJar" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="createQuestionResponse">
+
+      <wsdl:part element="impl:createQuestionResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionJarResponse">
+
+      <wsdl:part element="impl:existQuestionJarResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:portType name="OmDev">
+
+      <wsdl:operation name="createQuestion">
+
+         <wsdl:input message="impl:createQuestionRequest" name="createQuestionRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:createQuestionResponse" name="createQuestionResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="buildQuestion">
+
+         <wsdl:input message="impl:buildQuestionRequest" name="buildQuestionRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:buildQuestionResponse" name="buildQuestionResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteQuestion">
+
+         <wsdl:input message="impl:deleteQuestionRequest" name="deleteQuestionRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:deleteQuestionResponse" name="deleteQuestionResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionJar">
+
+         <wsdl:input message="impl:existQuestionJarRequest" name="existQuestionJarRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:existQuestionJarResponse" name="existQuestionJarResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionJarLastModified">
+
+         <wsdl:input message="impl:getQuestionJarLastModifiedRequest" name="getQuestionJarLastModifiedRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getQuestionJarLastModifiedResponse" name="getQuestionJarLastModifiedResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="downloadQuestionJar">
+
+         <wsdl:input message="impl:downloadQuestionJarRequest" name="downloadQuestionJarRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:downloadQuestionJarResponse" name="downloadQuestionJarResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:portType>
+
+   <wsdl:binding name="OmDevSoapBinding" type="impl:OmDev">
+
+      <wsdlsoap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+      <wsdl:operation name="createQuestion">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="createQuestionRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="createQuestionResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="buildQuestion">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="buildQuestionRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="buildQuestionResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteQuestion">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="deleteQuestionRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="deleteQuestionResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionJar">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="existQuestionJarRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="existQuestionJarResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionJarLastModified">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getQuestionJarLastModifiedRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getQuestionJarLastModifiedResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="downloadQuestionJar">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="downloadQuestionJarRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="downloadQuestionJarResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:binding>
+
+   <wsdl:service name="OmDevService">
+
+      <wsdl:port binding="impl:OmDevSoapBinding" name="OmDev">
+
+         <wsdlsoap:address location="http://localhost:8080/om/services/OmDev"/>
+
+      </wsdl:port>
+
+   </wsdl:service>
+
+</wsdl:definitions>

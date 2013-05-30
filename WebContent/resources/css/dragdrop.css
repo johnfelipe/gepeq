@@ -1,0 +1,244 @@
+/* ©UNED */
+.ui-panel-titlebar {
+	height:80%;
+}
+
+.ui-panel-title {
+	font-size:90% !important;
+}
+
+.accordion {
+	font-size:90% !important;
+	padding:0px;
+	margin:0px;
+}
+
+/* ------------------------------- */
+/* Configuration options (Spanish) */
+/* ------------------------------- */
+.columnConfigOptionsLeftLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:250px;
+}
+
+.columnConfigOptionsLeftInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+    width:100px;
+}
+
+.columnConfigOptionsRightLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:220px;
+}
+
+.columnConfigOptionsRightInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ------------------------------- */
+
+/* ------------------------------- */
+/* Configuration options (English) */
+/* ------------------------------- */
+.columnConfigOptionsLeftLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.columnConfigOptionsLeftInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+    width:160px;
+}
+
+.columnConfigOptionsRightLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:170px;
+}
+
+.columnConfigOptionsRightInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ------------------------------- */
+
+/* ----------------------------------- */
+/* Name input + Fix position (Spanish) */
+/* ----------------------------------- */
+.columnDraggableItemNameLabel, .columnAnswerNameLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnDraggableItemNameInput, .columnAnswerNameInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:380px;
+}
+
+.columnDraggableItemFixedLabel, .columnAnswerFixedLabel {
+    vertical-align:middle;
+    text-align:left;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:105px;
+}
+
+.columnDraggableItemFixedInput, .columnAnswerFixedInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ----------------------------------- */
+
+/* ----------------------------------- */
+/* Name input + Fix position (English) */
+/* ----------------------------------- */
+.columnDraggableItemNameLabelEn, .columnAnswerNameLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnDraggableItemNameInputEn, .columnAnswerNameInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:400px;
+}
+
+.columnDraggableItemFixedLabelEn, .columnAnswerFixedLabelEn {
+    vertical-align:middle;
+    text-align:left;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:85px;
+}
+
+.columnDraggableItemFixedInputEn, .columnAnswerFixedInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ----------------------------------- */
+
+.columnDragDropDraggableItemImageLabel,.columnDragDropAnswerImageLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnDragDropDraggableItemImageInput,.columnDragDropAnswerImageInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDragDropDraggableItemContentLabel, .columnDragDropAnswerContentLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnDragDropDraggableItemContentInput, .columnDragDropAnswerContentInput {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDeleteDraggableItemButton {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:660px;
+}
+
+/* ----------------------------------------------------- */
+/* Correct answer input + Delete answer button (Spanish) */
+/* ----------------------------------------------------- */
+.columnCorrectAnswerLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:155px;
+}
+
+.columnCorrectAnswerInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnDeleteAnswerButton {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:270px;
+}
+/* ----------------------------------------------------- */
+
+/* ----------------------------------------------------- */
+/* Correct answer input + Delete answer button (English) */
+/* ----------------------------------------------------- */
+.columnCorrectAnswerLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:115px;
+}
+
+.columnCorrectAnswerInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnDeleteAnswerButtonEn {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:310px;
+}
+/* ----------------------------------------------------- */
+
+.draggableItemTextArea, .answerTextArea {
+    width:560px; 
+    height:75px;
+}
+
+.draggableItemButton, .answerButton {
+	font-size:85% !important; 
+}
+
+.rightButton {
+	font-size:80% !important; 
+}

@@ -1,0 +1,237 @@
+/* ©UNED */
+.ui-panel-titlebar {
+	height:80%;
+}
+
+.ui-panel-title {
+	font-size:90% !important;
+}
+
+.accordion {
+	font-size:90% !important;
+	padding:0px;
+	margin:0px;
+}
+
+/* ------------------------------- */
+/* Configuration options (Spanish) */
+/* ------------------------------- */
+.columnSingleResponseLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnSingleResponseInput {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+    width:180px;
+}
+
+.columnShuffleLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.columnShuffleInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ------------------------------- */
+
+/* ------------------------------- */
+/* Configuration options (English) */
+/* ------------------------------- */
+.columnSingleResponseLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:100px;
+}
+
+.columnSingleResponseInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+    width:210px;
+}
+
+.columnShuffleLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+}
+
+.columnShuffleInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ------------------------------- */
+
+/* ----------------------------------- */
+/* Name input + Fix position (Spanish) */
+/* ----------------------------------- */
+.columnAnswerNameLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnAnswerNameInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:380px;
+}
+
+.columnFixPositionLabel {
+    vertical-align:middle;
+    text-align:left;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:105px;
+}
+
+.columnFixPositionInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ----------------------------------- */
+
+/* ----------------------------------- */
+/* Name input + Fix position (English) */
+/* ----------------------------------- */
+.columnAnswerNameLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnAnswerNameInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:400px;
+}
+
+.columnFixPositionLabelEn {
+    vertical-align:middle;
+    text-align:left;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:85px;
+}
+
+.columnFixPositionInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    margin-right:5px;
+}
+/* ----------------------------------- */
+
+.columnMultichoiceAnswerImageLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnMultichoiceAnswerImageInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnMultichoiceAnswerContentLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+    vertical-align:middle;
+}
+
+.columnMultichoiceAnswerContentInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+/* ----------------------------------------------------- */
+/* Correct answer input + Delete answer button (Spanish) */
+/* ----------------------------------------------------- */
+.columnCorrectAnswerLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:155px;
+}
+
+.columnCorrectAnswerInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnDeleteAnswerButton {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:270px;
+}
+/* ----------------------------------------------------- */
+
+/* ----------------------------------------------------- */
+/* Correct answer input + Delete answer button (English) */
+/* ----------------------------------------------------- */
+.columnCorrectAnswerLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:115px;
+}
+
+.columnCorrectAnswerInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnDeleteAnswerButtonEn {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:310px;
+}
+/* ----------------------------------------------------- */
+
+.answerTextArea {
+    width:560px; 
+    height:75px;
+}
+
+.answerButton {
+	font-size:85% !important; 
+}
+
+.rightButton {
+	font-size:80% !important; 
+}

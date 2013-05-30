@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition template="/WEB-INF/templates/commontemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_intro.xhtml" />
+  </ui:define>
+  
+  <ui:define name="body">
+    
+    <h:outputScript library="javascript" name="form_utils.js"/>
+    <h:outputStylesheet library="css" name="intro.css" />
+    
+    <h:panelGroup layout="block" styleClass="introPanel">
+	  <p class="ui-panel ui-widget" style="margin-top:0px;margin-left:0px;margin-right:0px;margin-bottom:10px;">
+	    <h:outputText value="#{msgs.GEPEQ_TITLE}" style="font-weight:bolder;" />
+	  </p>	
+	  <h:form id="introForm">
+	    <h:panelGrid columns="2" cellpadding="5" style="display:inline-block;width:330px;" 
+	      columnClasses="introLabelColumn,introFieldColumn">
+	      
+	      #{msgs.USER}
+	      <h:inputText value="#{loginBean.username}" style="width:200px;" />
+          #{msgs.PASSWORD}
+	      <h:inputSecret value="#{loginBean.password}" style="width:200px;" />
+	    </h:panelGrid>
+	    <br/>
+		<p:commandButton value="#{msgs.START_APP}" action="#{loginBean.login}" ajax="false" styleClass="introButton" />
+        <br/>
+        <br/>
+        <h:panelGrid columns="3" columnClasses="columnIntroEmpty,columnIntroMessages,columnIntroEmpty">
+          &nbsp;
+          <p:messages id="messages" />
+          &nbsp;
+        </h:panelGrid>
+	  </h:form>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>
+</html>

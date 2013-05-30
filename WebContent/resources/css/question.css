@@ -1,0 +1,741 @@
+/* ©UNED */
+.ui-wizard-content {
+	font-size:90%;,
+}
+
+.ui-wizard-navbar {
+	font-size:75%;
+}
+
+.ui-wizard-step-title {
+	font-size:85%;
+}
+
+.ui-tabs-panel {
+	font-size:90%;
+	padding:0px;
+}
+
+.ui-tabs-nav {
+	font-size:85%;
+}
+
+.ui-messages-error {
+    font-size:95% !important;
+}
+
+.dimmensionsSpinner {
+	width:100px;
+}
+
+.dimmensionsSpinner .ui-spinner-input {
+	width:77px;
+}
+
+.conditionSpinner {
+	width:50px;
+}
+
+.conditionSpinner .ui-spinner-input {
+    width:27px;
+}
+
+.answersOrderList .ui-orderlist-list {
+    width:600px;
+    height:310px;
+}
+
+.draggableItemsOrderList .ui-orderlist-list {
+    width:600px;
+    height:310px;
+}
+
+.droppableAnswersOrderList .ui-orderlist-list {
+    width:720px;
+    height:310px;
+}
+
+.feedbacksOrderList .ui-orderlist-list {
+    width:600px;
+    height:310px;
+}
+
+.panelTab {
+	width:99%;	
+}
+
+.accordion {
+	font-size:90% !important;
+	padding:0px;
+	margin:0px;
+}
+
+.columnCommonDataLabels {
+    vertical-align:middle;
+    padding-top:8px;
+	padding-bottom:12px;
+	width:130px;
+}
+
+.columnCommonDataInputs {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDifficultyLevelLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnDifficultyLevelInput {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+	width:250px;
+}
+
+.columnAuthorLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:50px;
+}
+
+.columnAuthorInput {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnQuestionTextLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnQuestionTextInput {
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnImageLabel {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:130px;
+}
+
+.columnFeedbackImageLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:75px;
+}
+
+.columnAdvancedFeedbackImageLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+}
+
+.columnImageInput,.columnFeedbackImageInput,.columnAdvancedFeedbackImageInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnImageProperties {
+    padding-top:8px;
+    padding-bottom:12px;
+    font-size:80%;
+}	
+
+.columnImageGraphics {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:top;
+    text-align:left;
+}
+
+.columnImageGraphicsDisplay {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:420px;
+    height:330px;
+    vertical-align:middle;
+    text-align:center;
+}
+
+.panelImagePropertiesInfo {
+	height:190px;
+	max-height:190px;
+	overflow:auto;
+	vertical-align:middle;
+    margin-bottom:8px;
+}
+
+.panelImagePropertiesInfoLabel {
+    vertical-align:middle;
+    padding-top:4px;
+    padding-bottom:4px;
+    width:100px;
+}
+
+.panelImagePropertiesInfoValue {
+    vertical-align:middle;
+    padding-top:4px;
+    padding-bottom:4px;
+}
+
+.columnImagePropertiesLabel {
+    vertical-align:middle;
+    padding-top:4px;
+    padding-bottom:4px;
+    width:180px;
+}
+
+.columnImagePropertiesValue {
+    vertical-align:middle;
+    padding-top:4px;
+    padding-bottom:4px;
+}
+
+.columnNoImage {
+    padding:0px;
+    width:0px;
+}
+
+.columnThumb {
+    vertical-align:middle;
+	width:40px;
+}
+
+.columnImageName {
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+.columnImageButton {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnShowImageLabel {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.columnShowImageInput {
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnLevel {
+    width:50px;
+    text-align:center;
+}
+
+.columnFeedbackTypeLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+    vertical-align:middle;
+}
+
+.columnFeedbackTypeInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:100px;
+    vertical-align:middle;
+}
+
+.columnFeedbackTypeTip {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+    text-align:center;
+}
+
+.columnContentLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+    vertical-align:middle;
+}
+
+.columnContentInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+.columnConditionsLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+    vertical-align:middle;
+}
+
+.columnConditionsInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:340px;
+    vertical-align:middle;
+}
+
+.columnTestConditionLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+    vertical-align:middle;
+}
+
+.columnTestConditionInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+    vertical-align:middle;
+}
+
+.columnTestConditionText {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+.columnAnswerConditionPosition {
+    padding-top:8px;
+    padding-bottom:12px;
+	width:10px;
+	vertical-align:middle;	
+}
+
+.columnAnswerConditionDisplayLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+    vertical-align:middle;
+    text-align:center;  
+}
+
+.columnAnswerConditionFlagNotInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:110px;
+    vertical-align:middle;
+}
+
+.columnAnswerConditionAnswerInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:200px;
+    vertical-align:middle;
+}
+
+.columnAnswerConditionDeleteButton {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+    vertical-align:middle;
+}
+
+.columnAnswerConditionAndButton {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+    vertical-align:middle;
+}
+
+.columnDragDropAnswerConditionPosition {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:10px;
+    vertical-align:middle;  
+}
+
+.columnDragDropAnswerConditionDisplayLabelOrFlagNotInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+    vertical-align:middle;
+    text-align:center;  
+		
+}
+
+.columnDragDropAnswerConditionAnswerOrRightAnswerInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:270px;
+    vertical-align:middle;
+}
+
+.columnDragDropAnswerConditionDeleteButton {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:90px;
+    vertical-align:middle;
+}
+
+.columnDragDropAnswerConditionAndButton {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:40px;
+    vertical-align:middle;
+}
+
+.columnAttemptsConditionDisplayLabel, .columnSelectedAnswersConditionDisplayLabel, 
+.columnSelectedRightAnswersConditionDisplayLabel, .columnSelectedWrongAnswersConditionDisplayLabel,
+.columnUnselectedAnswersConditionDisplayLabel, .columnUnselectedRightAnswersConditionDisplayLabel,
+.columnUnselectedWrongAnswersConditionDisplayLabel, .columnRightDistanceConditionDisplayLabel {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+    vertical-align:middle;
+}
+
+.columnAttemptsConditionComparatorInput, .columnSelectedAnswersConditionComparatorInput,
+.columnSelectedRightAnswersConditionComparatorInput, .columnSelectedWrongAnswersConditionComparatorInput,
+.columnUnselectedAnswersConditionComparatorInput, .columnUnselectedRightAnswersConditionComparatorInput,
+.columnUnselectedWrongAnswersConditionComparatorInput, .columnRightDistanceConditionComparatorInput {
+    padding-top:8px;
+    padding-bottom:12px;
+    width:180px;
+    vertical-align:middle;
+}
+
+.columnAttemptsConditionValues, .columnSelectedAnswersConditionValues, .columnSelectedRightAnswersConditionValues,
+.columnSelectedWrongAnswersConditionValues, .columnUnselectedAnswersConditionValues, 
+.columnUnselectedRightAnswersConditionValues, .columnUnselectedWrongAnswersConditionValues,
+.columnRightDistanceConditionValues {
+    padding-top:8px;
+    padding-bottom:12px;
+    vertical-align:middle;
+}
+
+.topAlignRow {
+	vertical-align:top;
+	margin-top:10px;
+	margin-bottom:10px;
+}
+
+.categoryLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.categoryComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:460px;
+}
+
+.includeSubcategoriesLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.includeSubcategoriesOptionColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.mimeTypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.mimeTypeComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.copyrightLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:70px;
+}
+
+.copyrightComboColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:200px;
+}
+
+.applyFilterButtonColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.ui-selectonemenu-item {
+   font-size: 85% !important;
+}
+
+.combo {
+    font-size:90% !important;
+	padding-left:2px;
+	padding-right:2px;
+}
+
+.copyrightsComboPanel {
+    width:260px;
+}
+
+.questionTextArea {
+	width:550px; 
+	height:75px;
+}
+
+.feedbackTextArea {
+	width:670px; 
+	height:75px;
+}
+
+.feedbackTextAreaDialog {
+	width:530px;
+    height:75px;
+    resize:none;
+}
+
+.imageConfirmButtons {
+	margin:10px;
+	font-size:110% !important;
+}
+
+.confirmButtons {
+	margin:10px;
+	font-size:85% !important;
+}
+
+.button {
+	font-size:85% !important;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.resortDroppableAnswersDialog {
+    font-size:90% !important;
+}
+
+.resortDroppableAnswersDialog .ui-dialog-content {
+    padding-left:10px;
+    padding-right:0px;
+}
+
+.resortDroppableAnswersDialog .ui-panel .ui-panel-content {
+    padding-left:0px;
+    padding-right:0px;
+}
+
+.dialogPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.dialogSmallButton {
+    margin:10px;
+}
+
+.draggableItemsTopGrid, .droppableAnswersTopGrid, .advancedFeedbackTopGrid {
+	width:100%;
+}
+
+.draggableItemsLabel, .droppableAnswersLabel, .advancedFeedbackLabel {
+    text-align:left;
+    width:230px;
+}
+
+.draggableItemsButtons, .droppableAnswersButtons, .advancedFeedbackButtons {
+    float:right;
+}
+
+.accordionAlignTop {
+    width:100%;
+    margin-top:10px; 
+    margin-bottom:0px;
+}
+
+.alignTop {
+    width:100%;
+    margin-top:10px; 
+    margin-bottom:5px;
+}
+
+.rightAlign {
+    text-align:right;  
+    width:100%; 
+}
+
+.rightAlignTop {
+	text-align:right;  
+	width:100%; 
+	margin-top:-5px;
+	margin-bottom:5px;
+}
+
+.rightAlignTopAccordion {
+    text-align:right;
+    width:100%;
+    margin-top:0px;
+    margin-bottom:5px;
+}
+
+.centerAlignBottom {
+    text-align:center;
+    width:100%;
+    margin-top:5px;
+    margin-bottom:-5px;
+}
+
+/* Tabla de feedbacks */
+.feedbacksTable {
+	width:100%;
+}
+
+.headerRow {
+}
+
+.dataRow {
+	padding:5px;
+	margin:5px;
+}
+
+.columnOrder {
+	width:17px;
+	text-align:left;
+}
+
+.columnType {
+	width:50px;
+    text-align:left;
+}
+
+.columnCondition {
+	width:180px;
+	text-align:left;
+}
+
+.columnImage {
+	width:50px;
+	text-align:center;
+} 
+
+.columnContent {
+	width:200px;
+	text-align:left;
+}
+
+.columnEdit {
+	width:16px;
+	text-align:left;
+}
+
+.columnDelete {
+	width:16px;
+	text-align:left;
+}
+
+.VERY_EASY {
+    background-color:green;
+    color:green;
+}
+
+.EASY {
+    background-color:blue;
+    color:blue;
+}
+
+.NORMAL {
+    background-color:yellow;
+    color:yellow;
+}
+
+.HARD {
+    background-color:orange;
+    color:orange;
+}
+
+.VERY_HARD {
+    background-color:red;
+    color:red;
+}
+
+.columnAnswerTitle {
+    width:190px;
+    text-align:left;
+    font-weight:bold;
+}
+
+.columnAnswerText {
+    width:190px;
+    text-align:left;
+}
+
+.columnAnswerCorrect {
+    width:75px;
+    text-align:left;
+}
+
+.columnAnswerFixed {
+    text-align:left;
+}
+
+.columnDraggableItemTitle {
+    width:190px;
+    text-align:left;
+    font-weight:bold;
+}
+
+.columnDraggableItemText {
+    width:260px;
+    text-align:left;
+}
+
+.columnDraggableItemFixed {
+    text-align:left;
+}
+
+.columnDroppableAnswerTitle {
+    width:190px;
+    text-align:left;
+    font-weight:bold;
+}
+
+.columnDroppableAnswerText {
+    width:190px;
+    text-align:left;
+}
+
+.columnDroppableAnswerCorrect {
+    width:190px;
+    text-align:left;
+}
+
+.columnDroppableAnswerFixed {
+    text-align:left;
+}

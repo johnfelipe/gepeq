@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/questiontemplate.xhtml">
+    <ui:define name="answers">
+      <h:outputStylesheet library="css" name="multichoice.css" />
+      <p:outputPanel id="answersPanel">
+	    <p:panel style="margin-bottom:5px;" header="#{msgs.CONFIGURATION_OPTIONS}">
+	      <h:panelGrid columns="4" cellpadding="5" 
+	        columnClasses="#{localizationService.getLocalizedStyleClasses('columnSingleResponseLabel,columnSingleResponseInput,columnShuffleLabel,columnShuffleInput')}" 
+	      	rowClasses="topAlignRow">
+	      	
+            #{msgs.SINGLE_RESPONSE}
+            <p:selectOneMenu id="singleResponse" value="#{questionBean.question.single}" styleClass="combo">
+              <p:ajax listener="#{questionBean.changeProperty}" update="@this confirmChangePropertyDialog" />
+              <f:attribute name="property" value="singleResponse" />
+	          <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+	          <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+	        </p:selectOneMenu>
+            #{msgs.SHUFFLE_ANSWERS} 
+            <p:selectOneMenu id="shuffleAnswers" value="#{questionBean.question.shuffle}" styleClass="combo">
+	          <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+	          <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+	        </p:selectOneMenu>     
+	      </h:panelGrid>
+	  	</p:panel>
+        <h:panelGroup layout="block"  styleClass="rightAlignTopAccordion">
+          <p:commandButton id="reSortAnswers" value="#{msgs.RE_SORT}" image="ui-icon ui-icon-triangle-2-n-s" 
+            styleClass="rightButton" immediate="true" actionListener="#{questionBean.showReSortAnswers}" 
+            update="resortAnswersDialog questionForm:answersMessages" 
+            disabled="#{!questionBean.enabledReSortAnswers}" />
+          <p:commandButton value="#{msgs.ADD_ANSWER}" image="ui-icon ui-icon-plus" styleClass="rightButton" 
+            actionListener="#{questionBean.addAnswer}" immediate="true" 
+            update="questionForm:reSortAnswers questionForm:answersAccordion questionForm:answersMessages" />
+        </h:panelGroup>
+        <p:accordionPanel id="answersAccordion" styleClass="accordion" 
+          value="#{questionBean.question.answersSortedByPosition}" var="answer" widgetVar="answersAccordion">
+          
+          <p:ajax event="tabChange" listener="#{questionBean.changeActiveAnswer}" 
+            update="@this questionForm:answersMessages" />
+          <p:tab title="#{questionBean.getAnswerTitle(answer)}">
+            <h:panelGrid columns="4" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnAnswerNameLabel,columnAnswerNameInput,columnFixPositionLabel,columnFixPositionInput')}" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.NAME}" />
+              <p:inputText id="answerName" style="width:180px;" maxlength="15" value="#{answer.name}" />
+              <h:outputText value="#{msgs.FIX_POSITION}" style="font-size:120%" />
+              <p:selectOneMenu id="answerFixed" value="#{answer.fixed}" styleClass="combo">
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnMultichoiceAnswerImageLabel,columnMultichoiceAnswerImageInput" rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%;" value="#{msgs.IMAGE}" />
+              <h:panelGroup>
+                <p:commandButton id="selectNewImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                  actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                  update="selectImageDialog questionForm:answersMessages" rendered="#{answer.resource==null}" />
+                <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
+                  rendered="#{answer.resource!=null}">
+                  
+                  <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" />
+                  <h:outputText style="margin-right:5px;" value="#{answer.resource.name}" />
+                  <p:commandButton id="selectImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                    actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                    update="selectImageDialog questionForm:answersMessages" />
+                </h:panelGrid>
+              </h:panelGroup>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnMultichoiceAnswerContentLabel,columnMultichoiceAnswerContentInput" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText style="font-size:120%" value="#{msgs.CONTENT}" />
+              <p:inputTextarea id="answerText" value="#{answer.text}" maxHeight="200" 
+                styleClass="answerTextArea" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="#{localizationService.getLocalizedStyleClasses('columnCorrectAnswerLabel,columnCorrectAnswerInput,columnDeleteAnswerButton')}" 
+              rowClasses="topAlignRow">
+              
+              <h:outputText value="#{msgs.CORRECT_ANSWER}" style="font-size:120%" />
+              <p:selectOneMenu id="answerCorrect" value="#{answer.correct}" styleClass="combo">
+                <p:ajax listener="#{questionBean.changeProperty}" process="@this questionForm:singleResponse" 
+                  update="@this confirmChangePropertyDialog" />
+                <f:attribute name="property" value="correct" />
+                <f:attribute name="answer" value="#{answer}" />
+                <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+              </p:selectOneMenu>
+              <p:commandButton value="#{msgs.DELETE_ANSWER}" disabled="#{!questionBean.removeAnswerEnabled}" 
+                styleClass="answerButton" style="margin-right:7px;" image="ui-icon ui-icon-trash" 
+                actionListener="#{questionBean.removeAnswer}" immediate="true" 
+                update="questionForm:reSortAnswers questionForm:answersAccordion questionForm:answersMessages">
+                
+                <f:attribute name="position" value="#{answer.position}" />
+              </p:commandButton>
+            </h:panelGrid>
+          </p:tab>
+        </p:accordionPanel>
+      </p:outputPanel>
+    </ui:define>
+  </ui:composition>
+</html>

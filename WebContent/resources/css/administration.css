@@ -1,0 +1,185 @@
+/* ©UNED */
+.ui-tabs-panel {
+    font-size:90%;
+    padding:0px;
+}
+
+.ui-tabs-nav {
+    font-size:85%;
+}
+
+.ui-messages-error {
+    font-size:85% !important;
+}
+
+.newUserButton, .newRoleButton {
+    text-align:right; 
+    margin-bottom:8px;
+    width:100%;
+}
+
+.wijmo-wijmenu {
+	width: 140px;
+}
+
+.wijmo-wijmenu-list {
+	width: 105%;
+	padding-left: 0px;
+	padding-right: 0px;
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.button {
+    font-size:85% !important;
+}
+
+.filterPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.topAlignRow {
+    vertical-align:top;
+    margin-top:10px;
+    margin-bottom:10px;
+}
+
+/* ---------------------------- */
+/* Users filter panel (Spanish) */
+/* ---------------------------- */
+.columnRoleLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.columnRoleInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.columnIncludeOmUsersLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:210px;
+}
+
+.columnIncludeOmUsersInput {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:30px;
+}
+
+.columnApplyFilterButton {
+	text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ---------------------------- */
+
+/* ---------------------------- */
+/* Users filter panel (English) */
+/* ---------------------------- */
+.columnRoleLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.columnRoleInputEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:240px;
+}
+
+.columnIncludeOmUsersLabelEn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:170px;
+}
+
+.columnIncludeOmUsersInputEn {
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:70px;
+}
+
+.columnApplyFilterButtonEn {
+    text-align:right;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+/* ---------------------------- */
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+/* Tabla de usuarios */
+.usersTable, .rolesTable {
+	width:100%;
+	font-size:90% !important;
+}
+
+.dataRow {
+	padding:5px;
+	margin:5px;
+}
+
+.columnLogin {
+	width:135px;
+}
+
+.columnNick {
+    width:135px;
+}
+
+.columnName {
+    width:140px;
+}
+
+.columnRole {
+    width:135px;
+}
+
+.columnDescription {
+    width:475px;
+}
+
+.columnOmUser {
+	width:16px;
+	text-align:left;
+}
+
+.columnEdit {
+    width:16px;
+    text-align:left;
+}
+
+.columnDelete {
+    width:16px;
+    text-align:left;
+}

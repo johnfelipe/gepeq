@@ -1,0 +1,1045 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions targetNamespace="http://axis.uned.tnavigator.om" xmlns:apachesoap="http://xml.apache.org/xml-soap" xmlns:impl="http://axis.uned.tnavigator.om" xmlns:intf="http://axis.uned.tnavigator.om" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<!--WSDL created by Apache Axis version: 1.4
+Built on Apr 22, 2006 (06:55:48 PDT)-->
+ <wsdl:types>
+  <schema elementFormDefault="qualified" targetNamespace="http://axis.uned.tnavigator.om" xmlns="http://www.w3.org/2001/XMLSchema">
+   <element name="existTestXmls">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+      <element name="version" type="xsd:int"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existTestXmlsResponse">
+    <complexType>
+     <sequence>
+      <element name="existTestXmlsReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existQuestionXml">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existQuestionXmlResponse">
+    <complexType>
+     <sequence>
+      <element name="existQuestionXmlReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existQuestionJar">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+      <element name="version" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="existQuestionJarResponse">
+    <complexType>
+     <sequence>
+      <element name="existQuestionJarReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionJarLastModified">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+      <element name="version" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionJarLastModifiedResponse">
+    <complexType>
+     <sequence>
+      <element name="getQuestionJarLastModifiedReturn" type="xsd:long"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestXmlLastModified">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestXmlLastModifiedResponse">
+    <complexType>
+     <sequence>
+      <element name="getTestXmlLastModifiedReturn" type="xsd:long"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getDeployXmlLastModified">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+      <element name="version" type="xsd:int"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getDeployXmlLastModifiedResponse">
+    <complexType>
+     <sequence>
+      <element name="getDeployXmlLastModifiedReturn" type="xsd:long"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadTestXml">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+      <element maxOccurs="unbounded" name="base64TestXml" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadTestXmlResponse">
+    <complexType>
+     <sequence>
+      <element name="uploadTestXmlReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadDeployXml">
+    <complexType>
+     <sequence>
+      <element name="name" type="xsd:string"/>
+      <element name="version" type="xsd:int"/>
+      <element maxOccurs="unbounded" name="base64DeployXml" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadDeployXmlResponse">
+    <complexType>
+     <sequence>
+      <element name="uploadDeployXmlReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadQuestionJar">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+      <element name="version" type="xsd:string"/>
+      <element maxOccurs="unbounded" name="base64QuestionJar" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="uploadQuestionJarResponse">
+    <complexType>
+     <sequence>
+      <element name="uploadQuestionJarReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteTestXmls">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+      <element name="version" type="xsd:int"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteTestXmlsResponse">
+    <complexType/>
+   </element>
+   <element name="deleteQuestionXml">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="deleteQuestionXmlResponse">
+    <complexType/>
+   </element>
+   <element name="isOUCUAvailable">
+    <complexType>
+     <sequence>
+      <element name="oucu" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="isOUCUAvailableResponse">
+    <complexType>
+     <sequence>
+      <element name="isOUCUAvailableReturn" type="xsd:boolean"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionsReleasesMetadata">
+    <complexType/>
+   </element>
+   <element name="getQuestionsReleasesMetadataResponse">
+    <complexType>
+     <sequence>
+      <element name="getQuestionsReleasesMetadataReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionReleaseMetadata">
+    <complexType>
+     <sequence>
+      <element name="packageName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getQuestionReleaseMetadataResponse">
+    <complexType>
+     <sequence>
+      <element name="getQuestionReleaseMetadataReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestsReleasesMetadata">
+    <complexType/>
+   </element>
+   <element name="getTestsReleasesMetadataResponse">
+    <complexType>
+     <sequence>
+      <element name="getTestsReleasesMetadataReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestReleaseMetadata">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+      <element name="version" type="xsd:int"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestReleaseMetadataResponse">
+    <complexType>
+     <sequence>
+      <element name="getTestReleaseMetadataReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestReleaseVersions">
+    <complexType>
+     <sequence>
+      <element name="testName" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+   <element name="getTestReleaseVersionsResponse">
+    <complexType>
+     <sequence>
+      <element name="getTestReleaseVersionsReturn" type="xsd:string"/>
+     </sequence>
+    </complexType>
+   </element>
+  </schema>
+ </wsdl:types>
+
+   <wsdl:message name="existTestXmlsRequest">
+
+      <wsdl:part element="impl:existTestXmls" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionReleaseMetadataRequest">
+
+      <wsdl:part element="impl:getQuestionReleaseMetadata" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionJarRequest">
+
+      <wsdl:part element="impl:existQuestionJar" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestReleaseMetadataResponse">
+
+      <wsdl:part element="impl:getTestReleaseMetadataResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadDeployXmlRequest">
+
+      <wsdl:part element="impl:uploadDeployXml" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestReleaseVersionsResponse">
+
+      <wsdl:part element="impl:getTestReleaseVersionsResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadQuestionJarResponse">
+
+      <wsdl:part element="impl:uploadQuestionJarResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="isOUCUAvailableRequest">
+
+      <wsdl:part element="impl:isOUCUAvailable" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getDeployXmlLastModifiedRequest">
+
+      <wsdl:part element="impl:getDeployXmlLastModified" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestReleaseVersionsRequest">
+
+      <wsdl:part element="impl:getTestReleaseVersions" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestReleaseMetadataRequest">
+
+      <wsdl:part element="impl:getTestReleaseMetadata" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestXmlLastModifiedRequest">
+
+      <wsdl:part element="impl:getTestXmlLastModified" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existTestXmlsResponse">
+
+      <wsdl:part element="impl:existTestXmlsResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionXmlRequest">
+
+      <wsdl:part element="impl:existQuestionXml" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteTestXmlsRequest">
+
+      <wsdl:part element="impl:deleteTestXmls" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getDeployXmlLastModifiedResponse">
+
+      <wsdl:part element="impl:getDeployXmlLastModifiedResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteTestXmlsResponse">
+
+      <wsdl:part element="impl:deleteTestXmlsResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionJarLastModifiedResponse">
+
+      <wsdl:part element="impl:getQuestionJarLastModifiedResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadQuestionJarRequest">
+
+      <wsdl:part element="impl:uploadQuestionJar" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionJarLastModifiedRequest">
+
+      <wsdl:part element="impl:getQuestionJarLastModified" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteQuestionXmlResponse">
+
+      <wsdl:part element="impl:deleteQuestionXmlResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionReleaseMetadataResponse">
+
+      <wsdl:part element="impl:getQuestionReleaseMetadataResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestsReleasesMetadataResponse">
+
+      <wsdl:part element="impl:getTestsReleasesMetadataResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadTestXmlRequest">
+
+      <wsdl:part element="impl:uploadTestXml" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionsReleasesMetadataRequest">
+
+      <wsdl:part element="impl:getQuestionsReleasesMetadata" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestsReleasesMetadataRequest">
+
+      <wsdl:part element="impl:getTestsReleasesMetadata" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionXmlResponse">
+
+      <wsdl:part element="impl:existQuestionXmlResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="existQuestionJarResponse">
+
+      <wsdl:part element="impl:existQuestionJarResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="isOUCUAvailableResponse">
+
+      <wsdl:part element="impl:isOUCUAvailableResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="deleteQuestionXmlRequest">
+
+      <wsdl:part element="impl:deleteQuestionXml" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getQuestionsReleasesMetadataResponse">
+
+      <wsdl:part element="impl:getQuestionsReleasesMetadataResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="getTestXmlLastModifiedResponse">
+
+      <wsdl:part element="impl:getTestXmlLastModifiedResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadDeployXmlResponse">
+
+      <wsdl:part element="impl:uploadDeployXmlResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:message name="uploadTestXmlResponse">
+
+      <wsdl:part element="impl:uploadTestXmlResponse" name="parameters">
+
+      </wsdl:part>
+
+   </wsdl:message>
+
+   <wsdl:portType name="OmTn">
+
+      <wsdl:operation name="existTestXmls">
+
+         <wsdl:input message="impl:existTestXmlsRequest" name="existTestXmlsRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:existTestXmlsResponse" name="existTestXmlsResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionXml">
+
+         <wsdl:input message="impl:existQuestionXmlRequest" name="existQuestionXmlRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:existQuestionXmlResponse" name="existQuestionXmlResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionJar">
+
+         <wsdl:input message="impl:existQuestionJarRequest" name="existQuestionJarRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:existQuestionJarResponse" name="existQuestionJarResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionJarLastModified">
+
+         <wsdl:input message="impl:getQuestionJarLastModifiedRequest" name="getQuestionJarLastModifiedRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getQuestionJarLastModifiedResponse" name="getQuestionJarLastModifiedResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestXmlLastModified">
+
+         <wsdl:input message="impl:getTestXmlLastModifiedRequest" name="getTestXmlLastModifiedRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getTestXmlLastModifiedResponse" name="getTestXmlLastModifiedResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getDeployXmlLastModified">
+
+         <wsdl:input message="impl:getDeployXmlLastModifiedRequest" name="getDeployXmlLastModifiedRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getDeployXmlLastModifiedResponse" name="getDeployXmlLastModifiedResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadTestXml">
+
+         <wsdl:input message="impl:uploadTestXmlRequest" name="uploadTestXmlRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:uploadTestXmlResponse" name="uploadTestXmlResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadDeployXml">
+
+         <wsdl:input message="impl:uploadDeployXmlRequest" name="uploadDeployXmlRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:uploadDeployXmlResponse" name="uploadDeployXmlResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadQuestionJar">
+
+         <wsdl:input message="impl:uploadQuestionJarRequest" name="uploadQuestionJarRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:uploadQuestionJarResponse" name="uploadQuestionJarResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteTestXmls">
+
+         <wsdl:input message="impl:deleteTestXmlsRequest" name="deleteTestXmlsRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:deleteTestXmlsResponse" name="deleteTestXmlsResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteQuestionXml">
+
+         <wsdl:input message="impl:deleteQuestionXmlRequest" name="deleteQuestionXmlRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:deleteQuestionXmlResponse" name="deleteQuestionXmlResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="isOUCUAvailable">
+
+         <wsdl:input message="impl:isOUCUAvailableRequest" name="isOUCUAvailableRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:isOUCUAvailableResponse" name="isOUCUAvailableResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionsReleasesMetadata">
+
+         <wsdl:input message="impl:getQuestionsReleasesMetadataRequest" name="getQuestionsReleasesMetadataRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getQuestionsReleasesMetadataResponse" name="getQuestionsReleasesMetadataResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionReleaseMetadata">
+
+         <wsdl:input message="impl:getQuestionReleaseMetadataRequest" name="getQuestionReleaseMetadataRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getQuestionReleaseMetadataResponse" name="getQuestionReleaseMetadataResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestsReleasesMetadata">
+
+         <wsdl:input message="impl:getTestsReleasesMetadataRequest" name="getTestsReleasesMetadataRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getTestsReleasesMetadataResponse" name="getTestsReleasesMetadataResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestReleaseMetadata">
+
+         <wsdl:input message="impl:getTestReleaseMetadataRequest" name="getTestReleaseMetadataRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getTestReleaseMetadataResponse" name="getTestReleaseMetadataResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestReleaseVersions">
+
+         <wsdl:input message="impl:getTestReleaseVersionsRequest" name="getTestReleaseVersionsRequest">
+
+       </wsdl:input>
+
+         <wsdl:output message="impl:getTestReleaseVersionsResponse" name="getTestReleaseVersionsResponse">
+
+       </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:portType>
+
+   <wsdl:binding name="OmTnSoapBinding" type="impl:OmTn">
+
+      <wsdlsoap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+      <wsdl:operation name="existTestXmls">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="existTestXmlsRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="existTestXmlsResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionXml">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="existQuestionXmlRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="existQuestionXmlResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="existQuestionJar">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="existQuestionJarRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="existQuestionJarResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionJarLastModified">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getQuestionJarLastModifiedRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getQuestionJarLastModifiedResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestXmlLastModified">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getTestXmlLastModifiedRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getTestXmlLastModifiedResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getDeployXmlLastModified">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getDeployXmlLastModifiedRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getDeployXmlLastModifiedResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadTestXml">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="uploadTestXmlRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="uploadTestXmlResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadDeployXml">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="uploadDeployXmlRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="uploadDeployXmlResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="uploadQuestionJar">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="uploadQuestionJarRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="uploadQuestionJarResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteTestXmls">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="deleteTestXmlsRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="deleteTestXmlsResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="deleteQuestionXml">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="deleteQuestionXmlRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="deleteQuestionXmlResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="isOUCUAvailable">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="isOUCUAvailableRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="isOUCUAvailableResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionsReleasesMetadata">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getQuestionsReleasesMetadataRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getQuestionsReleasesMetadataResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getQuestionReleaseMetadata">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getQuestionReleaseMetadataRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getQuestionReleaseMetadataResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestsReleasesMetadata">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getTestsReleasesMetadataRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getTestsReleasesMetadataResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestReleaseMetadata">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getTestReleaseMetadataRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getTestReleaseMetadataResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+      <wsdl:operation name="getTestReleaseVersions">
+
+         <wsdlsoap:operation soapAction=""/>
+
+         <wsdl:input name="getTestReleaseVersionsRequest">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:input>
+
+         <wsdl:output name="getTestReleaseVersionsResponse">
+
+            <wsdlsoap:body use="literal"/>
+
+         </wsdl:output>
+
+      </wsdl:operation>
+
+   </wsdl:binding>
+
+   <wsdl:service name="OmTnService">
+
+      <wsdl:port binding="impl:OmTnSoapBinding" name="OmTn">
+
+         <wsdlsoap:address location="http://localhost:8080/om-tn-pro/services/OmTn"/>
+
+      </wsdl:port>
+
+   </wsdl:service>
+
+</wsdl:definitions>

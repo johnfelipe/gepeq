@@ -1,0 +1,251 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.RESOURCES_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_resources.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputStylesheet library="css" name="resources.css" />
+    
+    <p:outputPanel styleClass="resourcesPanel">
+      <h:form id="resourcesForm" styleClass="resourcesForm" onkeypress="preventEnterSubmit(event);">
+        <p:growl id="messages" showDetail="true" sticky="#{resourcesBean.criticalErrorMessage}" />
+        
+        <h:inputHidden value="#{resourcesBean.resourceId}" />
+        
+        <p:panel id="resourcesFilterPanel" styleClass="filterPanel">
+          <h:panelGrid columns="4" cellpadding="5" 
+            columnClasses="categoryLabelColumn,categoryComboColumn,includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn">
+            
+            #{msgs.CATEGORY}
+            <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:450px;" panelStyle="width:550px;" 
+              value="#{resourcesBean.filterCategoryId}" var="filterCategoryId"> 
+              
+              <p:ajax event="change" 
+                process="@this resourcesForm:filterIncludeSubcategories resourcesForm:filterMimeType resourcesForm:filterCopyrightId" 
+                update="resourcesForm:resourcesFilterPanel" />
+              <f:selectItems value="#{resourcesBean.specialCategoriesFilters}" var="catFilter" 
+                itemLabel="#{msgs[catFilter.name]}" itemValue="#{catFilter.id}" />
+              <f:selectItems value="#{resourcesBean.resourcesCategories}" var="cat" 
+                itemLabel="#{resourcesBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+              <p:column>
+                #{resourcesBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+              </p:column>
+            </p:selectOneMenu>
+            <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" rendered="#{resourcesBean.filterCategoryId&gt;0}" />
+            <p:selectBooleanCheckbox id="filterIncludeSubcategories" 
+              value="#{resourcesBean.filterIncludeSubcategories}" 
+              rendered="#{resourcesBean.filterCategoryId&gt;0}" />
+          </h:panelGrid>
+          <h:panelGrid columns="5" cellpadding="5" 
+            columnClasses="mimeTypeLabelColumn,mimeTypeComboColumn,copyrightLabelColumn,copyrightComboColumn,applyFilterButtonColumn">
+            
+            #{msgs.MIME_TYPE}
+            <p:selectOneMenu id="filterMimeType" styleClass="combo" style="width:200px;" 
+              value="#{resourcesBean.filterMimeType}">
+              
+              <f:selectItems value="#{resourcesBean.mimeTypesMasks}" var="mimeTypeMask" 
+                itemLabel="#{msgs[mimeTypeMask]}" itemValue="#{resourcesBean.getMimeTypeMaskValue(mimeTypeMask)}" />
+              <f:selectItems value="#{resourcesBean.mimeTypes}" var="mimeType" itemLabel="#{mimeType}"
+                itemValue="#{mimeType}" />
+            </p:selectOneMenu>
+            #{msgs.COPYRIGHT}
+            <p:selectOneMenu id="filterCopyrightId" styleClass="combo" style="width:200px;" 
+              value="#{resourcesBean.filterCopyrightId}" panelStyleClass="copyrightsComboPanel">
+              
+              <f:selectItem itemLabel="#{localizationService.getAllOptions('COPYRIGHT_GEN')}" itemValue="#{0}" />
+              <f:selectItems value="#{resourcesBean.copyrights}" var="cop" 
+                itemLabel="#{resourcesBean.getLocalizedCopyrightShort(cop)}" itemValue="#{cop.id}" />
+            </p:selectOneMenu>
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{resourcesBean.applyResourcesFilter}" process="resourcesForm:resourcesFilterPanel" 
+              update="resourcesForm:messages resourcesForm:resourcesGrid" />
+          </h:panelGrid>
+        </p:panel>
+        
+        <h:panelGroup layout="block" styleClass="rightAlign" style="margin-bottom:-6px;">
+          <p:commandButton id="newResourceButton" value="#{msgs.NEW_RESOURCE}" image="ui-icon ui-icon-plus" 
+            styleClass="newResourceButton" action="#{resourcesBean.addResource}" ajax="false" 
+            disabled="#{!resourcesBean.isAddEnabled()}" />
+        </h:panelGroup>
+        
+	  	<p:dataGrid id="resourcesGrid" value="#{resourcesBean.resources}" var="res" columns="4" rows="8" 
+	  	  paginator="true" rowsPerPageTemplate="4,8,12,16,24,48"
+		  paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}">
+		  
+		  <p:column>
+		    <p:panel id="resourcesGridPanel" header="#{resourcesBean.abbreviate(res.name,12)}" 
+		      styleClass="resourcesGridPanel">
+		      <h:panelGrid id="resourceInfo" columns="1" styleClass="resourceInfo">
+                <h:panelGroup id="resourcePreview" styleClass="resourcePreview" layout="block">
+                  <h:panelGroup styleClass="resourcePreviewSpan">
+                    <h:panelGroup styleClass="resourcePreviewContent">
+                      <h:graphicImage id="resourcePreviewImage" value="#{res.fileName}" 
+                        width="#{resourcesBean.getResourceWidthForResourcePreview(res)}" 
+                        height="#{resourcesBean.getResourceHeightForResourcePreview(res)}" />
+                      
+                      <p:tooltip for="resourcePreviewImage">
+                        <table style="max-width:230px;">
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.NAME}" /></td>
+                            <td>#{res.name}</td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.OWNER}" /></td>
+                            <td>#{res.user.nick}</td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.DESCRIPTION}" /></td>
+                            <td>
+                              <h:outputText value="#{resourcesBean.breakText(res.description,3)}"
+                                escape="false" />
+                            </td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.CATEGORY}" /></td>
+                            <td>#{resourcesBean.getLocalizedCategoryLongName(res.category)}</td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.COPYRIGHT}" /></td>
+                            <td>#{resourcesBean.getLocalizedCopyright(res.copyright)}</td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.MIME_TYPE}" /></td>
+                            <td>#{res.mimeType}</td>
+                          </tr>
+                          <tr>
+                            <td><h:outputText style="font-weight:bold;" value="#{msgs.IMAGE_DIMENSIONS}" /></td>
+                            <td>#{resourcesBean.getImageDimensionsString(res)}</td>
+                          </tr>
+                        </table>
+                      </p:tooltip>
+                    </h:panelGroup>
+                  </h:panelGroup>
+                </h:panelGroup>
+		        <h:panelGroup>
+		          <p:commandLink actionListener="#{resourcesBean.view}" update="resourceDialog">
+		            <f:attribute name="resource" value="#{res}" />
+				    <h:graphicImage id="viewResourceImage" styleClass="links" 
+				      value="#{resource['images:search.png']}" />
+				    <p:tooltip for="viewResourceImage">
+				      #{msgs.VIEW_RESOURCE}
+				    </p:tooltip>
+				  </p:commandLink>
+				  <h:commandLink action="#{resourcesBean.editResource(res)}" 
+				    rendered="#{resourcesBean.isEditResourceAllowed(res)}">
+	  	  			
+	          		<f:param name="resourceId" value="#{res.id}" />
+				    <h:graphicImage id="editResourceImage" styleClass="links" 
+				      value="#{resource['images:edit16.png']}" />
+				    <p:tooltip for="editResourceImage">
+				      #{msgs.EDIT_RESOURCE}
+				    </p:tooltip>
+				  </h:commandLink>
+				  <p:commandLink update="@form" actionListener="#{resourcesBean.confirm}" 
+				    rendered="#{resourcesBean.isDeleteResourceAllowed(res)}">
+				    
+				    <f:setPropertyActionListener value="#{res.id}" target="#{resourcesBean.resourceId}" />
+				    <h:graphicImage id="deleteResourceImage" styleClass="links" 
+				      value="#{resource['images:delete.png']}" />
+				    <p:tooltip for="deleteResourceImage">
+				      #{msgs.DELETE_RESOURCE}
+				    </p:tooltip>
+				  </p:commandLink>
+				</h:panelGroup>
+		      </h:panelGrid>
+		    </p:panel>
+		  </p:column>
+	    </p:dataGrid>
+	  </h:form>
+	</p:outputPanel>
+	
+    <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+         some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+         Moreover p:dialog provides more control... for example forcing user to click a button 
+         to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+         some actions after user interaction even on cancel. -->
+    
+    <p:dialog widgetVar="confirmDialog" id="confirmDialog" styleClass="dialog" header="#{msgs.CONFIRM}" 
+      modal="true" closable="false" draggable="false" resizable="false" onShow="centerDialog('confirmDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_DELETE_RESOURCE}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
+              actionListener="#{resourcesBean.deleteResource}" 
+              update="resourcesForm:messages resourcesForm:newResourceButton resourcesForm:resourcesGrid" />
+            <p:commandButton value="#{msgs.NO}" type="button" onclick="confirmDialog.hide();" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog id="resourceDialog" widgetVar="resourceDialog" styleClass="dialog" width="480" height="360" 
+      header="#{resourcesBean.currentResourceName}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('resourceDialog');">
+      
+      <h:form>
+        <p:outputPanel id="resourceDetail" styleClass="resourceDetail" layout="block">
+          <p:graphicImage id="resourceDetailPreview" value="#{resourcesBean.currentResourceFileName}" 
+            width="#{resourcesBean.currentResourceWidthForResourceDialog}" 
+            height="#{resourcesBean.currentResourceHeightForResourceDialog}" />
+          <p:tooltip for="resourceDetailPreview">
+            <table style="max-width:450px;">
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.NAME}" /></td>
+                <td>#{resourcesBean.currentResourceName}</td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.OWNER}" /></td>
+                <td>#{resourcesBean.currentResourceUserNick}</td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.DESCRIPTION}" /></td>
+                <td>
+                  <h:outputText value="#{resourcesBean.breakText(resourcesBean.currentResourceDescription,3)}"
+                    escape="false" />
+                </td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.CATEGORY}" /></td>
+                <td>#{resourcesBean.currentResourceLocalizedCategoryLongName}</td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.COPYRIGHT}" /></td>
+                <td>#{resourcesBean.currentResourceLocalizedCopyright}</td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.MIME_TYPE}" /></td>
+                <td>#{resourcesBean.currentResourceMimeType}</td>
+              </tr>
+              <tr>
+                <td><h:outputText style="font-weight:bold;" value="#{msgs.IMAGE_DIMENSIONS}" /></td>
+                <td>#{resourcesBean.currentResourceImageDimensionsString}</td>
+              </tr>
+            </table>
+          </p:tooltip>
+        </p:outputPanel>
+      </h:form>
+    </p:dialog>
+    
+  </ui:define>
+</ui:composition>
+</html>

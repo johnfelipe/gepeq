@@ -1,0 +1,196 @@
+<!--
+Sample navigator.xml. Please copy to navigator.xml then modify according to your
+needs. The comments in here should explain most options.
+
+This file is read when the web application starts. Consequently any changes do
+not take effect without a webapp reload.
+
+Note that navigator.xml is not stored in the WEB-INF folder; this is for
+logistical reasons in our setup (basically, each server needs a different
+navigator.xml, but they all have the same WEB-INF folder which we replace
+when updating version). However OpenMark is configured so that it won't serve
+requests for this file, so your database password should be safe.
+-->
+<config>
+
+    <!-- Database information. The following database plugins are available:
+             om.tnavigator.db.postgres.PostgreSQL - Postgres 8.x
+             om.tnavigator.db.sqlserver.SQLServer - SQL Server 2000+
+    -->
+    <database plugin="om.tnavigator.db.postgres.uned.PostgreSQL">
+        <!-- Database details -->
+        <server>localhost</server>
+        <name>openmark</name>
+        <prefix>prefix_</prefix>
+        <!-- Login details. (This user must have full access.) -->
+        <username></username>
+        <password></password>
+    </database>
+
+    <!-- IP addresses within the 'trusted' range(s) are allowed to view server logs
+             and status information. You should either remove all addresses from a
+             production system, or ensure that nobody who shouldn't have access to
+             this information can log onto the specified addresses. -->
+    <trustedaddresses>
+        <address>127.0.0.1</address>
+        <!-- Examples of other ways to specify this data (you can have multiple
+                 addresses, too):
+
+                 <address>137.108.*.*</address>
+                 <address>194.66.128-159.*</address>
+
+                 IPv4 only; IPv6 addresses will never be seen as trusted (unless they are
+                 wrappers around IPv4 addresses). -->
+    </trustedaddresses>
+
+    <!-- IP addresses from which you can run system reports. -->
+    <secureaddresses>
+        <address>127.0.0.1</address>
+    </secureaddresses>
+
+    <!-- Authentication plugin. At present only a very simple authentication
+             scheme is available. Using this scheme, several database tables are
+             created which you must manually fill with the list of users. See
+             Javadoc for the plugin class for more info. -->
+    <authentication plugin="om.tnavigator.auth.uned.GepeqAuth">
+        <!-- Authentication plugins can also have parameters here, but SimpleAuth
+                 doesn't need any. They look like <param name="name">value</param>. -->
+    </authentication>
+
+    <!-- Location of question engine web services.
+             (The MIME type field is currently ignored.) -->
+    <questionengines type="application/x-opaque">
+        <url>http://localhost:8080/om-qe-pro/services/Om</url>
+        <!-- Add other question engines here. You can have any number.
+                 It automatically load-balances between them. -->
+    </questionengines>
+
+    <!-- Internal URLs of test navigator web services.
+
+             These must be real URLs that go directly to the required server and
+             not load-balanced URLs.
+
+             For example, if users visit om.example.com and are transparently sent
+             to either om1.example.com or om2.example.com, it is the latter URLs that
+             should be included here.
+
+             Note that when load-balancing Om, you must ensure that the load-balancer
+             maintains the same relationship for the duration of a user's session
+             i.e. it won't send them to om1.example.com for one request and
+             om2.example.com for the next. This would cause unexpected behaviour. -->
+    <testnavigators>
+        <!-- Must mark the current server (only!) with this="yes". -->
+        <url this="yes">http://localhost:8080/om-tn-pro/</url>
+        <!-- Add other test navigators here. A small number is recommended (we
+                 have only tested up to two although it should probably scale to
+                 at least, say, five or so). -->
+    </testnavigators>
+
+    <!-- Should be your SMTP server address. Used to send alert mail (see below)
+             and, by the SimpleAuth plugin, to send confirmation emails when students
+             submit tests (if enabled for that test). -->
+    <!-- UNED... This property will be ignored if you are using one of the new mail configurations provided 
+         or if you use the new 'hostname' mail property. --> 
+    <smtpserver></smtpserver>
+
+    <!-- Targets for email sent when a server error occurs -->
+    <alertmail>
+        <from></from>
+        <to></to>
+        <!-- You can add additional <to> and <cc> entries here. -->
+    </alertmail>
+
+    <!-- Additional report plugins that are available. -->
+    <extrareports>
+        <!-- <report>std.MyCustomReport</report> -->
+    </extrareports>
+
+    <!-- If you want debug information in logs, remove some of these comments. -->
+    <debugflags>
+        <!-- Question engine load balancer stats -->
+        <!-- <log-balancer/> -->
+        <!-- Every SQL command -->
+        <!-- <log-sql/> -->
+        <!-- Every SAMS lookup -->
+        <!-- <log-sams/> -->
+        <!-- [Important] Removing this hides all logDebug(), including the above -->
+        <!-- <log-general/> -->
+    </debugflags>
+    
+    <!-- UNED: Security properties -->
+    <security>
+        <login-db>
+            <server>localhost</server>
+            <name>gepeq</name>
+            <username></username>
+            <password></password>
+        </login-db>
+        
+        <!-- Salted password used to decrypt some messages received from GEPEQ -->
+        <!--
+        <gepeq-decryption-password></gepeq-decryption-password>
+        -->
+        
+        <!-- By default user session duration is 15 minutes (time without user activity)-->
+        <!-- If you want to change user session duration, remove next commented property. -->
+        <!-- <auth-session-expiry>30s</auth-session-expiry> -->
+        <!-- [Important] Be careful that test sessions will be marked to be cleaned after 15 minutes even if 
+             user session duration is longer. -->
+        <!-- [Important] Moreover this setting only work with PreviewAuth and GepeqAuth 
+             authentication plugins. -->
+    </security>
+    
+    <!-- UNED: Mail properties -->
+    <mail>
+      <!-- Mail configuration. This string allows easy configuration for using some usual mail servers.-->
+      <!-- Default mail configuration for using a Gmail account. 
+           Comment it if you are using a different one. -->
+      <config>Gmail</config>
+      <!-- Default mail configuration for using a Yahoo! Mail account. 
+           Uncomment it if you are using this type of mail account. -->
+      <!-- <config>Yahoo! Mail</config> -->
+      <!-- Default mail configuration for using a Hotmail account. 
+           Uncomment it if you are using this type of mail account. -->
+      <!-- <config>Hotmail</config> -->
+      
+      <!-- Username for mail authentication. Can be encrypted if a private key has been provided.
+           Comment it if your mail server doesn't use authentication. -->
+      <username></username>
+      
+      <!-- Password for mail authentication. Can be encrypted if a private key has been provided.
+           Comment it if your mail server doesn't use authenticaton (or to use the empty string as password). -->
+      <password></password>
+      
+      <!-- Mail server host name.
+           Note that you can leave this property commented if you use one of the default mail configurations 
+           provided.
+           Take care that the old 'smtpserver' property only will be used if you are not using this property 
+           and moreover you are not using any of the default configurations provided. 
+      -->
+      <!--<hostname>smtp.gmail.com</hostname>-->
+      
+      <!-- Mail server port.
+          By default port 25 is used, except if you use Hotmail default configuration
+          in which case port 587 is used if you leave it uncommented.
+      -->
+      <!-- <port>25</port> -->
+      
+      <!-- SSL (true | false) 
+           By default false, except if you use GMail or Yahoo! Mail default configurations 
+           in which case is set as true if you leave it uncommented.
+      -->
+      <!-- <ssl>true</ssl> -->
+      
+      <!-- Start TLS (true | false)
+          By default false, except if you use Hotmail default configuration
+          in which case is set as true if you leave it uncommented.
+      -->
+      <!--<start-tls>false</start-tls>-->
+      
+      <!-- Debug mode. 
+           By default false. 
+           Unccomment it if you have problems with mail and you want to get debug traces. -->
+      <!-- <debug>true</debug> -->
+    </mail>
+    
+</config>

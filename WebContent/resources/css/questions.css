@@ -1,0 +1,219 @@
+/* ©UNED */
+
+/*
+.ui-datatable th div.ui-dt-c span .ui-sortable-column-icon {
+    padding-right:5px;
+}
+*/
+
+.ui-growl-message {
+    font-size:90% !important;
+}
+
+.questionsPanel {
+	font-size:80%;
+}
+
+.questionsForm {
+	vertical-align:middle;
+	width:100%;
+}
+
+.filterPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
+.topAlignRow {
+    vertical-align:top;
+    margin-top:10px;
+    margin-bottom:10px;
+}
+
+.categoryLabelColumn {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.categoryComboColumn {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+    width:460px;
+}
+
+.includeSubcategoriesLabelColumn {
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:140px;
+}
+
+.includeSubcategoriesOptionColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.questionLevelLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:80px;
+}
+
+.questionLevelComboColumn {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.questionTypeLabelColumn {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:30px;
+}
+
+.questionTypeComboColumn {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+    width:280px;
+}
+
+.applyFilterButtonColumn {
+    vertical-align:middle;
+	padding-top:8px;
+    padding-bottom:12px;
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.newQuestionPanel {
+    text-align:right; 
+    margin-bottom:10px;
+}
+
+.ui-selectonemenu-item {
+   font-size:85% !important;
+}
+
+.dialog {
+    font-size:90% !important;
+}
+
+.questionTypeCombo {
+	width:250px;
+    font-size:90% !important;
+	margin-right:10px;
+	margin-top:4px;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.newQuestionButton {
+	vertical-align:middle;
+	font-size:90% !important; 
+	float:right;
+	margin-top:1px;
+}
+
+/* Tabla de preguntas */
+.questionsTable {
+	width:100%;
+}
+
+.headerRow {
+}
+
+.dataRow {
+	padding:5px;
+	margin:5px;
+}
+
+.columnType {
+	width:16px;
+	text-align:left;
+}
+
+.columnName {
+    width:170px;
+}
+
+.columnCategory {
+	width:150px;
+}
+
+.columnAuthor {
+	width:70px;
+}
+
+.columnLevel {
+	width:50px;
+	text-align:center;
+}
+
+.columnIcon {
+	width:18px;
+	text-align:center;
+}
+
+.VERY_EASY {
+	background-color:green;
+	color:green;
+}
+
+.EASY {
+	background-color:blue;
+	color:blue;
+}
+
+.NORMAL {
+	background-color:yellow;
+	color:yellow;
+}
+
+.HARD {
+	background-color:orange;
+	color:orange;
+}
+
+.VERY_HARD {
+	background-color:red;
+	color:red;
+}
+
+.columnDate {
+	width:55px;
+	text-align:center;
+}
+
+.columnEdit {
+	width:16px;
+	text-align:left;
+}
+
+.columnCreateCopy {
+	width:16px;
+    text-align:left;
+}
+
+.columnDelete {
+	width:16px;
+	text-align:left;
+}
+
+.columnOM {
+	width:16px;
+	text-align:center;
+}

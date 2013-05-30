@@ -1,0 +1,191 @@
+/* ©UNED */
+.tree {
+	width:290px;
+    height:280px;
+	font-size:85% !important;
+    margin-top:6px;
+    overflow:auto;
+}
+
+.tree .ui-tree-nodes .ui-tree-item, .tree .ui-tree-nodes .ui-tree-parent {
+	width:290px;
+    white-space:nowrap;
+}
+
+.categoriesFilterPanel {
+    font-size:90% !important;
+    padding:5px;
+    margin-bottom:5px;
+}
+
+.categoriesPanel {
+    font-size:90% !important;
+    padding:5px;
+}
+
+.tabGrid {
+	margin-left:-20px; 
+	padding:0px;
+	width:107%;
+}
+
+.label {
+	text-align:left;
+}
+
+.categoriesLabelColumn {
+    text-align:left;
+    font-weight:bold;
+}
+
+.refreshButtonColumn {
+	text-align:right;
+}
+
+.categoryName {
+	width:310px;
+	margin-bottom:5px;
+}
+
+.categoryType {
+	width:150px;
+    margin-bottom:5px;
+}
+
+.categoryUser {
+    width:230px;
+    margin-bottom:5px;
+}
+
+.categoryVisibility {
+    width:150px;
+    margin-bottom:5px;
+}
+
+.categoryDescription {
+    /*
+    border-style:solid !important;
+    border-width:1px !important;
+    border-color:#7F9DB9 !important;
+	*/
+	
+    width:310px;
+    height:60px;
+    margin-bottom:5px;
+}
+
+.categoryWhereToAdd {
+    min-width:300px;
+    margin-bottom:5px;
+}
+
+.categoryColumn {
+	vertical-align:top;
+	width:300px;
+}
+
+.controlsColumn {
+	vertical-align:top;
+}
+
+.myCategoriesLabelColumn {
+    text-align:left;
+	vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:100px;
+}
+
+.myCategoriesCheckColumn {
+	text-align:left;
+	vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:30px;
+}
+	
+.globalCategoriesLabelColumn {
+    text-align:center;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+	width:135px;
+}
+
+.globalCategoriesCheckColumn {
+    text-align:left;
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:30px;
+}
+
+.otherUsersCategoriesLabelColumn {
+    text-align:center;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+	width:190px;
+}
+
+.otherUsersCategoriesCheckColumn {
+    text-align:left;
+    vertical-align:middle;
+    padding-top:6px;
+    padding-bottom:14px;
+    width:120px;
+}
+
+.otherUsersCategoriesComboColumn {
+    text-align:left;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:120px;
+}
+
+.applyFilterButtonColumn {
+    text-align:center;
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.labelColumn {
+	width:70px;
+	text-align:left;
+	vertical-align:middle;
+}
+
+.fieldColumn {
+    text-align:left;
+    vertical-align:middle;
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.button {
+    margin:10px;
+    font-size:85% !important;
+}
+
+.selectedButton {
+    margin:9px;
+    font-size:85% !important;
+    border-width:2px !important;
+}
+
+.applyFilterButton {
+    font-size:90% !important; 
+}
+
+.centerAlignBottom {
+    text-align:center;
+    width:100%;
+    margin-top:5px;
+    margin-bottom:-5px;
+}

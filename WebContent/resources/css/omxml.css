@@ -1,0 +1,104 @@
+/* ©UNED */
+.xmlContentTextArea {
+    width:740px; 
+    height:230px;
+}
+
+.warningLabel {
+	font-weight:bold;
+}
+
+.seeVariablesTable {
+	margin:5px;
+	border-collapse:collapse;
+	border-width:1px;
+	border-color:black;
+	border-style:solid;
+}
+
+.seeVariablesTableFirstVariableCell, .seeVariableTableSecondMeaningCell {
+    padding:2px;
+	border-width:1px;
+    border-color:black;
+    border-style:solid;
+}
+
+.seeVariableTableFirstMeaningCell {
+    padding:2px;
+	border-top-width:1px;
+    border-top-color:black;
+    border-top-style:solid;
+    border-bottom-width:1px;
+    border-bottom-color:black;
+    border-bottom-style:solid;
+    border-left-width:1px;
+    border-left-color:black;
+    border-left-style:solid;
+    border-right-width:4px;
+    border-right-color:black;
+    border-right-style:double;
+}
+
+.seeVariablesTableSecondVariableCell {
+	padding:2px;
+    border-top-width:1px;
+    border-top-color:black;
+    border-top-style:solid;
+    border-bottom-width:1px;
+    border-bottom-color:black;
+    border-bottom-style:solid;
+    border-left-width:4px;
+    border-left-color:black;
+    border-left-style:double;
+    border-right-width:1px;
+    border-right-color:black;
+    border-right-style:solid;
+}
+
+.variableName {
+	font-style:italic;
+}
+
+.columnQuestionResourceNameLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:60px;
+}
+
+.columnQuestionResourceNameInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:190px;
+}
+
+.columnQuestionResourceImageLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:60px;
+}
+
+.columnQuestionResourceImageInput {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
+.columnDeleteQuestionResourceButton
+{
+  text-align:right;
+  vertical-align:middle;
+  padding-top:8px;
+  padding-bottom:12px;
+  width:620px;
+}
+
+.questionResourceButton {
+    font-size:85% !important; 
+}
+
+.rightButton {
+    font-size:80% !important; 
+}

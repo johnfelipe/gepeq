@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/questionupdatetemplate.xhtml">
+    <ui:define name="answers">
+      <h:outputStylesheet library="css" name="truefalse.css" />
+      <h:panelGrid columns="3" cellpadding="5" 
+        columnClasses="columnAnswersLabels,columnAnswersInputs,columnResetButtons" rowClasses="topAlignRow">
+        
+        #{msgs.TRUE_TEXT}
+        <p:inputText id="trueText" style="width:320px;" maxlength="25" value="#{questionBean.trueText}">
+          <p:ajax process="@this" update="questionForm:tabview:correctAnswer" />
+        </p:inputText>
+        <p:commandLink actionListener="#{questionBean.reset}" 
+          update="questionForm:tabview:trueText questionForm:tabview:correctAnswer">
+          
+          <f:attribute name="property" value="trueText" />
+          <h:graphicImage id="resetTrueTextImage" styleClass="links" value="#{resource['images:reset.png']}" />
+          <p:tooltip for="resetTrueTextImage">
+            #{msgs.RESET}
+          </p:tooltip>
+        </p:commandLink> 
+        #{msgs.FALSE_TEXT}
+        <p:inputText id="falseText" style="width:320px;" maxlength="25" value="#{questionBean.falseText}">
+          <p:ajax process="@this" update="questionForm:tabview:correctAnswer" />
+        </p:inputText>
+        <p:commandLink actionListener="#{questionBean.reset}" 
+          update="questionForm:tabview:falseText questionForm:tabview:correctAnswer">
+          
+          <f:attribute name="property" value="falseText" />
+          <h:graphicImage id="resetFalseTextImage" styleClass="links" value="#{resource['images:reset.png']}" />
+          <p:tooltip for="resetFalseTextImage">
+            #{msgs.RESET}
+          </p:tooltip>
+        </p:commandLink> 
+      </h:panelGrid>
+      <h:panelGrid columns="2" cellpadding="5" columnClasses="columnAnswersLabels,columnAnswersInputs" 
+        rowClasses="topAlignRow">
+        
+        #{msgs.CHOOSE_CORRECT_ANSWER}
+        <p:selectOneMenu id="correctAnswer" style="min-width:320px;" value="#{questionBean.question.correctAnswer}" 
+          styleClass="correctAnswerInput" panelStyleClass="correctAnswerInputPanel">
+          
+          <f:selectItem itemLabel="#{questionBean.trueText}" itemValue="true" />
+          <f:selectItem itemLabel="#{questionBean.falseText}" itemValue="false" />
+        </p:selectOneMenu>
+      </h:panelGrid>
+    </ui:define>
+  </ui:composition>
+</html>

@@ -1,0 +1,1373 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+  
+  <h:head>
+  </h:head>
+  
+  <ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+    <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+    <ui:define name="contentTitle">
+      #{msgs.ADD_QUESTION} - #{msgs[questionBean.question.type]}
+    </ui:define>
+    
+    <ui:define name="changelocale">
+      <ui:include src="/WEB-INF/pages/changelocale_question.xhtml" />
+    </ui:define>
+    
+    <ui:define name="menu">
+      <ui:include src="/WEB-INF/pages/menu_question.xhtml" />
+    </ui:define>
+    
+    <ui:define name="content">
+    
+      <h:outputScript library="javascript" name="form_utils.js" />
+      <h:outputStylesheet library="css" name="question.css" />
+      
+      <h:form id="questionForm" onkeypress="preventEnterSubmit(event);">
+        <p:wizard backLabel="#{msgs.PREV}" nextLabel="#{msgs.NEXT}" backProcess="true" 
+          flowListener="#{questionBean.changeStep}">
+          
+          <p:tab id="general" title="#{msgs.COMMON_DATA}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="generalMessages" rendered="#{questionBean.activeQuestionTabName=='general'}" />
+              <h:panelGrid columns="2" cellpadding="5" 
+                columnClasses="columnCommonDataLabels,columnCommonDataInputs" rowClasses="topAlignRow">
+                
+                #{msgs.NAME}
+                <h:inputText id="nameInput" style="width:550px;" maxlength="50" 
+                  value="#{questionBean.question.name}" />
+                #{msgs.CATEGORY}
+                <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:550px;" 
+                  value="#{questionBean.categoryId}" var="questionCategoryId">
+                  
+                  <f:selectItems value="#{questionBean.questionsCategoriesIds}" var="catId" 
+                    itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                  <p:column>
+                    #{questionBean.getLocalizedCategoryLongName(questionCategoryId,65)}
+                  </p:column>
+                </p:selectOneMenu>
+              </h:panelGrid>
+              <h:panelGrid columns="2" cellpadding="5"
+                columnClasses="columnDifficultyLevelLabel,columnDifficultyLevelInput" rowClasses="topAlignRow">
+                
+                #{msgs.DIF_LEVEL}
+                <p:selectOneMenu id="levelInput" styleClass="combo" style="width:240px;" 
+                  value="#{questionBean.question.level}" var="l">
+                  <f:selectItems value="#{questionsService.questionLevels}" var="lev" itemLabel="#{msgs[lev]}" 
+                    itemValue="#{lev}" />
+                  <p:column styleClass="columnLevel">
+                    <h:outputText value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" styleClass="#{l}" />
+                  </p:column>
+                  <p:column>
+                    #{msgs[l]}
+                  </p:column>
+                </p:selectOneMenu>
+              </h:panelGrid>
+              <h:panelGrid columns="2" cellpadding="5" columnClasses="columnImageLabel,columnImageInput" 
+                rowClasses="topAlignRow">
+                
+                #{msgs.IMAGE}
+                <h:panelGroup id="questionResourceImage">
+                  <p:commandButton id="selectNewImageButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                    actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog"
+                    rendered="#{questionBean.question.resource==null}" />
+                  <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                    rendered="#{questionBean.question.resource!=null}">
+                    
+                    <p:graphicImage value="#{questionBean.question.resource.fileName}" width="35" height="20" />
+                    <h:outputText style="margin-right:5px;" value="#{questionBean.question.resource.name}" />
+                    <p:commandButton id="selectImageButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                      actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog" />
+                  </h:panelGrid>
+                </h:panelGroup>
+              </h:panelGrid>
+              <h:panelGrid columns="2" cellpadding="5" 
+                columnClasses="columnQuestionTextLabel,columnQuestionTextInput" rowClasses="topAlignRow">
+                
+                #{msgs.QUESTION_TEXT}
+                <p:inputTextarea id="questionTextInput" value="#{questionBean.question.questionText}" 
+                  maxHeight="200" styleClass="questionTextArea" />
+              </h:panelGrid>
+              <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow">
+                #{msgs.DISPLAY_EQUATIONS}
+                <p:selectOneMenu id="displayEquationsInput" value="#{questionBean.question.displayEquations}" 
+                  styleClass="combo">
+                  
+                  <f:selectItem itemLabel="#{msgs.YES}" itemValue="true" />
+                  <f:selectItem itemLabel="#{msgs.NO}" itemValue="false" />
+                </p:selectOneMenu>
+              </h:panelGrid>
+            </p:panel>
+          </p:tab>
+          <p:tab id="answers" title="#{questionBean.answersTabTitle}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="answersMessages" rendered="#{questionBean.activeQuestionTabName=='answers'}" />
+              <ui:insert name="answers">
+              </ui:insert>
+            </p:panel>
+          </p:tab>
+          <p:tab id="resources" title="#{msgs.RESOURCES}" rendered="#{questionBean.resourcesTabDisplayed}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="resourcesMessages" rendered="#{questionBean.activeQuestionTabName=='resources'}" />
+              <ui:insert name="resources">
+              </ui:insert>
+            </p:panel>
+          </p:tab>
+          <p:tab id="feedback" title="#{msgs.FEEDBACK}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="feedbackMessages" rendered="#{questionBean.activeQuestionTabName=='feedback'}" />
+              <p:accordionPanel id="feedbackAccordion" styleClass="accordion">
+                <p:tab title="#{msgs.CORRECT_FEEDBACK}" titletip="#{msgs.CORRECT_FEEDBACK_TIP}">
+                  <p:inputTextarea id="correctFeedback" value="#{questionBean.question.correctFeedback}" 
+                    maxHeight="200" styleClass="feedbackTextArea" />
+                  <h:panelGrid columns="2" cellpadding="5" 
+                    columnClasses="columnFeedbackImageLabel,columnFeedbackImageInput" rowClasses="topAlignRow">
+                  
+                    <h:outputText style="font-size:110%;" value="#{msgs.IMAGE}" />
+                    <h:panelGroup id="questionCorrectFeedbackResourceImage">
+                      <p:commandButton id="selectNewCorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                        styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                        update="selectImageDialog" rendered="#{questionBean.question.correctFeedbackResource==null}" />
+                      <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                        rendered="#{questionBean.question.correctFeedbackResource!=null}">
+                        
+                        <p:graphicImage value="#{questionBean.question.correctFeedbackResource.fileName}" width="35" 
+                          height="20" />
+                        <h:outputText style="margin-right:5px;" 
+                          value="#{questionBean.question.correctFeedbackResource.name}" />
+                        <p:commandButton id="selectCorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                          styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                          update="selectImageDialog" />
+                      </h:panelGrid>
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </p:tab>
+                <p:tab title="#{msgs.INCORRECT_FEEDBACK}" titletip="#{msgs.INCORRECT_FEEDBACK_TIP}">
+                  <p:inputTextarea id="incorrectFeedback" value="#{questionBean.question.incorrectFeedback}" 
+                    maxHeight="200" styleClass="feedbackTextArea" />
+                  <h:panelGrid columns="2" cellpadding="5" 
+                    columnClasses="columnFeedbackImageLabel,columnFeedbackImageInput" rowClasses="topAlignRow">
+                    
+                    <h:outputText style="font-size:110%;" value="#{msgs.IMAGE}" />
+                    <h:panelGroup id="questionIncorrectFeedbackResourceImage">
+                      <p:commandButton id="selectNewIncorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                        styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                        update="selectImageDialog" rendered="#{questionBean.question.incorrectFeedbackResource==null}" />
+                      <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                        rendered="#{questionBean.question.incorrectFeedbackResource!=null}">
+                        
+                        <p:graphicImage value="#{questionBean.question.incorrectFeedbackResource.fileName}" width="35" 
+                          height="20" />
+                        <h:outputText style="margin-right:5px;" 
+                          value="#{questionBean.question.incorrectFeedbackResource.name}" />
+                        <p:commandButton id="selectIncorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                          styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                          update="selectImageDialog" />
+                      </h:panelGrid>
+                    </h:panelGroup>
+                  </h:panelGrid>
+                  <p>
+                    <h:outputText id="stillFeedbackLabel" value="#{msgs.STILL_FEEDBACK}:" 
+                      style="font-size:120%;font-weight:bold;" />
+                    <p:tooltip for="stillFeedbackLabel">
+                      #{msgs.STILL_FEEDBACK_TIP}
+                    </p:tooltip>
+                  </p>
+                  <p:inputTextarea id="stillFeedback" value="#{questionBean.question.stillFeedback}" 
+                    maxHeight="200" styleClass="feedbackTextArea" />
+                  <h:panelGroup rendered="#{questionBean.advancedFeedbacksEnabled}">
+                    <h:panelGroup layout="block" styleClass="alignTop">
+                      <h:panelGrid columns="2" cellpadding="0" styleClass="advancedFeedbackTopGrid" 
+                        columnClasses="advancedFeedbackLabel,advancedFeedbackButtons">
+                        
+                        <h:panelGroup>
+                          <h:outputText id="advancedFeedbackLabel" value="#{msgs.ADVANCED_FEEDBACK}:" 
+                            style="font-size:120%;font-weight:bold;" />
+                          <p:tooltip for="advancedFeedbackLabel">
+                          #{msgs.ADVANCED_FEEDBACK_TIP}
+                          </p:tooltip>
+                        </h:panelGroup>
+                        <h:panelGroup>
+                          <p:commandButton id="reSortButton" value="#{msgs.RE_SORT}" styleClass="button" 
+                            image="ui-icon ui-icon-triangle-2-n-s" 
+                            actionListener="#{questionBean.showReSortFeedbacks}" 
+                            disabled="#{!questionBean.enabledReSortFeedbacks}" update="resortFeedbacksDialog" />
+                          <p:commandButton id="addFeedbackButton" value="#{msgs.ADD_FEEDBACK}"
+                            styleClass="button" image="ui-icon ui-icon-plus" 
+                            actionListener="#{questionBean.showAddFeedback}" update="addFeedbackDialog" />
+                        </h:panelGroup>
+                      </h:panelGrid>
+                    </h:panelGroup>
+                    <p:dataTable id="feedbacksTable" styleClass="feedbacksTable" rowStyleClass="dataRow" 
+                      emptyMessage="#{msgs.NO_FEEDBACKS}" value="#{questionBean.feedbacks}" var="feedback" 
+                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                      paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                      
+                      <p:column styleClass="columnOrder" sortBy="#{feedback.position}">
+                        #{feedback.position}
+                      </p:column>
+                      <p:column styleClass="columnType" sortBy="#{msgs[feedback.type]}">
+                        <f:facet name="header">#{msgs.TYPE}</f:facet>
+                        <h:outputText id="feedbackType" value="#{msgs[feedback.type]}" />
+                        <p:tooltip for="feedbackType">
+                          #{msgs[feedback.typeTip]}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnCondition" sortBy="#{feedback.conditionString}">
+                        <f:facet name="header">#{msgs.CONDITION}</f:facet>
+                        <h:outputText id="conditionStringValue" 
+                          value="#{questionBean.breakText(questionBean.abbreviate(feedback.conditionString,100),5)}" 
+                          escape="false" />
+                        <p:tooltip for="conditionStringValue" style="max-width:640px;">
+                          <h:outputText value="#{questionBean.breakText(feedback.conditionString)}" 
+                            escape="false" />
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnImage">
+                        <f:facet name="header">#{msgs.IMAGE}</f:facet>
+                        <p:graphicImage value="#{feedback.resource.fileName}" width="35" height="20" 
+                          rendered="#{feedback.resource!=null}" />
+                      </p:column>
+                      <p:column styleClass="columnContent" sortBy="#{feedback.text}">
+                        <f:facet name="header">#{msgs.CONTENT}</f:facet>
+                        <h:outputText id="contentTextValue" 
+                          value="#{questionBean.breakText(questionBean.abbreviate(feedback.text,100),5)}" 
+                          escape="false" />
+                        <p:tooltip for="contentTextValue" style="max-width:350px;">
+                          <h:outputText value="#{questionBean.breakText(feedback.text,12)}" escape="false" />
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnEdit">  
+                        <p:commandLink actionListener="#{questionBean.showEditFeedback}" 
+                          update="addFeedbackDialog">
+                          
+                          <f:attribute name="feedback" value="#{feedback}" />
+                          <h:graphicImage id="editFeedbackImage" styleClass="links" 
+                            value="#{resource['images:edit16.png']}" />
+                          <p:tooltip for="editFeedbackImage">
+                            #{msgs.EDIT_FEEDBACK}
+                          </p:tooltip> 
+                        </p:commandLink>
+                      </p:column>
+                      <p:column styleClass="columnDelete">
+                        <p:commandLink actionListener="#{questionBean.removeFeedback}" update="@form">
+                          <f:attribute name="feedback" value="#{feedback}" />
+                          <h:graphicImage id="deleteFeedbackImage" styleClass="links" 
+                            value="#{resource['images:delete.png']}" />
+                          <p:tooltip for="deleteFeedbackImage">
+                            #{msgs.DELETE_FEEDBACK}
+                          </p:tooltip> 
+                        </p:commandLink> 
+                      </p:column>
+                    </p:dataTable>
+                  </h:panelGroup>
+                </p:tab>
+                <p:tab title="#{msgs.PASS_FEEDBACK}" titletip="#{msgs.PASS_FEEDBACK_TIP}">
+                  <p:inputTextarea id="passFeedback" value="#{questionBean.question.passFeedback}" 
+                    maxHeight="200" styleClass="feedbackTextArea" />
+                  <h:panelGrid columns="2" cellpadding="5" 
+                    columnClasses="columnFeedbackImageLabel,columnFeedbackImageInput" rowClasses="topAlignRow">
+                    
+                    <h:outputText style="font-size:110%;" value="#{msgs.IMAGE}" />
+                    <h:panelGroup id="questionPassFeedbackResourceImage">
+                      <p:commandButton id="selectNewPassFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                        styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                        update="selectImageDialog" rendered="#{questionBean.question.passFeedbackResource==null}" />
+                      <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                        rendered="#{questionBean.question.passFeedbackResource!=null}">
+                        
+                        <p:graphicImage value="#{questionBean.question.passFeedbackResource.fileName}" width="35" 
+                          height="20" />
+                        <h:outputText style="margin-right:5px;" 
+                          value="#{questionBean.question.passFeedbackResource.name}" />
+                        <p:commandButton id="selectPassFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                          styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                          update="selectImageDialog" />
+                      </h:panelGrid>
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </p:tab>
+                <p:tab title="#{msgs.FINAL_FEEDBACK}" titletip="#{msgs.FINAL_FEEDBACK_TIP}">
+                  <p:inputTextarea id="answerFeedback" value="#{questionBean.question.answerFeedback}" 
+                    maxHeight="200" styleClass="feedbackTextArea" />
+                  <h:panelGrid columns="2" cellpadding="5" 
+                    columnClasses="columnFeedbackImageLabel,columnFeedbackImageInput" rowClasses="topAlignRow">
+                    
+                    <h:outputText style="font-size:110%;" value="#{msgs.IMAGE}" />
+                    <h:panelGroup id="questionFinalFeedbackResourceImage">
+                      <p:commandButton id="selectNewFinalFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                        styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                        update="selectImageDialog" rendered="#{questionBean.question.finalFeedbackResource==null}" />
+                      <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                        rendered="#{questionBean.question.finalFeedbackResource!=null}">
+                        
+                        <p:graphicImage value="#{questionBean.question.finalFeedbackResource.fileName}" width="35" 
+                          height="20" />
+                        <h:outputText style="margin-right:5px;" 
+                          value="#{questionBean.question.finalFeedbackResource.name}" />
+                        <p:commandButton id="selectFinalFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
+                          styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                          update="selectImageDialog" />
+                      </h:panelGrid>
+                    </h:panelGroup>
+                  </h:panelGrid>
+                </p:tab>
+              </p:accordionPanel>
+            </p:panel>
+          </p:tab>
+          <p:tab id="confirmation" title="#{msgs.CONFIRM}">
+            <p:panel styleClass="panelTab">
+              <p:messages id="confirmationMessages" 
+                rendered="#{questionBean.activeQuestionTabName=='confirmation'}" />
+              <h:panelGroup layout="block" style="text-align:center;">
+                <p>
+                  <h:outputText value="#{msgs.QUESTION_CONFIRMATION}" escape="false" />
+                </p>
+                <p:commandButton id="saveButton" value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
+                  image="ui-icon ui-icon-disk" action="#{questionBean.saveQuestion}" />
+                <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" 
+                  styleClass="confirmButtons" image="ui-icon ui-icon-cancel" action="questions" />
+              </h:panelGroup>
+            </p:panel>
+          </p:tab>
+        </p:wizard>
+      </h:form>
+      <p:dialog widgetVar="selectImageDialog" id="selectImageDialog" styleClass="dialog" width="800" 
+        height="570" header="#{msgs.SELECT_IMAGE}" modal="true" closable="true" draggable="false" 
+        resizable="false" onShow="centerDialog('selectImageDialog');">
+        
+        <h:form id="imageDialogForm">
+          <p:messages id="imagesMessages" />
+          <p:panel id="imagesFilterPanel" styleClass="dialogPanel">
+            <h:panelGrid columns="4" cellpadding="3" rowClasses="topAlignRow" 
+              columnClasses="categoryLabelColumn,categoryComboColumn,includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn">
+            
+              #{msgs.CATEGORY}
+              <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:450px;" panelStyle="width:550px;" 
+                value="#{questionBean.filterCategoryId}" var="filterCategoryId">
+                
+                <p:ajax event="change" process="imageDialogForm:imagesFilterPanel" 
+                  update="imageDialogForm:imagesFilterPanel" />
+                <f:selectItems value="#{questionBean.specialCategoriesFilters}" var="catFilter" 
+                  itemLabel="#{questionBean.getSpecialCategoryFilterName(catFilter)}" 
+                  itemValue="#{catFilter.id}" />
+                <f:selectItems value="#{questionBean.imagesCategoriesIds}" var="catId" 
+                  itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                <p:column>
+                  #{questionBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+                </p:column>
+              </p:selectOneMenu>
+              <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" 
+                rendered="#{questionBean.filterCategoryId&gt;0}" />
+              <p:selectBooleanCheckbox id="includeSubcategories" 
+                value="#{questionBean.filterIncludeSubcategories}" 
+                rendered="#{questionBean.filterCategoryId&gt;0}" />
+            </h:panelGrid>
+            <h:panelGrid columns="5" cellpadding="3" 
+              columnClasses="mimeTypeLabelColumn,mimeTypeComboColumn,copyrightLabelColumn,copyrightComboColumn,applyFilterButtonColumn">
+              
+              #{msgs.MIME_TYPE}
+              <p:selectOneMenu styleClass="combo" style="width:200px;" value="#{questionBean.filterMimeType}">
+                <f:selectItems value="#{questionBean.mimeTypesMasks}" var="mimeTypeMask" 
+                  itemLabel="#{msgs[mimeTypeMask]}" itemValue="#{questionBean.getMimeTypeMaskValue(mimeTypeMask)}" />
+                <f:selectItems value="#{questionBean.mimeTypes}" var="mimeType" itemLabel="#{mimeType}"
+                  itemValue="#{mimeType}" />
+              </p:selectOneMenu>
+              #{msgs.COPYRIGHT}
+              <p:selectOneMenu styleClass="combo" style="width:185px;" value="#{questionBean.filterCopyrightId}"
+                panelStyleClass="copyrightsComboPanel">
+                
+                <f:selectItem itemLabel="#{localizationService.getAllOptions('COPYRIGHT_GEN')}" 
+                  itemValue="#{0}" />
+                <f:selectItems value="#{questionBean.copyrights}" var="cop" 
+                  itemLabel="#{questionBean.getLocalizedCopyrightShort(cop)}" itemValue="#{cop.id}" />
+              </p:selectOneMenu>
+              <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+                actionListener="#{questionBean.applyImagesFilter}" 
+                process="imageDialogForm:imagesFilterPanel" 
+                update="imageDialogForm:currentResource imageDialogForm:imagesMessages" />
+            </h:panelGrid>
+          </p:panel>
+          
+          <h:panelGrid columns="2" columnClasses="columnImageGraphics,columnImageProperties">
+            <h:panelGroup>
+              <h:panelGrid columns="2" cellpadding="5" columnClasses="columnShowImageLabel,columnShowImageInput">
+                #{msgs.IMAGE}
+                <p:selectOneMenu id="currentResource" styleClass="combo" style="width:300px;" 
+                  value="#{questionBean.currentResource}" var="r">
+                  
+                  <p:ajax listener="#{questionBean.changeImage}" process="@this" 
+                    update="imageDialogForm:currentImagePreview imageDialogForm:currentResourceImageProperties" />
+                  <f:selectItem itemLabel="#{msgs.NO_IMAGE}" itemValue="#{questionBean.noImage}" />
+                  <f:selectItems value="#{questionBean.images}" var="im" itemLabel="#{im.name}" itemValue="#{im}" />
+                  <f:converter converterId="ImageConverter" />
+                  <p:column styleClass="columnLevel">
+                    <p:graphicImage value="#{r.fileName}" width="35" height="20" rendered="#{r.id&gt;0}" />
+                  </p:column>
+                  <p:column>
+                    #{r.name}
+                  </p:column>
+                </p:selectOneMenu>
+              </h:panelGrid>
+              <h:panelGroup layout="block" styleClass="columnImageGraphicsDisplay">
+                <h:graphicImage id="currentImagePreview" value="#{questionBean.currentResourceFileName}" 
+                  width="#{questionBean.currentResourceWidthForPropertiesDialog}" 
+                  height="#{questionBean.currentResourceHeightForPropertiesDialog}" />
+              </h:panelGroup>
+            </h:panelGroup>
+            <h:panelGroup id="currentResourceImageProperties">
+              <p:panel styleClass="panelImagePropertiesInfo">
+                <h:panelGrid columns="2" 
+                  columnClasses="panelImagePropertiesInfoLabel,panelImagePropertiesInfoValue">
+                  
+                  #{msgs.NAME}:
+                  <h:outputText id="currentResourceImageName" value="#{questionBean.currentResourceImageName}" />
+                  #{msgs.OWNER}:
+                  <h:outputText id="currentResourceImageAuthor" value="#{questionBean.currentResourceImageUser}" />
+                  #{msgs.DESCRIPTION}:
+                  <h:outputText id="currentResourceImageDescription" 
+                    value="#{questionBean.currentResourceImageDescription}" />
+                  #{msgs.CATEGORY}:
+                  <h:panelGroup id="currentResourceImageCategory">
+                    <h:outputText id="currentResourceImageCategoryName" 
+                      value="#{questionBean.currentResourceImageCategoryName}" />
+                    <p:tooltip for="currentResourceImageCategoryName" 
+                      rendered="#{questionBean.currentResourceImageLongCategoryName!=null}">
+                      
+                      #{questionBean.currentResourceImageLongCategoryName}
+                    </p:tooltip>
+                  </h:panelGroup>
+                  #{msgs.COPYRIGHT}:
+                  <h:outputText id="currentResourceImageCopyright" 
+                    value="#{questionBean.currentResourceImageCopyright}" />
+                  #{msgs.MIME_TYPE}:
+                  <h:outputText id="currentResourceImageMIMEType" 
+                    value="#{questionBean.currentResourceImageMIMEType}" />
+                  #{msgs.IMAGE_DIMENSIONS}:
+                  <h:outputText id="currentResourceImageDimensions" 
+                    value="#{questionBean.currentResourceImageDimensions}" />
+                </h:panelGrid>
+              </p:panel>
+              <h:panelGrid columns="2" columnClasses="columnImagePropertiesLabel,columnImagePropertiesValue">
+                #{msgs.KEEP_ASPECT_RATIO}:
+                <p:selectBooleanCheckbox id="currentResourceKeepAspectRatio" 
+                  value="#{questionBean.currentResourceKeepAspectRatio}" 
+                  disabled="#{!questionBean.currentResourceSelectedImage}">
+                  
+                  <p:ajax listener="#{questionBean.changeKeepAspectRatio}" process="@this" 
+                    update="imageDialogForm:imageWidthWithinQuestion imageDialogForm:imageHeightWithinQuestion" />
+                </p:selectBooleanCheckbox>
+                #{msgs.WIDTH_WITHIN_QUESTION}:
+                <p:spinner id="imageWidthWithinQuestion" value="#{questionBean.currentResourceWidth}" min="1" 
+                  max="2147483647" 
+                  styleClass="#{questionBean.currentResourceSelectedImage ? 'dimmensionsSpinner' : 'dimmensionsSpinner readonlySpin' }" 
+                  converter="SpinnerIntegerConverter" readonly="#{!questionBean.currentResourceSelectedImage}">
+                  
+                  <p:ajax listener="#{questionBean.changeImageWidth}" process="@this" 
+                    update="@this imageDialogForm:imageHeightWithinQuestion" />
+                </p:spinner>
+                #{msgs.HEIGHT_WITHIN_QUESTION}:
+                <p:spinner id="imageHeightWithinQuestion" value="#{questionBean.currentResourceHeight}" min="1" 
+                  max="2147483647" 
+                  styleClass="#{questionBean.currentResourceSelectedImage ? 'dimmensionsSpinner' : 'dimmensionsSpinner readonlySpin' }"
+                  converter="SpinnerIntegerConverter" readonly="#{!questionBean.currentResourceSelectedImage}">
+                  
+                  <p:ajax listener="#{questionBean.changeImageHeight}" process="@this" 
+                    update="@this imageDialogForm:imageWidthWithinQuestion" />
+                </p:spinner>
+              </h:panelGrid>
+              <p>#{msgs.IMAGE_WIDTH_WARNING}</p>
+              <h:panelGroup layout="block" styleClass="centerAlignBottom">
+                <p:commandButton value="#{msgs.ACCEPT}" styleClass="imageConfirmButtons" immediate="true"
+                  actionListener="#{questionBean.acceptSelectImage}" oncomplete="selectImageDialog.hide();" 
+                  update="questionForm:questionResourceImage questionForm:feedbackAccordion:questionCorrectFeedbackResourceImage questionForm:feedbackAccordion:questionIncorrectFeedbackResourceImage questionForm:feedbackAccordion:questionPassFeedbackResourceImage questionForm:feedbackAccordion:questionFinalFeedbackResourceImage questionForm:answersAccordion questionForm:draggableItemsAccordion questionForm:questionResourcesAccordion feedbackDialogForm:feedbackResourceImage" />
+                <p:commandButton value="#{msgs.CANCEL}" styleClass="imageConfirmButtons" immediate="true" 
+                  oncomplete="selectImageDialog.hide();" />
+              </h:panelGroup>
+            </h:panelGroup>
+          </h:panelGrid>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="resortAnswersDialog" id="resortAnswersDialog" styleClass="dialog" width="720" height="420" 
+        header="#{msgs.RE_SORT_ANSWERS}" modal="true" closable="true" draggable="false" resizable="false"
+        onShow="centerDialog('resortAnswersDialog');">
+        
+        <h:form id="resortAnswersDialogForm">
+          <p:panel styleClass="dialogPanel" style="border-width:0px;">
+            <p:orderList styleClass="answersOrderList" iconOnly="true" value="#{questionBean.answersSorting}" 
+              var="answer" itemValue="#{answer}" converter="AnswerConverter">
+              
+              <f:facet name="caption">#{msgs.ANSWERS}</f:facet>
+              <p:column styleClass="columnAnswerTitle">
+                #{questionBean.getNumberedAnswerName(answer)}
+              </p:column>
+              <p:column styleClass="columnImage">
+                <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" 
+                  rendered="#{answer.resource!=null}" />
+              </p:column>
+              <p:column styleClass="columnAnswerText">
+                <h:outputText value="#{questionBean.breakText(questionBean.abbreviate(questionBean.abbreviateWords(answer.text,15),100),5)}" 
+                  escape="false"/>
+              </p:column>
+              <p:column styleClass="columnAnswerCorrect">
+                #{answer.correct ? msgs.ANSWER_CORRECT : msgs.ANSWER_NO_CORRECT }
+              </p:column>
+              <p:column styleClass="columnAnswerFixed">
+                #{answer.fixed ? msgs.ANSWER_FIXED : '' }
+              </p:column>
+            </p:orderList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionBean.acceptReSortAnswers}" 
+              oncomplete="resortAnswersDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+              onclick="resortAnswersDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="resortDraggableItemsDialog" id="resortDraggableItemsDialog" styleClass="dialog" 
+        width="720" height="420" header="#{msgs.RE_SORT_DRAGGABLE_ITEMS}" modal="true" closable="true" 
+        draggable="false" resizable="false" onShow="centerDialog('resortDraggableItemsDialog');">
+        
+        <h:form id="resortDraggableItemsDialogForm">
+          <p:panel styleClass="dialogPanel" style="border-width:0px;">
+            <p:orderList styleClass="draggableItemsOrderList" iconOnly="true" 
+              value="#{questionBean.draggableItemsSorting}" var="draggableItem" itemValue="#{draggableItem}" 
+              converter="DragDropAnswerConverter">
+              
+              <f:facet name="caption">#{msgs.DRAGGABLE_ITEMS}</f:facet>
+              <p:column styleClass="columnDraggableItemTitle">
+                #{questionBean.getNumberedDraggableItemName(draggableItem)}
+              </p:column>
+              <p:column styleClass="columnImage">
+                <p:graphicImage value="#{draggableItem.resource.fileName}" width="35" height="20" 
+                  rendered="#{draggableItem.resource!=null}" />
+              </p:column>
+              <p:column styleClass="columnDraggableItemText">
+                <h:outputText value="#{questionBean.breakText(questionBean.abbreviate(questionBean.abbreviateWords(draggableItem.text,15),100),5)}" 
+                  escape="false"/>
+              </p:column>
+              <p:column styleClass="columnDraggableItemFixed">
+                #{draggableItem.fixed ? msgs.ANSWER_FIXED : '' }
+              </p:column>
+            </p:orderList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionBean.acceptReSortDraggableItems}" 
+              oncomplete="resortDraggableItemsDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+              onclick="resortDraggableItemsDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="resortDroppableAnswersDialog" id="resortDroppableAnswersDialog" 
+        styleClass="resortDroppableAnswersDialog" width="800" height="420" header="#{msgs.RE_SORT_ANSWERS}" 
+        modal="true" closable="true" draggable="false" resizable="false" 
+        onShow="centerDialog('resortDroppableAnswersDialog');">
+        
+        <h:form id="resortDroppableAnswersDialogForm">
+          <p:panel styleClass="dialogPanel" style="border-width:0px;">
+            <p:orderList styleClass="droppableAnswersOrderList" iconOnly="true" 
+              value="#{questionBean.droppableAnswersSorting}" var="answer" itemValue="#{answer}" 
+              converter="DragDropAnswerConverter">
+              
+              <f:facet name="caption">#{msgs.ANSWERS}</f:facet>
+              <p:column styleClass="columnDroppableAnswerTitle">
+                #{questionBean.getNumberedDroppableAnswerName(answer)}
+              </p:column>
+              <p:column styleClass="columnImage">
+                <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" 
+                  rendered="#{answer.resource!=null}" />
+              </p:column>
+              <p:column styleClass="columnDroppableAnswerText">
+                <h:outputText value="#{questionBean.breakText(questionBean.abbreviate(questionBean.abbreviateWords(answer.text,15),100),5)}" 
+                  escape="false"/>
+              </p:column>
+              <p:column styleClass="columnDroppableAnswerCorrect">
+                #{questionBean.getNumberedDraggableItemName(answer.rightAnswer)}
+              </p:column>
+              <p:column styleClass="columnDroppableAnswerFixed">
+                #{answer.fixed ? msgs.ANSWER_FIXED : '' }
+              </p:column>
+            </p:orderList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionBean.acceptReSortDroppableAnswers}" 
+              oncomplete="resortDroppableAnswersDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+              onclick="resortDroppableAnswersDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="addFeedbackDialog" id="addFeedbackDialog" styleClass="dialog" width="700" height="670" 
+        header="#{questionBean.addEditFeedbackTitle}" modal="true" closable="true" draggable="false" resizable="false"
+        onShow="centerDialog('addFeedbackDialog');">
+        
+        <h:form id="feedbackDialogForm" onkeypress="preventEnterSubmit(event);">
+          <p:panel id="feedbackPanel" styleClass="dialogPanel">
+            <h:panelGrid columns="2" cellpadding="5" 
+              columnClasses="columnAdvancedFeedbackImageLabel,columnAdvancedFeedbackImageInput" rowClasses="topAlignRow">
+              
+              #{msgs.IMAGE}
+              <h:panelGroup id="feedbackResourceImage">
+                <p:commandButton id="selectNewImageFeedbackButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                  actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog" 
+                  rendered="#{questionBean.currentFeedback.resource==null}" />
+                <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
+                  rendered="#{questionBean.currentFeedback.resource!=null}">
+                  
+                  <p:graphicImage value="#{questionBean.currentFeedback.resource.fileName}" width="35" 
+                    height="20" />
+                  <h:outputText style="margin-right:5px;" value="#{questionBean.currentFeedback.resource.name}" />
+                  <p:commandButton id="selectImageFeedbackButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
+                    actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog" />
+                </h:panelGrid>
+              </h:panelGroup>
+            </h:panelGrid>
+            <h:panelGrid columns="2" cellpadding="5" columnClasses="columnContentLabel,columnContentInput" 
+              rowClasses="topAlignRow">
+              
+              #{msgs.CONTENT}
+              <h:inputTextarea id="feedbackText" style="width:480px;" value="#{questionBean.currentFeedback.text}" 
+                autoResize="false" styleClass="feedbackTextAreaDialog" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5"
+              columnClasses="columnFeedbackTypeLabel,columnFeedbackTypeInput,columnFeedbackTypeTip">
+              #{msgs.TYPE}
+              <!-- Note that I have used questionBean.currentFeedbackType instead of questionBean.currentFeedback.type
+                   because when questionBean.currentFeedback==null provoke a NullPointerException.
+                   Curiously JSF 2 regular components don't complain about that null but Primefaces selectonemenu do.
+                   So questionBean.currentFeedbackType is only a wrapper of questionBean.currentFeedback.type but
+                   taking care of null -->
+              <p:selectOneMenu id="currentFeedbackType" styleClass="combo" style="width:90px;"  
+                value="#{questionBean.currentFeedbackType}">
+                
+                <p:ajax process="@this" 
+                  update="feedbackDialogForm:feedbackTypeTip feedbackDialogForm:noConditionsTip" />
+                <f:selectItems value="#{questionBean.feedbackTypes}" var="ft" itemLabel="#{msgs[ft]}" 
+                  itemValue="#{ft}" />
+              </p:selectOneMenu>
+              <h:outputText id="feedbackTypeTip" value="#{msgs[questionBean.currentFeedback.typeTip]}" />
+            </h:panelGrid>
+            <h:panelGrid columns="3" cellpadding="5" 
+              columnClasses="columnConditionsLabel,columnConditionsInput" rowClasses="topAlignRow">
+              #{msgs.CONDITIONS}
+              <p:selectOneMenu id="conditionType" styleClass="combo" style="width:320px;" panelStyle="width:370px;" 
+                value="#{questionBean.conditionType}" disabled="#{questionBean.conditionTypesSize==0}">
+                 
+                <p:ajax process="@this" update="conditionTypeTip" />
+                <f:selectItems value="#{questionBean.conditionTypes}" var="ct" itemLabel="#{msgs[ct]}" 
+                  itemValue="#{ct}" />
+              </p:selectOneMenu>
+              <p:commandButton id="addConditionButton" value="#{msgs.ADD_CONDITION}" styleClass="button" 
+                immediate="true" disabled="#{questionBean.conditionTypesSize==0}" 
+                actionListener="#{questionBean.addCondition}" process="@this" 
+                update="@this feedbackDialogForm:conditionType feedbackDialogForm:conditionTypeTip feedbackDialogForm:conditionsPanel" />
+            </h:panelGrid>
+            <h:panelGroup id="conditionTypeTip">
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_TEST'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_TEST}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_ANSWER'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_ANSWER1}</p>
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_ANSWER2}</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_ATTEMPTS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_ATTEMPTS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_SELECTED_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_SELECTED_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_SELECTED_RIGHT_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_SELECTED_RIGHT_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_SELECTED_WRONG_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_SELECTED_WRONG_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_UNSELECTED_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_UNSELECTED_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_UNSELECTED_RIGHT_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_UNSELECTED_RIGHT_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_UNSELECTED_WRONG_ANSWERS'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_UNSELECTED_WRONG_ANSWERS}</p>
+                <p>&nbsp;</p>
+              </ui:fragment>
+              <ui:fragment rendered="#{questionBean.conditionType=='CONDITION_TYPE_RIGHT_DISTANCE'}">
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_RIGHT_DISTANCE1}</p>
+                <p style="text-align:center">#{msgs.TIP_CONDITION_TYPE_RIGHT_DISTANCE2}</p>
+              </ui:fragment>
+            </h:panelGroup>
+          </p:panel>
+          <p:panel id="conditionsPanel" styleClass="dialogPanel" 
+            style="min-height:215px;border-width:0px;text-align:center;">
+            
+            <ui:fragment rendered="#{questionBean.currentFeedback.conditionsSize==0}">
+              <h:panelGrid columns="1" style="width:99%;height:200px;text-align:center;vertical-align:middle;">
+                <p><h:outputText value="#{msgs.NO_CONDITIONS}" style="font-size:120%;font-weight:bold;" /></p>
+                <h:panelGroup id="noConditionsTip">
+                  <ui:fragment rendered="#{questionBean.currentFeedback.type=='FEEDBACK_TYPE_NORMAL'}">
+                    <p>#{msgs.NO_CONDITIONS_NORMAL1}</p>
+                    <p>#{msgs.NO_CONDITIONS_NORMAL2}</p>
+                  </ui:fragment>
+                  <ui:fragment rendered="#{questionBean.currentFeedback.type=='FEEDBACK_TYPE_FIXED'}">
+                    <p>#{msgs.NO_CONDITIONS_FIXED}</p>
+                    <p>&nbsp;</p>
+                  </ui:fragment>
+                </h:panelGroup>
+              </h:panelGrid>
+            </ui:fragment>
+            <ui:fragment rendered="#{questionBean.currentFeedback.conditionsSize!=0}">
+              
+              <p:accordionPanel id="conditionsAccordion" widgetVar="conditionsAccordion" styleClass="accordion" 
+                value="#{questionBean.currentFeedback.conditionsSorted}" var="condition">
+                
+                <p:ajax event="tabChange" listener="#{questionBean.changeActiveCondition}" process="@this" 
+                  update="@this" />
+                <p:tab title="#{msgs[condition.conditionType]}">
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_TEST'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnTestConditionLabel,columnTestConditionInput,columnTestConditionText">
+                      
+                      <h:outputText style="font-size:120%;" value="#{msgs.CONDITION}" />
+                      <p:selectOneMenu id="testConditions" styleClass="combo" style="width:140px;"
+                        value="#{condition.test}">
+                        
+                        <p:ajax process="@this" update="testConditionText" />
+                        <f:selectItems value="#{questionBean.testConditions}" var="tc" itemLabel="#{msgs[tc]}" 
+                          itemValue="#{tc}" />
+                      </p:selectOneMenu>
+                      <h:outputText id="testConditionText" style="font-size:120%;" 
+                        value="#{questionBean.currentFeedbakTestConditionText}" />
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{questionBean.question.type=='MULTICHOICE' and condition.conditionType=='CONDITION_TYPE_ANSWER'}">
+                    <h:dataTable value="#{condition.singleAnswerConditions}" var="singleAnswerCondition" 
+                      columnClasses="columnAnswerConditionPosition,columnAnswerConditionDisplayLabel,columnAnswerConditionFlagNotInput,columnAnswerConditionAnswerInput,columnAnswerConditionDeleteButton,columnAnswerConditionAndButton">
+                      
+                      <h:column>
+                        (#{condition.getSingleAnswerConditionPosition(singleAnswerCondition)})
+                      </h:column>
+                      <h:column>
+                        #{condition.isFirstSingleAnswerConditionsSize(singleAnswerCondition)?msgs['DISPLAY_IF']:msgs['IF']}
+                      </h:column>
+                      <h:column>
+                        <p:selectOneMenu styleClass="combo" value="#{singleAnswerCondition.flagNot}" style="width:110px;">
+                          <f:selectItem itemLabel="#{msgs.INCLUDES}" itemValue="false" />
+                          <f:selectItem itemLabel="#{msgs.NOT_INCLUDES}" itemValue="true" />
+                        </p:selectOneMenu>
+                      </h:column>
+                      <h:column>
+                        <p:selectOneMenu  styleClass="combo" value="#{singleAnswerCondition.answerPosition}" 
+                          style="width:190px;">
+                          
+                          <f:selectItems value="#{questionBean.question.answersSortedByPosition}" var="answer"
+                            itemLabel="#{questionBean.getNumberedAnswerName(answer)}" itemValue="#{answer.position}" />
+                        </p:selectOneMenu>
+                      </h:column>
+                      <h:column>
+                        <p:commandButton id="removeAnswerConditionButton" value="#{msgs.DELETE}" styleClass="button" 
+                          image="ui-icon ui-icon-trash" disabled="#{condition.singleAnswerConditionsSize==1}" 
+                          actionListener="#{questionBean.deleteSingleAnswerCondition}" process="@form" update="@form">
+                          
+                          <f:attribute name="condition" value="#{condition}" />
+                          <f:attribute name="singleanswercondition" value="#{singleAnswerCondition}" />
+                        </p:commandButton>
+                      </h:column>
+                      <h:column>
+                        <p:commandButton id="newAnswerConditionButton" value="#{msgs.AND}" styleClass="button" 
+                          actionListener="#{questionBean.addSingleAnswerCondition}" process="@form" update="@form" 
+                          rendered="#{condition.isLastSingleAnswerConditionsSize(singleAnswerCondition)}">
+                          
+                          <f:attribute name="condition" value="#{condition}" />
+                        </p:commandButton>
+                        <h:outputText value="#{msgs.AND}" 
+                          rendered="#{!condition.isLastSingleAnswerConditionsSize(singleAnswerCondition)}" />
+                      </h:column>
+                    </h:dataTable>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{questionBean.question.type=='DRAG_DROP' and condition.conditionType=='CONDITION_TYPE_ANSWER'}">
+                    <h:dataTable value="#{condition.singleAnswerConditionsWrappedWithDuplicatedRows}" var="singleAnswerCondition" 
+                      columnClasses="columnDragDropAnswerConditionPosition,columnDragDropAnswerConditionDisplayLabelOrFlagNotInput,columnDragDropAnswerConditionAnswerOrRightAnswerInput,columnDragDropAnswerConditionDeleteButton,columnDragDropAnswerConditionAndButton">
+                      
+                      <h:column>
+                        <h:outputText value="(#{condition.getSingleAnswerConditionPosition(singleAnswerCondition.singleAnswerCondition)})" 
+                            rendered="#{singleAnswerCondition.even}" />
+                      </h:column>
+                      <h:column>
+                        <h:outputText value="#{condition.isFirstSingleAnswerConditionsSize(singleAnswerCondition.singleAnswerCondition) ? msgs['DISPLAY_IF'] : msgs['IF']}"
+                            rendered="#{singleAnswerCondition.even}" />
+                        <p:selectOneMenu styleClass="combo" value="#{singleAnswerCondition.flagNot}" 
+                          style="width:110px;" rendered="#{singleAnswerCondition.odd}">
+                          
+                          <f:selectItem itemLabel="#{msgs.CONTAINS}" itemValue="false" />
+                          <f:selectItem itemLabel="#{msgs.NOT_CONTAINS}" itemValue="true" />
+                        </p:selectOneMenu>
+                      </h:column>
+                      <h:column>
+                        <p:selectOneMenu  styleClass="combo" value="#{singleAnswerCondition.answerPosition}" 
+                          style="width:260px;" rendered="#{singleAnswerCondition.even}">
+                          
+                          <f:selectItems value="#{questionBean.droppableAnswersSortedByPosition}" var="answer" 
+                            itemLabel="#{questionBean.getNumberedDroppableAnswerName(answer)}" 
+                            itemValue="#{answer.position}" />
+                        </p:selectOneMenu>
+                        <p:selectOneMenu  styleClass="combo" value="#{singleAnswerCondition.rightAnswerPosition}" 
+                          style="width:260px;" rendered="#{singleAnswerCondition.odd}">
+                          
+                          <f:selectItem itemLabel="(#{msgs.EMPTY})" itemValue="#{0}" />
+                          <f:selectItems value="#{questionBean.draggableItemsSortedByPosition}" var="draggableItem" 
+                            itemLabel="#{questionBean.getNumberedDraggableItemName(draggableItem)}" 
+                            itemValue="#{draggableItem.position}" />
+                        </p:selectOneMenu>
+                      </h:column>
+                      <h:column>
+                        <p:commandButton id="removeAnswerConditionButton" value="#{msgs.DELETE}" styleClass="button" 
+                          image="ui-icon ui-icon-trash" disabled="#{condition.singleAnswerConditionsSize==1}" 
+                          actionListener="#{questionBean.deleteSingleAnswerCondition}" process="@form" update="@form"
+                          rendered="#{singleAnswerCondition.odd}">
+                          
+                          <f:attribute name="condition" value="#{condition}" />
+                          <f:attribute name="singleanswercondition" 
+                            value="#{singleAnswerCondition.singleAnswerCondition}" />
+                        </p:commandButton>
+                      </h:column>
+                      <h:column>
+                        <p:commandButton id="newDragDropAnswerConditionButton" value="#{msgs.AND}" styleClass="button" 
+                          actionListener="#{questionBean.addSingleAnswerCondition}" process="@form" update="@form"
+                          rendered="#{singleAnswerCondition.odd and condition.isLastSingleAnswerConditionsSize(singleAnswerCondition.singleAnswerCondition)}">
+                          
+                          <f:attribute name="condition" value="#{condition}" />
+                        </p:commandButton>
+                        <h:outputText value="#{msgs.AND}" 
+                          rendered="#{singleAnswerCondition.odd and !condition.isLastSingleAnswerConditionsSize(singleAnswerCondition.singleAnswerCondition)}" />
+                      </h:column>
+                    </h:dataTable>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_ATTEMPTS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnAttemptsConditionDisplayLabel,columnAttemptsConditionComparatorInput,columnAttemptsConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_CURRENT_ATTEMPT}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_ATTEMPTS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.attemptsCmp}" min="#{condition.minValueAttemptCmp}" 
+                          max="#{condition.maxValueAttemptCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackAttemptsCmp}" process="@this" 
+                            update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.attemptsBetweenMin}" min="1" 
+                            max="#{condition.attemptsBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackAttemptsBetweenMin}" process="@this" 
+                              update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.attemptsBetweenMax}" min="#{condition.attemptsBetweenMin}" 
+                            max="#{condition.maxAttemptValue}" style="margin-left:2px;"
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackAttemptsBetweenMax}" process="@this" 
+                              update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_SELECTED_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnSelectedAnswersConditionDisplayLabel,columnSelectedAnswersConditionComparatorInput,columnSelectedAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_SELECTED_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_SELECTED_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.selectedAnswersCmp}" 
+                          min="#{condition.minValueSelectedAnswersCmp}" 
+                          max="#{condition.maxValueSelectedAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackSelectedAnswersCmp}" process="@this" 
+                            update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.selectedAnswersBetweenMin}" min="0" 
+                            max="#{condition.selectedAnswersBetweenMax}" style="margin-right:2px;"
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.selectedAnswersBetweenMax}" 
+                            min="#{condition.selectedAnswersBetweenMin}" 
+                            max="#{condition.maxSelectedAnswersValue}" style="margin-left:2px;"
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_SELECTED_RIGHT_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnSelectedRightAnswersConditionDisplayLabel,columnSelectedRightAnswersConditionComparatorInput,columnSelectedRightAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_SELECTED_RIGHT_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_SELECTED_RIGHT_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.selectedRightAnswersCmp}" 
+                          min="#{condition.minValueSelectedRightAnswersCmp}" 
+                          max="#{condition.maxValueSelectedRightAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackSelectedRightAnswersCmp}" 
+                            process="@this" update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.selectedRightAnswersBetweenMin}" min="0" 
+                            max="#{condition.selectedRightAnswersBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedRightAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.selectedRightAnswersBetweenMax}" 
+                            min="#{condition.selectedRightAnswersBetweenMin}" 
+                            max="#{condition.maxSelectedRightAnswersValue}" style="margin-left:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedRightAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_SELECTED_WRONG_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnSelectedWrongAnswersConditionDisplayLabel,columnSelectedWrongAnswersConditionComparatorInput,columnSelectedWrongAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_SELECTED_WRONG_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_SELECTED_WRONG_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.selectedWrongAnswersCmp}" 
+                          min="#{condition.minValueSelectedWrongAnswersCmp}" 
+                          max="#{condition.maxValueSelectedWrongAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackSelectedWrongAnswersCmp}" 
+                            process="@this" update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.selectedWrongAnswersBetweenMin}" min="0" 
+                            max="#{condition.selectedWrongAnswersBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedWrongAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.selectedWrongAnswersBetweenMax}" 
+                            min="#{condition.selectedWrongAnswersBetweenMin}" 
+                            max="#{condition.maxSelectedWrongAnswersValue}" style="margin-left:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackSelectedWrongAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_UNSELECTED_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnUnselectedAnswersConditionDisplayLabel,columnUnselectedAnswersConditionComparatorInput,columnUnselectedAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_UNSELECTED_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_UNSELECTED_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.unselectedAnswersCmp}" 
+                          min="#{condition.minValueUnselectedAnswersCmp}" 
+                          max="#{condition.maxValueUnselectedAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackUnselectedAnswersCmp}" process="@this" 
+                            update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.unselectedAnswersBetweenMin}" min="0" 
+                            max="#{condition.unselectedAnswersBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.unselectedAnswersBetweenMax}" 
+                            min="#{condition.unselectedAnswersBetweenMin}" 
+                            max="#{condition.maxUnselectedAnswersValue}" style="margin-left:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_UNSELECTED_RIGHT_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnUnselectedRightAnswersConditionDisplayLabel,columnUnselectedRightAnswersConditionComparatorInput,columnUnselectedRightAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_UNSELECTED_RIGHT_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_UNSELECTED_RIGHT_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.unselectedRightAnswersCmp}" 
+                          min="#{condition.minValueUnselectedRightAnswersCmp}" 
+                          max="#{condition.maxValueUnselectedRightAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackUnselectedRightAnswersCmp}" 
+                            process="@this" update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.unselectedRightAnswersBetweenMin}" min="0" 
+                            max="#{condition.unselectedRightAnswersBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedRightAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.unselectedRightAnswersBetweenMax}" 
+                            min="#{condition.unselectedRightAnswersBetweenMin}" 
+                            max="#{condition.maxUnselectedRightAnswersValue}" style="margin-left:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedRightAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_UNSELECTED_WRONG_ANSWERS'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnUnselectedWrongAnswersConditionDisplayLabel,columnUnselectedWrongAnswersConditionComparatorInput,columnUnselectedWrongAnswersConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_UNSELECTED_WRONG_ANSWERS}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_UNSELECTED_WRONG_ANSWERS_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.unselectedWrongAnswersCmp}" 
+                          min="#{condition.minValueUnselectedWrongAnswersCmp}" 
+                          max="#{condition.maxValueUnselectedWrongAnswersCmp}" styleClass="conditionSpinner" 
+                          converter="SpinnerIntegerConverter" rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackUnselectedWrongAnswersCmp}" 
+                            process="@this" update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.unselectedWrongAnswersBetweenMin}" min="0" 
+                            max="#{condition.unselectedWrongAnswersBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedWrongAnswersBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.unselectedWrongAnswersBetweenMax}" 
+                            min="#{condition.unselectedWrongAnswersBetweenMin}" 
+                            max="#{condition.maxUnselectedWrongAnswersValue}" style="margin-left:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackUnselectedWrongAnswersBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  
+                  <ui:fragment rendered="#{condition.conditionType=='CONDITION_TYPE_RIGHT_DISTANCE'}">
+                    <h:panelGrid columns="3" cellpadding="5" 
+                      columnClasses="columnRightDistanceConditionDisplayLabel,columnRightDistanceConditionComparatorInput,columnRightDistanceConditionValues">
+                      
+                      #{msgs.DISPLAY_IF_RIGHT_DISTANCE}
+                      <p:selectOneMenu styleClass="combo" value="#{condition.comparator}" style="width:170px;">
+                        <p:ajax listener="#{condition.changeComparator}" process="@this" 
+                          update="feedbackDialogForm:conditionsPanel" />
+                        <f:selectItems value="#{questionBean.getNumberComparators('CONDITION_TYPE_RIGHT_DISTANCE_GEN')}" 
+                          var="comparator" itemLabel="#{msgs[comparator]}" itemValue="#{comparator}" />
+                      </p:selectOneMenu>
+                      <h:panelGroup>
+                        <p:spinner value="#{condition.rightDistanceCmp}" 
+                          min="#{condition.minValueRightDistanceCmp}" max="#{condition.maxValueRightDistanceCmp}" 
+                          styleClass="conditionSpinner" converter="SpinnerIntegerConverter" 
+                          rendered="#{!condition.between}">
+                          
+                          <p:ajax listener="#{questionBean.changeFeedbackRightDistanceCmp}" process="@this" 
+                            update="@this" />
+                        </p:spinner>
+                        <ui:fragment rendered="#{condition.between}">
+                          <p:spinner value="#{condition.rightDistanceBetweenMin}" min="0" 
+                            max="#{condition.rightDistanceBetweenMax}" style="margin-right:2px;" 
+                            styleClass="conditionSpinner" converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackRightDistanceBetweenMin}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                          #{msgs.BETWEEN_AND}
+                          <p:spinner value="#{condition.rightDistanceBetweenMax}" 
+                            min="#{condition.rightDistanceBetweenMin}" max="#{condition.maxRightDistanceValue}" 
+                            style="margin-left:2px;" styleClass="conditionSpinner" 
+                            converter="SpinnerIntegerConverter">
+                            
+                            <p:ajax listener="#{questionBean.changeFeedbackRightDistanceBetweenMax}" 
+                              process="@this" update="feedbackDialogForm:conditionsPanel" />
+                          </p:spinner>
+                        </ui:fragment>
+                      </h:panelGroup>
+                    </h:panelGrid>
+                  </ui:fragment>
+                  <h:panelGroup layout="block" styleClass="rightAlign">
+                    <p:commandButton value="#{msgs.DELETE_CONDITION}" styleClass="button" 
+                      image="ui-icon ui-icon-trash" immediate="true" 
+                      actionListener="#{questionBean.deleteCondition}" process="@this" 
+                      update="feedbackDialogForm:conditionType feedbackDialogForm:addConditionButton feedbackDialogForm:conditionTypeTip feedbackDialogForm:conditionsPanel">
+                      
+                      <f:attribute name="condition" value="#{condition}" />
+                    </p:commandButton>
+                  </h:panelGroup>
+                </p:tab>
+              </p:accordionPanel>
+            </ui:fragment>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons"  
+              actionListener="#{questionBean.acceptAddFeedback}" process="@form" 
+              update="@form questionForm:feedbackAccordion" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" onclick="addFeedbackDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="resortFeedbacksDialog" id="resortFeedbacksDialog" styleClass="dialog" width="720" 
+        height="420" header="#{msgs.RE_SORT_FEEDBACKS}" modal="true" closable="true" draggable="false" 
+        resizable="false" onShow="centerDialog('resortFeedbacksDialog');">
+        
+        <h:form id="resortFeedbacksDialogForm">
+          <p:panel styleClass="dialogPanel" style="border-width:0px;">
+            <p:orderList styleClass="feedbacksOrderList" iconOnly="true" 
+              value="#{questionBean.feedbacksSorting}" var="feedback" itemValue="#{feedback}" 
+              converter="FeedbackBeanConverter">
+              
+              <f:facet name="caption">#{msgs.FEEDBACKS}</f:facet>
+              <p:column styleClass="columnOrder">
+                <f:facet name="header">&nbsp;</f:facet>
+                #{feedback.position}
+              </p:column>
+              <p:column styleClass="columnType">
+                #{msgs[feedback.type]}
+              </p:column>
+              <p:column styleClass="columnCondition">
+                <h:outputText id="resortConditionStringValue" 
+                  value="#{questionBean.breakText(feedback.conditionString)}" escape="false" />
+              </p:column>
+              <p:column styleClass="columnImage">
+                <p:graphicImage value="#{feedback.resource.fileName}" width="35" height="20" 
+                  rendered="#{feedback.resource!=null}" />
+              </p:column>
+              <p:column styleClass="columnContent" sortBy="#{feedback.text}">
+                <h:outputText id="resortContentTextValue" 
+                  value="#{questionBean.breakText(questionBean.abbreviate(feedback.text,100),5)}" escape="false" />
+              </p:column>
+            </p:orderList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+              actionListener="#{questionBean.acceptReSortFeedbacks}" 
+              oncomplete="resortFeedbacksDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+              onclick="resortFeedbacksDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+           some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+           Moreover p:dialog provides more control... for example forcing user to click a button 
+           to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+           some actions after user interaction even on cancel. -->
+      
+      <p:dialog widgetVar="confirmDeleteAnswerDialog" id="confirmDeleteAnswerDialog" 
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" 
+        resizable="false" onShow="centerDialog('confirmDeleteAnswerDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs.CONFIRM_DELETE_ANSWER}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteAnswerDialog.hide();" 
+                actionListener="#{questionBean.removeAnswer}" 
+                update="questionForm:reSortAnswers questionForm:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteAnswerDialog.hide();" type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="confirmDeleteDraggableItemDialog" id="confirmDeleteDraggableItemDialog" 
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" 
+        resizable="false" onShow="centerDialog('confirmDeleteDraggableItemDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs[questionBean.confirmDeleteDraggableItemMessage]}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteDraggableItemDialog.hide();" 
+                actionListener="#{questionBean.removeDraggableItem}" 
+                update="questionForm:reSortDraggableItems questionForm:draggableItemsAccordion questionForm:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteDraggableItemDialog.hide();" 
+                type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="confirmDeleteDroppableAnswerDialog" id="confirmDeleteDroppableAnswerDialog" 
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" 
+        resizable="false" onShow="centerDialog('confirmDeleteDroppableAnswerDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs.CONFIRM_DELETE_ANSWER}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteDroppableAnswerDialog.hide();" 
+                actionListener="#{questionBean.removeDroppableAnswer}" 
+                update="questionForm:reSortDroppableAnswers questionForm:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteDroppableAnswerDialog.hide();" 
+                type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="confirmChangePropertyDialog" id="confirmChangePropertyDialog" 
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" 
+        resizable="false" onShow="centerDialog('confirmChangePropertyDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs[questionBean.confirmChangePropertyMessage]}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" onclick="confirmChangePropertyDialog.hide();"
+                actionListener="#{questionBean.confirmChangeProperty}" update=":questionForm" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmChangePropertyDialog.hide();" 
+                actionListener="#{questionBean.rollbackProperty}" update=":questionForm" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
+      <p:dialog widgetVar="confirmCancelQuestionDialog" id="confirmCancelQuestionDialog"
+        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false"
+        resizable="false" onShow="centerDialog('confirmCancelQuestionDialog');">
+        
+        <p>
+          <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+          <h:outputText value="#{msgs.CONFIRM_CANCEL_QUESTION}" escape="false" />
+        </p>
+        <h:form>
+          <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <h:panelGroup layout="block" style="text-align:right;">
+              <p:commandButton value="#{msgs.YES}" ajax="false" action="#{questionBean.cancelQuestion}" />
+              <p:commandButton value="#{msgs.NO}" onclick="confirmCancelQuestionDialog.hide();" type="button" />
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+    </ui:define>
+  </ui:composition>
+</html>

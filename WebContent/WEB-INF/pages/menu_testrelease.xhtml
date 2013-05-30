@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+	
+<ui:composition>
+  <ui:include src="/WEB-INF/pages/userinfo_testrelease.xhtml" />
+  
+  <p:panel styleClass="panelMenu" rendered="#{userSessionService.logged}">
+	<h:form id="menuForm" styleClass="menuForm">
+      <p:commandButton value="#{msgs.CATEGORIES}" styleClass="menuButton" style="margin-top:10px"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{categoriesBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="categories" />
+      </p:commandButton>
+      <p:commandButton value="#{msgs.RESOURCES}" styleClass="menuButton"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{resourcesBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="resources" />
+      </p:commandButton>
+      <p:commandButton value="#{msgs.QUESTIONS}" styleClass="menuButton"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{questionsBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="questions" />
+      </p:commandButton>
+      <p:commandButton value="#{msgs.TESTS}" styleClass="menuButton"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true"
+        update="confirmCancelPublishTestDialog" rendered="#{testsBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="tests" />
+      </p:commandButton>
+      <!-- QTI import and export functionality is currently not supported by GEPEQ so I comment those options -->
+	  <!--
+	  <p:commandButton value="#{msgs.IMP}" styleClass="menuButton" 
+	    actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true"
+	    update="confirmCancelPublishTestDialog" rendered="#{importBean.navigationAllowed}">
+	    
+	    <f:attribute name="target" value="import" />
+	  </p:commandButton>
+      <p:commandButton value="#{msgs.EXP}" styleClass="menuButton" 
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{exportBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="export" />
+      </p:commandButton>
+	  -->
+      <p:commandButton value="#{msgs.PUBLICATION}" styleClass="menuButton"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{publicationBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="publication" />
+      </p:commandButton>
+      <p:commandButton value="#{msgs.ADMINISTRATION}" styleClass="menuButton"
+        actionListener="#{testReleaseBean.showConfirmCancelPublishTestDialog}" immediate="true" 
+        update="confirmCancelPublishTestDialog" rendered="#{administrationBean.navigationAllowed}">
+        
+        <f:attribute name="target" value="administration" />
+      </p:commandButton>
+	</h:form>
+  </p:panel>
+  
+  <ui:include src="/WEB-INF/pages/changetheme.xhtml" />
+</ui:composition>
+</html>

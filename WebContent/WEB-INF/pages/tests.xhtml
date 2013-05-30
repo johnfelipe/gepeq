@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!-- ©UNED -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="http://java.sun.com/jsf/facelets"
+  xmlns:h="http://java.sun.com/jsf/html"
+  xmlns:f="http://java.sun.com/jsf/core"
+  xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+</h:head>
+
+<ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
+  <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
+  <ui:define name="contentTitle">#{msgs.TESTS_TITLE}</ui:define>
+  
+  <ui:define name="changelocale">
+    <ui:include src="/WEB-INF/pages/changelocale_tests.xhtml" />
+  </ui:define>
+  
+  <ui:define name="content">
+    
+    <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputScript library="javascript" name="om.js" />
+    <h:outputStylesheet library="css" name="tests.css" />
+    
+    <p:outputPanel styleClass="testsPanel">
+      <h:form id="testsForm" onkeypress="preventEnterSubmit(event);">
+        <p:growl id="messages" showDetail="true" sticky="#{testsBean.criticalErrorMessage}" />
+        
+        <h:inputHidden value="#{testsBean.testId}" />
+	    
+        <p:panel id="testsFilterPanel" styleClass="filterPanel">
+          <h:panelGrid columns="3" cellpadding="5" rowClasses="topAlignRow"
+            columnClasses="categoryLabelColumn,categoryComboColumn,applyFilterButtonColumn">
+            
+            #{msgs.CATEGORY}:
+            <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:450px;" panelStyle="width:550px;"
+              value="#{testsBean.filterCategoryId}" var="filterCategoryId">
+              
+              <p:ajax event="change" process="@this testsForm:filterIncludeSubcategories" 
+                update="testsForm:testsFilterPanel" /> 
+              <f:selectItems value="#{testsBean.specialCategoriesFilters}" var="catFilter" 
+                itemLabel="#{msgs[catFilter.name]}" itemValue="#{catFilter.id}" />
+              <f:selectItems value="#{testsBean.testsCategories}" var="cat" 
+                itemLabel="#{testsBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+              <p:column>
+                #{testsBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+              </p:column>
+            </p:selectOneMenu>
+            <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
+              actionListener="#{testsBean.applyTestsFilter}" process="testsForm:testsFilterPanel" 
+              update="testsForm:messages testsForm:testsTable" />
+          </h:panelGrid>
+          <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
+            columnClasses="includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn" 
+            rendered="#{testsBean.filterCategoryId&gt;0}">
+            
+            <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" />
+            <p:selectBooleanCheckbox id="filterIncludeSubcategories" 
+              value="#{testsBean.filterIncludeSubcategories}" />
+          </h:panelGrid>
+        </p:panel>
+	    
+	    <h:panelGroup layout="block" styleClass="newTestButton">
+          <p:commandButton id="newTestButton" value="#{msgs.NEW_TEST}" style="font-size:95%;"  
+            action="#{testsBean.addTest}" ajax="false" image="ui-icon ui-icon-plus" 
+            disabled="#{!testsBean.isAddEnabled()}" />
+	    </h:panelGroup>
+	    
+        <p:dataTable id="testsTable" styleClass="testsTable" rowStyleClass="dataRow" 
+          emptyMessage="#{msgs.NO_TEST}" value="#{testsBean.tests}" var="test" 
+          paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+          paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+          
+          <p:column styleClass="columnName" sortBy="#{test.name}">
+            <f:facet name="header">#{msgs.TEST}</f:facet>
+            #{test.name}
+          </p:column>
+          <p:column styleClass="columnCategory" sortBy="#{testsBean.getLocalizedCategoryName(test.category)}">
+            <f:facet name="header">#{msgs.CATEGORY}</f:facet> 
+            <h:outputText id="categoryName" value="#{testsBean.getLocalizedCategoryName(test.category)}" />
+            <p:tooltip for="categoryName">
+              #{testsBean.getLocalizedCategoryLongName(test.category)}
+            </p:tooltip>
+          </p:column>
+          <p:column styleClass="columnAuthor" sortBy="#{test.createdBy.nick}">
+            <f:facet name="header">#{msgs.AUTHOR}</f:facet>
+            <h:outputText value="#{test.createdBy.nick}" />
+          </p:column>
+          <p:column styleClass="columnDate" sortBy="#{test.timeModified}">
+            <!-- Added some non-breakable white-spaces to fix column title display on Opera -->
+            <f:facet name="header">#{msgs.DATE}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</f:facet>
+            <h:outputText value="#{test.timeModified}">
+              <f:convertDateTime dateStyle="short" />
+            </h:outputText>
+          </p:column>
+          <p:column styleClass="columnEdit">
+            <h:commandLink action="#{testsBean.editTest(test)}" rendered="#{testsBean.isEditTestAllowed(test)}">
+              <f:param name="testId" value="#{test.id}"/>
+              <h:graphicImage id="editTestImage" styleClass="links" value="#{resource['images:edit16.png']}" />
+              <p:tooltip for="editTestImage">
+                #{msgs.EDIT_TEST}
+              </p:tooltip>
+            </h:commandLink>
+          </p:column>
+          <p:column styleClass="columnCreateCopy">
+            <h:commandLink action="#{testsBean.addTestCopy(test)}" 
+              rendered="#{testsBean.isCreateCopyTestAllowed(test)}">
+              
+              <f:param name="testCopyId" value="#{test.id}" />
+              <h:graphicImage id="createCopyTestImage" styleClass="links" 
+                value="#{resource['images:copyto16.png']}" />
+              <p:tooltip for="createCopyTestImage">
+                #{msgs.CREATE_COPY_TEST}
+              </p:tooltip>
+            </h:commandLink>
+          </p:column>
+          <p:column styleClass="columnDelete">
+            <p:commandLink update="@form" actionListener="#{testsBean.confirm}" 
+              rendered="#{testsBean.isDeleteTestAllowed(test)}">
+              
+              <f:setPropertyActionListener value="#{test.id}" target="#{testsBean.testId}" />
+              <h:graphicImage id="deleteTestImage" styleClass="links" value="#{resource['images:delete.png']}" />
+              <p:tooltip for="deleteTestImage">
+                #{msgs.DELETE_TEST}
+              </p:tooltip>
+            </p:commandLink>
+          </p:column>
+          <p:column styleClass="columnOM">
+            <p:commandLink process=":testsForm" update="@form" action="#{testsBean.viewOM(test.id)}" 
+              onstart="buildingDialog.show()" oncomplete="buildingDialog.hide();viewTest(xhr,status,args)" 
+              rendered="#{testsBean.isViewOMEnabled()}">
+              
+              <h:graphicImage id="viewOMTestImage" styleClass="links" value="#{resource['images:om16.png']}" />
+              <p:tooltip for="viewOMTestImage">
+                #{msgs.OM_PREVIEW}
+              </p:tooltip>
+            </p:commandLink>
+          </p:column>
+        </p:dataTable>
+      </h:form>
+    </p:outputPanel>
+    
+    <!-- Note that we prefer to use p:dialog instead of p:confirmDialog for confirmation dialogs because
+         some dialogs need to be centered on screen with JavaScript with help of 'onShow' attribute.
+         Moreover p:dialog provides more control... for example forcing user to click a button 
+         to close dialog ... no X to close dialog). This is useful in some dialogs that need to perform 
+         some actions after user interaction even on cancel. -->
+    
+    <p:dialog widgetVar="confirmDialog" id="confirmDialog" styleClass="dialog" header="#{msgs.CONFIRM}" 
+      modal="true" closable="false" draggable="false" resizable="false" onShow="centerDialog('confirmDialog');">
+      
+      <p>
+        <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
+        <h:outputText value="#{msgs.CONFIRM_DELETE_TEST}" escape="false" />
+      </p>
+      <h:form>
+        <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+          <h:panelGroup layout="block" style="text-align:right;">
+            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
+              actionListener="#{testsBean.deleteTest}" 
+              update="testsForm:messages testsForm:newTestButton testsForm:testsTable" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+          </h:panelGroup>
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
+    
+    <p:dialog widgetVar="buildingDialog" id="buildingDialog" styleClass="dialog" width="200" height="50" 
+      header="#{msgs.DEPLOYING_TEST}" showEffect="clip" draggable="false" closable="false" resizable="false"
+      modal="true">
+      
+      <h:form>
+        <h:panelGrid columns="2">
+          <h:graphicImage library="images" name="loading.gif" style="margin-right:10px;" width="32" height="32" />
+          #{msgs.PLEASE_WAIT}
+        </h:panelGrid>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>
+
+</html>

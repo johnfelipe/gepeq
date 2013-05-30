@@ -1,0 +1,269 @@
+/* ©UNED */
+.main {
+	width:1000px;
+	margin:0 auto 0 auto;
+	background-color:white;
+}
+
+.header {
+	width:1000px;
+	margin:0px;
+	height:105px;
+	background-image:url("#{resource["images:header.jpg"]}");
+	background-repeat:no-repeat;
+	padding-top:25px;
+}
+
+.headerPanel {
+	width:950px;
+	margin-left:auto;
+	margin-right:auto;
+	height:73px;
+}
+
+.headerPanelGrid {
+	width:100%;
+}
+
+.headerTitleColumn {
+	vertical-align:middle;
+	text-align:left;
+	font-size:120%;
+	font-weight:bold;
+}
+
+.headerLogoColumn {
+	vertical-align:middle;
+	text-align:right;
+}
+
+.headerTitle {
+	position:relative;
+	top:-5px;
+}
+
+
+.headerPanelText {
+	float:left;
+	font-size:120%;
+	margin-top:5px;
+}
+
+.headerPanelLogo {
+	height:64px;
+	margin-top:-4px;
+}
+
+.footer {
+	clear:both;
+	width:1000px;
+	height:30px;
+	font-size:75%;
+	background-image:url("#{resource["images:footer.jpg"]}");
+	background-repeat:no-repeat;
+	padding-top:5px;
+	padding-bottom:25px;
+}
+
+.footerPanel {
+	width:950px;
+	margin-left:auto;
+	margin-right:auto;
+	text-align:center;
+	height:30px;
+	font-size:95% !important;
+}
+
+.container {
+	width:1000px;
+	margin-top:0px;
+	margin-right:auto;
+	margin-bottom:0px;
+	margin-left:auto;
+	min-height:550px;
+	height:100%;
+	background-image:url("#{resource["images:content.jpg"]}");
+	background-repeat:repeat-y;
+}
+
+.menu {
+	width: 110px;
+	vertical-align:top;
+	padding-left:20px;
+	padding-right:20px;
+	padding-top:30px;
+}
+
+.panelMenu {
+	width:140px;
+	margin-top:20px;
+	padding-top:0px !important; 
+	padding-left:1px !important;
+}
+
+.menuButton {
+	margin-top:15px;
+	width:110px;
+}
+
+.menuForm {
+	margin-left:auto; 
+	margin-right:auto; 
+	font-size:70%;
+}
+
+.content {
+	width:790px;
+	vertical-align:top;
+	margin-right:0px;
+	padding-right:20px;
+	padding-top:30px;
+}
+
+.userInfo {
+	width:140px;
+	font-size:70% !important;
+	text-align:center;
+}
+
+.closeSessionButton {
+	font-size:90% !important;
+}
+
+.changeTheme {
+	font-size:80% !important; 
+	text-align:center; 
+	margin-top:20px; 
+}
+
+.changeThemeForm { 
+	margin-top:5px; 
+}
+
+.themeSwitcher {
+	width:110px !important;
+	font-size:80% !important;
+	margin-top:5px;
+	margin-bottom:5px;
+}
+
+.themeSwitcherPanel {
+    width:150px !important;
+}
+
+.ui-selectonemenu {
+	overflow:hidden;
+}
+
+.ui-selectonemenu-item {
+   font-size:85% !important;
+}
+
+.ui-selectonemenu-table {
+	width:100% !important;
+}
+
+.readonlyInput {
+    background-color:#EBEBE4 !important;
+    border-style:solid !important;
+    border-width:1px !important;
+    border-color:#7F9DB9 !important;
+}
+
+.readonlySpin .ui-spinner-input {
+    background-color:#EBEBE4 !important;
+    border-style:solid !important;
+    border-width:1px !important;
+    border-color:#7F9DB9 !important;
+}
+
+.readonlyCheckbox {
+    background-color:#EBEBE4 !important;
+    border-style:solid !important;
+    border-width:1px !important;
+    border-color:#7F9DB9 !important;
+    border-radius:0px !important;
+}
+
+.readonlyPanel {
+	background-color:#EBEBE4 !important;
+	
+    border-style:solid !important;
+    border-width:1px !important;
+	
+	border-color:#7F9DB9 !important;
+	
+    border-radius:0px !important;
+}
+
+.ui-icon-empty {
+	background-image:none !important;
+}
+
+.ui-tooltip {
+	font-size:12px !important;
+}
+
+.changeLocaleForm {
+	text-align:right; 
+	margin-top:0px; 
+}
+
+.localeCombo {
+	font-size:65% !important;
+	margin-top:3px;
+	margin-bottom:5px;
+	padding-left:2px;
+	padding-right:2px;
+	height:17px;
+}
+
+.localeButton {
+	float:right; 
+	margin-right:20px !important;
+	margin-left:4px !important;
+	margin-top:3px !important;
+	height:19px;
+}
+
+.links {
+    border-style:none;
+    margin-left:0px;
+    margin-right:0px;
+}
+
+.graphics {
+    border-style:none;
+}
+
+.invisible {
+	display:none !important;
+}
+
+/* jQuery style hacked to avoid an undesired space under <h:selectonemenu> items */
+.ui-helper-clearfix:after {
+	content:"" !important;
+}
+
+/* jQuery style hacked to distinguish between enabled and disabled checkboxes 
+   with Internet Explorer */
+div.ui-state-disabled div.ui-checkbox-box {
+	filter:Alpha(Opacity=30);
+}
+
+/* jQuery style hacked to get a better view of disabled buttons with Internet Explorer
+   (less opacity to be sure that button caption is still readable) */
+.ui-widget button.ui-state-disabled {
+    filter:Alpha(Opacity=80);
+}
+
+.ui-widget button.ui-state-disabled span.ui-button-icon-primary {
+    filter:Alpha(Opacity=20);
+}
+
+/* jQuery style hacked to make textarea border always visible with Opera */ 
+.ui-inputtextarea {
+    border-style:solid !important;
+    border-width:1px !important;
+    border-color:#7F9DB9 !important;
+}

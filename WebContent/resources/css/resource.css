@@ -1,0 +1,132 @@
+/* ©UNED */
+.ui-messages-info {
+	font-size:80% !important;
+}
+
+.ui-messages-error {
+	font-size:80% !important;
+}
+
+.allSourcesDeniedMessage .ui-messages-error {
+	font-size:100% !important;
+}
+
+.allSourcesDeniedMessage .ui-messages-warn {
+    font-size:100% !important;
+}
+
+.sourceOptions input {
+    vertical-align:middle;
+}
+
+.sourceOptions label {
+	vertical-align:middle;
+    padding-left:5px;
+    padding-right:20px;
+    font-size:120%;
+}
+
+.leftLabelColumn {
+    vertical-align:middle;
+    width:100px;
+    text-align:left;
+    font-size:95%;
+}
+
+.leftFieldColumn {
+	vertical-align:middle;
+	width:300px;
+	font-size:80%;
+}
+
+.rightLabelColumn {
+    vertical-align:middle;
+	width:50px;
+    text-align:left;
+    font-size:95%;
+}
+
+.rightFieldColumn {
+    vertical-align:middle;
+    font-size:80%;
+}
+
+.labelColumn {
+	vertical-align:middle;
+	width:100px;
+	text-align:left;
+    font-size:95%;
+}
+
+.fieldColumn {
+    vertical-align:middle;
+    font-size:80%;
+}
+
+.fileColumn {
+	width:510px;
+}
+
+.urlInputColumn {
+    font-size:80%;	
+}
+
+.combo {
+    font-size:90% !important;
+    padding-left:2px;
+    padding-right:2px;
+}
+
+.input { 
+	height:20px;
+}
+
+.textarea {
+    height:50px;
+}
+
+.label {
+	font-size:95%;
+}
+
+.button {
+	font-size:80% !important;
+}
+
+.fileUpload {
+	font-size:60% !important;
+}
+
+.icon {
+	width:16px; 
+	height:16px;
+}
+
+.centerAlign {
+    width:100%; 
+	text-align:center;  
+    margin-top:10px;
+}
+
+.resourcePreview {
+    width:100%;
+    height:100px;
+    text-align:center;
+}
+
+.resourcePreviewSpan {
+    width:150px;
+    height:100px;
+}
+
+.resourcePreviewContent {
+	width:150px;
+	height:100px;
+    display:table-cell;
+    text-align:center;
+    vertical-align:middle;
+}
+
+.dialog {
+    font-size:90% !important;
+}
