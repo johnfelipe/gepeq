@@ -21,15 +21,27 @@ import java.io.Serializable;
 import java.util.Map;
 
 import javax.faces.bean.ManagedBean;
+import javax.faces.bean.ManagedProperty;
 import javax.faces.bean.SessionScoped;
 import javax.faces.context.FacesContext;
+
+import es.uned.lsi.gepec.web.services.ThemesService;
 
 @SuppressWarnings("serial")
 @ManagedBean(name="guestPreferencesBean")
 @SessionScoped
 public class GuestPreferences implements Serializable
 {
-	private String theme="aristo";		// default theme
+	@ManagedProperty(value="#{themesService}")
+	private ThemesService themesService;
+	
+	/** Current theme */
+	private String theme=null;
+	
+	public void setThemesService(ThemesService themesService)
+	{
+		this.themesService=themesService;
+	}
 	
 	public String getTheme()
 	{
@@ -37,6 +49,10 @@ public class GuestPreferences implements Serializable
 		if (params.containsKey("theme"))
 		{
 			theme=params.get("theme");
+		}
+		if (theme==null)
+		{
+			theme=themesService.getDefaultTheme();
 		}
 		return theme;
 	}

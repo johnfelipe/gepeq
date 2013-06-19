@@ -248,27 +248,30 @@ public class ForceLoginPhaseListener implements PhaseListener
 	{
 		// Get context
 		FacesContext context=FacesContext.getCurrentInstance();
-		Application app=context.getApplication();
-		LocalizationService localizationService=
-			(LocalizationService)app.getELResolver().getValue(context.getELContext(),null,"localizationService");
-		String errorMessage=null;
-		if (localizationService!=null)
+		if (!context.getMessages(":errorForm:messages").hasNext())
 		{
-			try
+			Application app=context.getApplication();
+			LocalizationService localizationService=
+				(LocalizationService)app.getELResolver().getValue(context.getELContext(),null,"localizationService");
+			String errorMessage=null;
+			if (localizationService!=null)
 			{
-				errorMessage=localizationService.getLocalizedMessage(errorCode);
+				try
+				{
+					errorMessage=localizationService.getLocalizedMessage(errorCode);
+				}
+				catch (ServiceException se)
+				{
+					errorMessage=null;
+				}
 			}
-			catch (ServiceException se)
+			if (errorMessage==null)
 			{
-				errorMessage=null;
+				errorMessage=plainMessage;
 			}
+			context.addMessage(":errorForm:messages",new FacesMessage(FacesMessage.SEVERITY_ERROR,errorMessage,null));
+			NavigationHandler navigationHandler=app.getNavigationHandler();
+			navigationHandler.handleNavigation(context,null,"/pages/error");
 		}
-		if (errorMessage==null)
-		{
-			errorMessage=plainMessage;
-		}
-		context.addMessage(":errorForm:messages",new FacesMessage(FacesMessage.SEVERITY_ERROR,errorMessage,null));
-		NavigationHandler navigationHandler=app.getNavigationHandler();
-		navigationHandler.handleNavigation(context,null,"/pages/error");
 	}
 }
