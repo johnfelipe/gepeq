@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ©UNED -->
+<Configuration>
+  <!-- Folder where resources are uploaded -->
+  <ResourcesFolder>@gepeq.resources.folder@</ResourcesFolder>
+  
+  <!-- OpenMark Developer URL -->
+  <OmUrl>@gepeq.om.url@</OmUrl>
+  
+  <!-- OpenMark Test Navigator (preview environment) URL -->
+  <OmTnUrl>@gepeq.om-tn.url@</OmTnUrl>
+  
+  <!-- OpenMark Question Engine (preview environment) URL -->
+  <OmQeUrl>@gepeq.om-qe.url@</OmQeUrl>
+  
+  <!-- OpenMark Test Navigator (publication environment) URL -->
+  <OmTnProUrl>@gepeq.om-tn-pro.url@</OmTnProUrl>
+  
+  <!-- Folder where questions and required resources are copied before compilation -->
+  <OmQuestionsFolder>@gepeq.om-questions.folder@</OmQuestionsFolder>
+  
+  <!-- QTI import/export folders -->
+  <ImportQuestionsFolder>@gepeq.import-questions.folder@</ImportQuestionsFolder>
+  <ExportQuestionsFolder>@gepeq.export-questions.folder@</ExportQuestionsFolder>
+  
+  <!-- Temporal folder. Used for temporal uploading of resources for previewing -->
+  <TmpFolder>@gepeq.tmp.folder@</TmpFolder>
+  
+  <!-- Proxy settings: Uncomment and set next options only if your web application is behind a proxy -->
+  @gepeq.proxy.config@
+  
+  <!-- OpenMark Test Navigator web services encryption passwords: Uncomment and set next options only if 
+       you configure OpenMark Test Navigator web services to use encryption for some arguments -->
+  @gepeq.om-tn.encryption.config@
+  @gepeq.om-tn-pro.encryption.config@
+</Configuration>

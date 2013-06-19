@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ©UNED -->
+<QuestionTypes>
+  <QuestionType>
+    <Name>TRUE_FALSE</Name>
+    <NewView>truefalse</NewView>
+    <UpdateView>truefalse_update</UpdateView>
+    <ClassName>TrueFalseQuestion</ClassName>
+  </QuestionType>
+  <QuestionType>
+    <Name>MULTICHOICE</Name>
+    <NewView>multichoice</NewView>
+    <UpdateView>multichoice_update</UpdateView>
+    <ClassName>MultichoiceQuestion</ClassName>
+  </QuestionType>
+  <QuestionType>
+    <Name>DRAG_DROP</Name>
+    <NewView>dragdrop</NewView>
+    <UpdateView>dragdrop_update</UpdateView>
+    <ClassName>DragDropQuestion</ClassName>
+  </QuestionType>
+  <QuestionType>
+    <Name>OM_XML</Name>
+    <NewView>omxml</NewView>
+    <UpdateView>omxml_update</UpdateView>
+    <ClassName>OmXmlQuestion</ClassName>
+  </QuestionType>
+</QuestionTypes>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deployment xmlns="http://xml.apache.org/axis/wsdd/"
+            xmlns:java="http://xml.apache.org/axis/wsdd/providers/java"
+            xmlns:handler="http://xml.apache.org/axis/wsdd/providers/handler">
+
+ <globalConfiguration>
+   <parameter name="disablePrettyXML" value="true"/>
+   <parameter name="dotNetSoapEncFix" value="true"/>
+   <parameter name="enableNamespacePrefixOptimization" value="false"/>
+   <requestFlow>
+     <handler type="java:org.apache.axis.handlers.JWSHandler">
+        <parameter name="scope" value="session"/>
+     </handler>
+     <handler type="java:org.apache.axis.handlers.JWSHandler">
+        <parameter name="scope" value="request"/>
+        <parameter name="extension" value=".jwr"/>
+     </handler>
+     <!-- uncomment this if you want the SOAP monitor -->
+     <!--
+     <handler type="java:org.apache.axis.handlers.SOAPMonitorHandler"/>
+     -->
+   </requestFlow>
+   <!-- uncomment this if you want the SOAP monitor -->
+   <!--
+   <responseFlow>
+     <handler type="java:org.apache.axis.handlers.SOAPMonitorHandler"/>
+   </responseFlow>
+   -->
+ </globalConfiguration>
+
+ <handler type="java:org.apache.axis.handlers.http.URLMapper" name="URLMapper"/>
+ <handler type="java:org.apache.axis.transport.local.LocalResponder" name="LocalResponder"/>
+ <handler type="java:org.apache.axis.handlers.SimpleAuthenticationHandler" name="Authenticate"/>
+
+ <service name="AdminService" provider="java:MSG">
+  <namespace>http://xml.apache.org/axis/wsdd/</namespace>
+  <parameter name="allowedMethods" value="AdminService"/>
+  <parameter name="enableRemoteAdmin" value="false"/>
+  <parameter name="className" value="org.apache.axis.utils.Admin"/>
+ </service>
+
+ <service name="Version" provider="java:RPC">
+  <parameter name="allowedMethods" value="getVersion"/>
+  <parameter name="className" value="org.apache.axis.Version"/>
+ </service>
+
+ <service name="OmDev" provider="java:RPC" style="wrapped" use="literal">
+  <parameter name="wsdlTargetNamespace" value="http://axis.uned.devservlet.om"/>
+  <parameter name="wsdlServiceElement" value="OmDevService"/>
+  <parameter name="schemaQualified" value="http://axis.uned.devservlet.om"/>
+  <parameter name="wsdlServicePort" value="OmDev"/>
+  <parameter name="className" value="om.devservlet.uned.axis.OmDev"/>
+  <parameter name="wsdlPortType" value="OmDev"/>
+  <parameter name="typeMappingVersion" value="1.2"/>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" name="createQuestion" qname="operNS:createQuestion" 
+   soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:path" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:extraPackages" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="buildQuestion" qname="operNS:buildQuestion" 
+   returnQName="retNS:buildQuestionReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" name="deleteQuestion" qname="operNS:deleteQuestion" 
+   soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="existQuestionJar" qname="operNS:existQuestionJar" 
+   returnQName="retNS:existQuestionJarReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getQuestionJarLastModified" 
+   qname="operNS:getQuestionJarLastModified" returnQName="retNS:getQuestionJarLastModifiedReturn" 
+   returnType="rtns:long" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.devservlet.om" xmlns:retNS="http://axis.uned.devservlet.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="downloadQuestionJar" qname="operNS:downloadQuestionJar" 
+   returnQName="retNS:downloadQuestionJarReturn" returnType="rtns:string" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.devservlet.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <parameter name="allowedMethods" 
+   value="getQuestionJarLastModified deleteQuestion buildQuestion existQuestionJar createQuestion downloadQuestionJar"/>
+ </service>
+
+ <transport name="http">
+  <parameter name="qs:list" 
+               value="org.apache.axis.transport.http.QSListHandler"/>
+  <parameter name="qs:method" 
+               value="org.apache.axis.transport.http.QSMethodHandler"/>
+  <parameter name="qs:wsdl" 
+               value="org.apache.axis.transport.http.QSWSDLHandler"/>
+  <requestFlow>
+   <handler type="URLMapper"/>
+   <handler type="java:org.apache.axis.handlers.http.HTTPAuthHandler"/>
+  </requestFlow>
+ </transport>
+
+ <transport name="local">
+  <responseFlow>
+   <handler type="LocalResponder"/>
+  </responseFlow>
+ </transport>
+
+</deployment>

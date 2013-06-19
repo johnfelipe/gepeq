@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deployment xmlns="http://xml.apache.org/axis/wsdd/"
+            xmlns:java="http://xml.apache.org/axis/wsdd/providers/java"
+            xmlns:handler="http://xml.apache.org/axis/wsdd/providers/handler">
+
+ <globalConfiguration>
+   <parameter name="disablePrettyXML" value="true"/>
+   <parameter name="dotNetSoapEncFix" value="true"/>
+   <parameter name="enableNamespacePrefixOptimization" value="false"/>
+   <requestFlow>
+     <handler type="java:org.apache.axis.handlers.JWSHandler">
+        <parameter name="scope" value="session"/>
+     </handler>
+     <handler type="java:org.apache.axis.handlers.JWSHandler">
+        <parameter name="scope" value="request"/>
+        <parameter name="extension" value=".jwr"/>
+     </handler>
+     <!-- uncomment this if you want the SOAP monitor -->
+     <!--
+     <handler type="java:org.apache.axis.handlers.SOAPMonitorHandler"/>
+     -->
+   </requestFlow>
+   <!-- uncomment this if you want the SOAP monitor -->
+   <!--
+   <responseFlow>
+     <handler type="java:org.apache.axis.handlers.SOAPMonitorHandler"/>
+   </responseFlow>
+   -->
+ </globalConfiguration>
+
+ <handler type="java:org.apache.axis.handlers.http.URLMapper" name="URLMapper"/>
+ <handler type="java:org.apache.axis.transport.local.LocalResponder" name="LocalResponder"/>
+ <handler type="java:org.apache.axis.handlers.SimpleAuthenticationHandler" name="Authenticate"/>
+
+ <service name="AdminService" provider="java:MSG">
+  <namespace>http://xml.apache.org/axis/wsdd/</namespace>
+  <parameter name="allowedMethods" value="AdminService"/>
+  <parameter name="enableRemoteAdmin" value="false"/>
+  <parameter name="className" value="org.apache.axis.utils.Admin"/>
+ </service>
+
+ <service name="Version" provider="java:RPC">
+  <parameter name="allowedMethods" value="getVersion"/>
+  <parameter name="className" value="org.apache.axis.Version"/>
+ </service>
+
+ <service name="OmTn" provider="java:RPC" style="wrapped" use="literal">
+  <parameter name="wsdlTargetNamespace" value="http://axis.uned.tnavigator.om"/>
+  <parameter name="wsdlServiceElement" value="OmTnService"/>
+  <parameter name="schemaQualified" value="http://axis.uned.tnavigator.om"/>
+  <parameter name="wsdlServicePort" value="OmTn"/>
+  <parameter name="className" value="om.tnavigator.uned.axis.OmTn"/>
+  <parameter name="wsdlPortType" value="OmTn"/>
+  <parameter name="typeMappingVersion" value="1.2"/>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="existTestXmls" qname="operNS:existTestXmls" returnQName="retNS:existTestXmlsReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:int"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="existQuestionXml" qname="operNS:existQuestionXml" 
+   returnQName="retNS:existQuestionXmlReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="existQuestionJar" qname="operNS:existQuestionJar" 
+   returnQName="retNS:existQuestionJarReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getQuestionJarLastModified" 
+   qname="operNS:getQuestionJarLastModified" returnQName="retNS:getQuestionJarLastModifiedReturn" 
+   returnType="rtns:long" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getTestXmlLastModified" 
+   qname="operNS:getTestXmlLastModified" returnQName="retNS:getTestXmlLastModifiedReturn" 
+   returnType="rtns:long" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getDeployXmlLastModified" 
+   qname="operNS:getDeployXmlLastModified" returnQName="retNS:getDeployXmlLastModifiedReturn" 
+   returnType="rtns:long" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:int"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="uploadTestXml" qname="operNS:uploadTestXml" 
+   returnQName="retNS:uploadTestXmlReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:base64TestXml" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="uploadDeployXml" qname="operNS:uploadDeployXml" 
+   returnQName="retNS:uploadDeployXmlReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:name" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:int"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:base64DeployXml" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="uploadQuestionJar" qname="operNS:uploadQuestionJar" 
+   returnQName="retNS:uploadQuestionJarReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:base64QuestionJar" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" name="deleteTestXmls" qname="operNS:deleteTestXmls" 
+   soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:int"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" name="deleteQuestionXml" 
+   qname="operNS:deleteQuestionXml" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="isOUCUAvailable" qname="operNS:isOUCUAvailable" 
+   returnQName="retNS:isOUCUAvailableReturn" returnType="rtns:boolean" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:oucu" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getQuestionsReleasesMetadata" 
+   qname="operNS:getQuestionsReleasesMetadata" returnQName="retNS:getQuestionsReleasesMetadataReturn" 
+   returnType="rtns:string" soapAction="">
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getQuestionReleaseMetadata" 
+   qname="operNS:getQuestionReleaseMetadata" returnQName="retNS:getQuestionReleaseMetadataReturn" 
+   returnType="rtns:string" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:packageName" type="tns:string"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getTestsReleasesMetadata" 
+   qname="operNS:getTestsReleasesMetadata" returnQName="retNS:getTestsReleasesMetadataReturn" 
+   returnType="rtns:string" soapAction="">
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getTestReleaseMetadata" 
+   qname="operNS:getTestReleaseMetadata" returnQName="retNS:getTestReleaseMetadataReturn" 
+   returnType="rtns:string" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:version" type="tns:int"/>
+  </operation>
+  <operation xmlns:operNS="http://axis.uned.tnavigator.om" xmlns:retNS="http://axis.uned.tnavigator.om" 
+   xmlns:rtns="http://www.w3.org/2001/XMLSchema" name="getTestReleaseVersions" 
+   qname="operNS:getTestReleaseVersions" returnQName="retNS:getTestReleaseVersionsReturn" 
+   returnType="rtns:string" soapAction="">
+   
+   <parameter xmlns:pns="http://axis.uned.tnavigator.om" xmlns:tns="http://www.w3.org/2001/XMLSchema" 
+    qname="pns:testName" type="tns:string"/>
+  </operation>
+  <parameter name="allowedMethods" 
+   value="getQuestionJarLastModified isOUCUAvailable existQuestionJar getTestReleaseMetadata uploadTestXml getQuestionsReleasesMetadata existQuestionXml getDeployXmlLastModified uploadQuestionJar deleteTestXmls getTestXmlLastModified getTestsReleasesMetadata getQuestionReleaseMetadata existTestXmls deleteQuestionXml uploadDeployXml getTestReleaseVersions"/>
+ </service>
+
+ <transport name="http">
+  <parameter name="qs:list" value="org.apache.axis.transport.http.QSListHandler"/>
+  <parameter name="qs:method" value="org.apache.axis.transport.http.QSMethodHandler"/>
+  <parameter name="qs:wsdl" value="org.apache.axis.transport.http.QSWSDLHandler"/>
+  <requestFlow>
+   <handler type="URLMapper"/>
+   <handler type="java:org.apache.axis.handlers.http.HTTPAuthHandler"/>
+  </requestFlow>
+ </transport>
+
+ <transport name="local">
+  <responseFlow>
+   <handler type="LocalResponder"/>
+  </responseFlow>
+ </transport>
+
+</deployment>

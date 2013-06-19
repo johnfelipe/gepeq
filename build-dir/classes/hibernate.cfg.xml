@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+                                         "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<!-- ©UNED -->
+<hibernate-configuration>
+ <session-factory>
+  <property name="hibernate.dialect">org.hibernate.dialect.PostgreSQLDialect</property>
+  <property name="hibernate.connection.driver_class">org.postgresql.Driver</property>
+  <property name="hibernate.connection.url">jdbc:postgresql://localhost:5432/gepeq</property>
+  <property name="hibernate.connection.username"></property>
+  <property name="hibernate.connection.password"></property>
+  <property name="show_sql">false</property>
+  <property name="hibernate.temp.use_jdbc_metadata_defaults">false</property>
+  <mapping class="es.uned.lsi.gepec.model.entities.User"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.UserType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Permission"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.PermissionType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.UserPermission"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.UserTypePermission"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Category"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.CategoryType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Visibility"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Resource"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Copyright"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Question"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.MultichoiceQuestion"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.TrueFalseQuestion"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.DragDropQuestion"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.OmXmlQuestion"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Answer"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.DragDropAnswer"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.QuestionResource"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Feedback"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.FeedbackType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Test"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Assessement"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.ScoreType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.NavLocation"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.RedoQuestionValue"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.SupportContact"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Evaluator"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.AddressType"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.ScoreUnit"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.Section"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.QuestionOrder"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.TestFeedback"/>
+  <mapping class="es.uned.lsi.gepec.model.entities.TestUser"/>
+ </session-factory>
+</hibernate-configuration>
