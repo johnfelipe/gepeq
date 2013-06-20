@@ -17,6 +17,8 @@
  */
 package es.uned.lsi.gepec.util;
 
+import java.io.Serializable;
+
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -39,7 +41,8 @@ public class HibernateUtil
 	 * within the same transaction.<br/><br/>
 	 * However be careful that it is only supported a commit per operation (and a rollback before commit).
 	 */
-	public static class Operation
+	@SuppressWarnings("serial")
+	public static class Operation implements Serializable
 	{
 		public Operation()
 		{

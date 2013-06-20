@@ -212,15 +212,15 @@
     <property name="encryption.symmetric-encryptor.tool" value="encryption"/> <!-- Directory where symmetric encryptor tool is located -->
     <property name="encryption.symmetric-encryptor.tool.name" value="symmetric-encryptor.jar"/> <!-- Symmetric encryptor tool jar file name -->
 	<property name="gepeq.encryption.enabled" value="false"/> <!-- Boolean flag to enable (true) or disable (false) encryption within OpenMark Authoring Tool configuration file -->
-	<property name="gepeq.encryption.generate-keypar" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Authoring Tool -->
+	<property name="gepeq.encryption.generate-keypair" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Authoring Tool -->
 	<property name="gepeq.encryption.output" value="build/encryption/gepeq"/> <!-- Output directory for OpenMark Authoring Tool encryption -->
     <property name="gepeq.encryption.public-key" value=""/> <!-- Directory where public key (needed to encrypt) for OpenMark Authoring Tool is located -->
     <property name="gepeq.encryption.public-key.name" value="public.key"/> <!-- Public key for OpenMark Authoring Tool file name -->
     <property name="gepeq.encryption.private-key" value=""/> <!-- Directory where private key (needed to decrypt) for OpenMark Authoring Tool is located -->
     <property name="gepeq.encryption.private-key.name" value="private.key"/> <!-- Private key for OpenMark Authoring Tool file name -->
 	<property name="om-tn.encryption.enabled" value="false"/> <!-- Boolean flag to enable (true) or disable (false) encryption within OpenMark Test Navigator for preview environment configuration file -->
-	<property name="om-tn.encryption.generate-keypar" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Test Navigator for preview environment -->
-	<property name="om-tn.encryption.use-gepeq-keypar" value="true"/> <!-- Boolean flag to use (true) or not (false) the OpenMark Authoring Tool key pair as the encryption key pair for OpenMark Test Navigator for preview environment -->
+	<property name="om-tn.encryption.generate-keypair" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Test Navigator for preview environment -->
+	<property name="om-tn.encryption.use-gepeq-keypair" value="true"/> <!-- Boolean flag to use (true) or not (false) the OpenMark Authoring Tool key pair as the encryption key pair for OpenMark Test Navigator for preview environment -->
 	<property name="om-tn.encryption.output" location="build/encryption/om-tn"/> <!-- Output directory for OpenMark Test Navigator for preview environment encryption -->
     <property name="om-tn.encryption.public-key" value=""/> <!-- Directory where public key (needed to encrypt) for OpenMark Navigator for preview environment is located -->
     <property name="om-tn.encryption.public-key.name" value="public.key"/> <!-- Public key for OpenMark Navigator for preview environment file name -->
@@ -230,8 +230,8 @@
     <property name="om-tn.encryption.generate-password.done" value="false"/> <!-- Boolean flag indicate that generarion of a new symmetric salted password for encryption of some web service operations arguments for OpenMark Test Navigator for preview environment have been done (true) or not (false) -->
 	<property name="om-tn.encryption.password" value=""/> <!-- Symmetric salted password to use for OpenMark Test Navigator for preview environment (if we don't generate a new one) -->
     <property name="om-tn-pro.encryption.enabled" value="false"/> <!-- Boolean flag to enable (true) or disable (false) encryption within OpenMark Test Navigator for publication environment configuration file -->
-    <property name="om-tn-pro.encryption.generate-keypar" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Test Navigator for publication environment -->
-    <property name="om-tn-pro.encryption.use-gepeq-keypar" value="true"/> <!-- Boolean flag to use (true) or not (false) the OpenMark Authoring Tool key pair as the encryption key pair for OpenMark Test Navigator for publication environment -->
+    <property name="om-tn-pro.encryption.generate-keypair" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Test Navigator for publication environment -->
+    <property name="om-tn-pro.encryption.use-gepeq-keypair" value="true"/> <!-- Boolean flag to use (true) or not (false) the OpenMark Authoring Tool key pair as the encryption key pair for OpenMark Test Navigator for publication environment -->
     <property name="om-tn-pro.encryption.output" location="build/encryption/om-tn-pro"/> <!-- Output directory for OpenMark Test Navigator for publication environment encryption -->
     <property name="om-tn-pro.encryption.public-key" value=""/> <!-- Directory where public key (needed to encrypt) for OpenMark Navigator for publication environment is located -->
     <property name="om-tn-pro.encryption.public-key.name" value="public.key"/> <!-- Public key for OpenMark Navigator for publication environment file name -->
@@ -649,7 +649,7 @@
                     </then>
                 </if>
                 <if>
-                    <equals arg1="${gepeq.encryption.generate-keypar}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
+                    <equals arg1="${gepeq.encryption.generate-keypair}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
                     <then>
                         <java jar="${encryption.asymmetric-encryptor.tool}/${encryption.asymmetric-encryptor.tool.name}" fork="true">
                           <arg value="savekeypair_enc_priv:${gepeq.encryption.output}"/>
@@ -1728,7 +1728,7 @@
                     </then>
                 </if>
                 <if>
-                    <equals arg1="${om-tn.encryption.generate-keypar}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
+                    <equals arg1="${om-tn.encryption.generate-keypair}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
                     <then>
                         <java jar="${encryption.asymmetric-encryptor.tool}/${encryption.asymmetric-encryptor.tool.name}" fork="true">
                           <arg value="savekeypair_enc_priv:${om-tn.encryption.output}"/>
@@ -1742,7 +1742,7 @@
                         <propertycopy name="om-tn.encryption.private-key.name" from="om-tn.encryption.private-key.name.constant" override="true"/>
                     </then>
                     <elseif>
-                        <equals arg1="${om-tn.encryption.use-gepeq-keypar}" arg2="true"/>
+                        <equals arg1="${om-tn.encryption.use-gepeq-keypair}" arg2="true"/>
                         <then>
                         	<!-- If needed we assign public and private key properties for om-tn to reference GEPEQ key pair -->
                             <propertycopy name="om-tn.encryption.public-key" from="gepeq.encryption.public-key" override="true"/>
@@ -2483,7 +2483,7 @@
                     </then>
                 </if>
                 <if>
-                    <equals arg1="${om-tn-pro.encryption.generate-keypar}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
+                    <equals arg1="${om-tn-pro.encryption.generate-keypair}" arg2="true"/> <!-- Check if we need to generate a new encryption key pair for GEPEQ -->
                     <then>
                         <java jar="${encryption.asymmetric-encryptor.tool}/${encryption.asymmetric-encryptor.tool.name}" fork="true">
                           <arg value="savekeypair_enc_priv:${om-tn-pro.encryption.output}"/>
@@ -2497,7 +2497,7 @@
                         <propertycopy name="om-tn-pro.encryption.private-key.name" from="om-tn-pro.encryption.private-key.name.constant" override="true"/>
                     </then>
                     <elseif>
-                        <equals arg1="${om-tn-pro.encryption.use-gepeq-keypar}" arg2="true"/>
+                        <equals arg1="${om-tn-pro.encryption.use-gepeq-keypair}" arg2="true"/>
                         <then>
                         	<!-- If needed we assign public and private key properties for om-tn-pro to reference GEPEQ key pair -->
                             <propertycopy name="om-tn-pro.encryption.public-key" from="gepeq.encryption.public-key" override="true"/>
