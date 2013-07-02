@@ -24,6 +24,7 @@
   <ui:define name="content">
     
     <h:outputScript library="javascript" name="form_utils.js" />
+    <h:outputScript library="javascript" name="user.js" />
 	<h:outputStylesheet library="css" name="user.css" />
 	
     <h:form id="userForm" onkeypress="preventEnterSubmit(event);">
@@ -60,8 +61,7 @@
                 <f:selectItem itemLabel="#{msgs.APPLICATION_GEPEQ}" itemValue="true" />
                 <f:selectItem itemLabel="#{msgs.APPLICATION_OM}" itemValue="false" />
               </p:selectOneMenu>
-              <h:outputText value="#{msgs.ROLE}" 
-                rendered="#{userBean.user.gepeqUser}" />
+              <h:outputText value="#{msgs.ROLE}" rendered="#{userBean.user.gepeqUser}" />
               <p:selectOneMenu id="userUserType" value="#{userBean.userTypeId}" style="width:310px;" 
                 styleClass="combo" rendered="#{userBean.user.gepeqUser}">                
                 
@@ -76,6 +76,41 @@
                 value="#{userBean.breakText(userBean.abbreviate(userBean.abbreviateWords(userBean.userTypeDescription,45),135),3)}" 
                 escape="false" rendered="#{userBean.user.gepeqUser}" />
             </h:panelGrid>
+            <h:panelGroup layout="block" styleClass="userGroupsAlignTop">
+              <h:panelGrid columns="2" cellpadding="0" styleClass="userGroupsTopGrid" 
+                columnClasses="columnUserGroupsLabel,userGroupsPanel">
+                
+                <h:panelGroup>
+                  <h:outputText value="#{msgs.USER_GROUPS}:" style="font-size:110%;font-weight:bold;" />
+                </h:panelGroup>
+                <h:panelGroup layout="block">
+                  <p:commandButton id="addUserGroupsButton" styleClass="button" value="#{msgs.ADD_USER_GROUPS}"
+                    image="ui-icon ui-icon-plus" actionListener="#{userBean.showAddUserGroups}" immediate="true"
+                    update="addUserGroupsDialog" />
+                </h:panelGroup>
+              </h:panelGrid>
+            </h:panelGroup>
+            <p:outputPanel id="userGroupsPanel">
+              <p:dataTable id="userGroupsTable" styleClass="userGroupsTable" rowStyleClass="dataRow" 
+                emptyMessage="#{msgs.NO_USER_GROUPS}" value="#{userBean.userGroups}" var="userGroup"
+                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                
+                <p:column styleClass="columnUserGroup" sortBy="#{userGroup}">
+                  <f:facet name="header">#{msgs.USER_GROUP}</f:facet>
+                  #{userGroup}
+                </p:column>
+                <p:column styleClass="columnDelete">
+                  <p:commandLink title="#{msgs.REMOVE_USER_GROUP}" actionListener="#{userBean.removeUserGroup}" 
+                    immediate="true" 
+                    update="userForm:addUserGroupButton userForm:userGroupsPanel userForm:generalMessages">
+                    
+                    <f:attribute name="userGroup" value="#{userGroup}" />
+                    <h:graphicImage styleClass="links" value="#{resource['images:delete.png']}" />
+                  </p:commandLink> 
+                </p:column>
+              </p:dataTable>
+            </p:outputPanel>
             <h:panelGrid columns="2" cellpadding="5" id="userPermissionAdvancedConfigurationPanel" 
               columnClasses="displayUserPermissionsLabel,displayUserPermissionsInput" 
               rendered="#{userBean.user.gepeqUser}">
@@ -185,6 +220,46 @@
         </p:tab>
       </p:wizard>
 	</h:form>
+	
+    <p:dialog widgetVar="addUserGroupsDialog" id="addUserGroupsDialog" styleClass="dialog" width="530" 
+      height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+      resizable="false" onShow="centerDialog('addUserGroupsDialog');">
+      
+      <h:form id="userGroupsDialogForm">
+        <p:growl id="userGroupsDialogMessages" showDetail="true" sticky="true" 
+          itemClass="#{userBean.userGroupsDialogDisplayed ? '' : 'invisible'}" />
+        <h:panelGroup layout="block" styleClass="rightAlignTopDialog">
+          <h:inputText id="userGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+            value="#{userBean.userGroup}" />
+          <p:commandButton id="addUserGroupButton" styleClass="button" value="#{msgs.ADD_USER_GROUP}" 
+            image="ui-icon ui-icon-plus" actionListener="#{userBean.addUserGroup}" 
+            process="@this userGroupsDialogForm:userGroup" 
+            update="userGroupsDialogForm:userGroupsPickerPanel userGroupsDialogForm:userGroupsDialogMessages" 
+            onstart="addUserGroupStart()" /> 
+        </h:panelGroup>
+        <h:inputHidden id="availableUserGroupsHidden" value="#{userBean.availableUserGroupsHidden}" />            
+        <h:inputHidden id="userGroupsToAddHidden" value="#{userBean.userGroupsToAddHidden}" />            
+        <p:panel id="userGroupsPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+          <p:pickList id="userGroupsPickList" styleClass="userGroupsPickList" 
+            value="#{userBean.userGroupsDualList}" var="userGroup" itemLabel="#{userGroup}" 
+            itemValue="#{userGroup}" iconOnly="true">
+            
+            <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+            <f:facet name="targetCaption">#{msgs.ADD_USER_GROUPS_HEADER}</f:facet>
+            <p:column>
+              #{userGroup}
+            </p:column>
+          </p:pickList>
+        </p:panel>
+        <h:panelGroup layout="block" styleClass="centerAlignBottom">
+          <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons"
+            actionListener="#{userBean.acceptAddUserGroups}" update="userForm:userGroupsTable" 
+            onstart="acceptAddUserGroupsStart();" />
+          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+            actionListener="#{userBean.cancelAddUserGroups}" onclick="addUserGroupsDialog.hide();" />
+        </h:panelGroup>
+      </h:form>
+    </p:dialog>
 	
     <p:dialog widgetVar="confirmCancelUserDialog" id="confirmCancelUserDialog" styleClass="dialog" 
       header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 

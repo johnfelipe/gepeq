@@ -57,6 +57,8 @@ public class QuestionReleasesService implements Serializable
 	private final static int QUESTION_RELEASE_METADATA_WARNING_DATE=6;
 	private final static int QUESTION_RELEASE_METADATA_ALL_USERS_ALLOWED=7;
 	
+	private final static String QUESTION_RELEASE_METADATA_USERGROUPS_SEPARATOR="@";
+	
 	@ManagedProperty(value="#{configurationService}")
 	private ConfigurationService configurationService;
 	@ManagedProperty(value="#{questionsService}")
@@ -290,6 +292,8 @@ public class QuestionReleasesService implements Serializable
 					Date warningDate=null;
 					Date deleteDate=null;
 					List<User> users=new ArrayList<User>();
+					List<String> userGroups=new ArrayList<String>();
+					boolean usersDone=false;
 					DateFormat dateFormat=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 					for (String questionReleaseMetadata:allQuestionReleaseMetadata.split(";",-1))
 					{
@@ -374,32 +378,47 @@ public class QuestionReleasesService implements Serializable
 								allUsersAllowed=Boolean.valueOf(questionReleaseMetadata).booleanValue();
 								break;
 							default:
-								if (!allUsersAllowed)
+								if (usersDone)
 								{
-									if (publisher!=null && questionReleaseMetadata.equals(publisher.getOucu()))
+									if (!allUsersAllowed && !userGroups.contains(questionReleaseMetadata))
 									{
-										if (!users.contains(publisher))
-										{
-											users.add(publisher);
-										}
+										userGroups.add(questionReleaseMetadata);
 									}
-									else
+								}
+								else
+								{
+									if (QUESTION_RELEASE_METADATA_USERGROUPS_SEPARATOR.equals(
+										questionReleaseMetadata))
 									{
-										User user=null;
-										for (User u:users)
+										usersDone=true;
+									}
+									else if (!allUsersAllowed)
+									{
+										if (publisher!=null && questionReleaseMetadata.equals(publisher.getOucu()))
 										{
-											if (questionReleaseMetadata.equals(u.getOucu()))
+											if (!users.contains(publisher))
 											{
-												user=u;
-												break;
+												users.add(publisher);
 											}
 										}
-										if (user==null)
+										else
 										{
-											user=usersService.getUserFromOucu(operation,questionReleaseMetadata);
-											if (user!=null)
+											User user=null;
+											for (User u:users)
 											{
-												users.add(user);
+												if (questionReleaseMetadata.equals(u.getOucu()))
+												{
+													user=u;
+													break;
+												}
+											}
+											if (user==null)
+											{
+												user=usersService.getUserFromOucu(operation,questionReleaseMetadata);
+												if (user!=null)
+												{
+													users.add(user);
+												}
 											}
 										}
 									}
@@ -417,7 +436,7 @@ public class QuestionReleasesService implements Serializable
 					if (question!=null)
 					{
 						questionRelease=new QuestionRelease(question,publisher,releaseDate,startDate,closeDate,
-							deleteDate,warningDate,allUsersAllowed,users);
+							deleteDate,warningDate,allUsersAllowed,users,userGroups);
 					}
 				}
 			}

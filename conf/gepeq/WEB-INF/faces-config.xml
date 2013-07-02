@@ -21,4 +21,3 @@
     <exception-handler-factory>es.uned.lsi.gepec.web.handlers.ExceptionHandlerFactory</exception-handler-factory>
   </factory>
 </faces-config>
-<!-- asdasdasdasd -->

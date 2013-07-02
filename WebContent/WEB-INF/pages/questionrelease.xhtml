@@ -24,6 +24,7 @@
     <ui:define name="content">
     
       <h:outputScript library="javascript" name="form_utils.js" />
+      <h:outputScript library="javascript" name="questionrelease.js" />
       <h:outputScript library="javascript" name="calendar_locales.js" />    
       <h:outputStylesheet library="css" name="questionrelease.css" />
       
@@ -114,6 +115,10 @@
                         </p:tooltip>
                       </h:panelGroup>
                       <h:panelGroup>
+                        <p:commandButton id="addUserGroupsButton" value="#{msgs.ADD_USER_GROUPS}"
+                          styleClass="button" style="margin-right:5px;" image="ui-icon ui-icon-plus" 
+                          actionListener="#{questionReleaseBean.showAddUserGroups}" immediate="true"
+                          update="addUserGroupsDialog" />
                         <p:commandButton id="addUsersButton" value="#{msgs.ADD_USERS}" styleClass="button" 
                           image="ui-icon ui-icon-plus" actionListener="#{questionReleaseBean.showAddUsers}" 
                           immediate="true" update="addUsersDialog" />
@@ -123,34 +128,50 @@
                   <p:outputPanel id="usersPanel">
                     <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
                       emptyMessage="#{msgs.NO_USERS}" 
-                      value="#{questionReleaseBean.questionRelease.users}" var="user"
+                      value="#{questionReleaseBean.questionUsersGroups}" var="userGroup"
                       paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
                       paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
                       
-                      <p:column styleClass="columnUser" sortBy="#{user.nick}">
-                        <f:facet name="header">#{msgs.USER_NICK}</f:facet>
-                        #{user.nick}
+                      <p:column styleClass="columnUser" sortBy="#{userGroup.nickShort}">
+                        <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
+                        <h:outputText id="userGroupNickShort" value="#{userGroup.nickShort}" />
+                        <p:tooltip for="userGroupNickShort" style="max-width:630px;" 
+                          rendered="#{userGroup.nickLong!=null}">
+                          
+                          #{userGroup.nickLong}
+                        </p:tooltip>
                       </p:column>
-                      <p:column styleClass="columnRole" sortBy="#{user.userType.type}">
+                      <p:column styleClass="columnGroup" sortBy="#{userGroup.groupShort}">
+                        <f:facet name="header">#{msgs.USER_GROUP_S}</f:facet>
+                        <h:outputText id="userGroupGroupShort" value="#{userGroup.groupShort}"/>
+                        <p:tooltip for="userGroupGroupShort" style="max-width:480px;" 
+                          rendered="#{userGroup.groupLong!=null}">
+                          
+                          #{userGroup.groupLong}
+                        </p:tooltip>
+                      </p:column>
+                      <p:column styleClass="columnRole" sortBy="#{userGroup.role}">
                         <f:facet name="header">#{msgs.USER_ROLE}</f:facet>
-                        <h:outputText id="userTypeDescription" value="#{user.userType.type}"/>
-                        <p:tooltip for="userTypeDescription" style="max-width:330px;">
-                          #{user.userType.description}
+                        <h:outputText id="userGroupRole" value="#{userGroup.role}"/>
+                        <p:tooltip for="userGroupRole" style="max-width:330px;" 
+                          rendered="#{userGroup.roleDescription!=null}">
+                          
+                          #{userGroup.roleDescription}
                         </p:tooltip>
                       </p:column>
                       <p:column styleClass="columnOmUser">
                         <h:graphicImage value="#{resource['images:om16.png']}" styleClass="graphics" 
-                          rendered="#{!user.gepeqUser}" />
+                          rendered="#{userGroup.testUser and !userGroup.gepeqUser}" />
                       </p:column>
                       <p:column styleClass="columnDelete">
-                        <p:commandLink actionListener="#{questionReleaseBean.removeUser}" immediate="true" 
-                          process="@this" update="questionReleaseForm:usersPanel">
+                        <p:commandLink actionListener="#{questionReleaseBean.removeUserGroup}" immediate="true" 
+                          update="questionReleaseForm:usersPanel" onclick="removeUserGroupTooltip.hide();">
                           
-                          <f:attribute name="user" value="#{user}" />
-                          <h:graphicImage id="removeUserImage" styleClass="links" 
+                          <f:attribute name="userGroup" value="#{userGroup}" />
+                          <h:graphicImage id="removeUserGroupImage" styleClass="links" 
                             value="#{resource['images:delete.png']}" />
-                          <p:tooltip for="removeUserImage">
-                            #{msgs.REMOVE_USER}
+                          <p:tooltip widgetVar="removeUserGroupTooltip" for="removeUserGroupImage">
+                            #{userGroup.testUser ? msgs.REMOVE_USER : msgs.REMOVE_USER_GROUP}
                           </p:tooltip>
                         </p:commandLink> 
                       </p:column>
@@ -288,6 +309,46 @@
           </p:tab>
         </p:wizard>
       </h:form>
+      
+      <p:dialog widgetVar="addUserGroupsDialog" id="addUserGroupsDialog" styleClass="dialog" width="530" 
+        height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+        resizable="false" onShow="centerDialog('addUserGroupsDialog');">
+        
+        <h:form id="userGroupsDialogForm">
+          <p:growl id="userGroupsDialogMessages" showDetail="true" sticky="true" 
+            itemClass="#{questionReleaseBean.userGroupsDialogDisplayed ? '' : 'invisible'}" />
+          <h:panelGroup layout="block" styleClass="rightAlignTop">
+            <h:inputText id="userGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+              value="#{questionReleaseBean.userGroup}" />
+            <p:commandButton id="addUserGroupButton" styleClass="button" value="#{msgs.ADD_USER_GROUP}" 
+              image="ui-icon ui-icon-plus" actionListener="#{questionReleaseBean.addUserGroup}" 
+              process="@this userGroupsDialogForm:userGroup" 
+              update="userGroupsDialogForm:userGroupsPickerPanel userGroupsDialogForm:userGroupsDialogMessages" 
+              onstart="addUserGroupStart()" /> 
+          </h:panelGroup>
+          <h:inputHidden id="availableUserGroupsHidden" value="#{questionReleaseBean.availableUserGroupsHidden}" />            
+          <h:inputHidden id="userGroupsToAddHidden" value="#{questionReleaseBean.userGroupsToAddHidden}" />            
+          <p:panel id="userGroupsPickerPanel" styleClass="dialogPanel" style="border-width:0px;">
+            <p:pickList id="userGroupsPickList" styleClass="userGroupsPickList" 
+              value="#{questionReleaseBean.userGroupsDualList}" var="userGroup" itemLabel="#{userGroup}" 
+              itemValue="#{userGroup}" iconOnly="true">
+              
+              <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+              <f:facet name="targetCaption">#{msgs.ADD_USER_GROUPS_HEADER}</f:facet>
+              <p:column>
+                #{userGroup}
+              </p:column>
+            </p:pickList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottomUserGroupsDialog">
+            <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionReleaseBean.acceptAddUserGroups}" update="questionReleaseForm:usersTable" 
+              onstart="acceptAddUserGroupsStart();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons"
+              actionListener="#{questionReleaseBean.cancelAddUserGroups}" onclick="addUserGroupsDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
       
       <p:dialog widgetVar="addUsersDialog" id="addUsersDialog" styleClass="dialog" width="740" height="390" 
         header="#{msgs.ADD_USERS}" modal="true" closable="true" draggable="false" resizable="false"

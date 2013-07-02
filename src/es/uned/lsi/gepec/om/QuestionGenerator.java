@@ -3354,7 +3354,7 @@ public class QuestionGenerator
 		Element access=doc.createElement("access");
 		root.appendChild(access);
 		
-		// Add users to access
+		// Add users and groups to access
 		Element users=doc.createElement("users");
 		if (questionRelease.isAllUsersAllowed())
 		{
@@ -3368,6 +3368,13 @@ public class QuestionGenerator
 				Text userId=doc.createTextNode(user.getOucu());
 				oucu.appendChild(userId);
 				users.appendChild(oucu);
+			}
+			for (String userGroup:questionRelease.getUserGroups())
+			{
+				Element authid=doc.createElement("authid");
+				Text groupId=doc.createTextNode(userGroup);
+				authid.appendChild(groupId);
+				users.appendChild(authid);
 			}
 		}
 		access.appendChild(users);

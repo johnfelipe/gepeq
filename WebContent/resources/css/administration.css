@@ -149,15 +149,15 @@
 	margin:5px;
 }
 
-.columnLogin {
+.columnUser {
 	width:135px;
 }
 
-.columnNick {
+.columnName {
     width:135px;
 }
 
-.columnName {
+.columnGroups {
     width:140px;
 }
 

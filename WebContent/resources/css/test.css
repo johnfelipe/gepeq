@@ -1,4 +1,8 @@
 /* ©UNED */
+.userGroupsPickList .ui-picklist-list, .adminGroupsPickList .ui-picklist-list {
+    width:215px;
+}
+
 .questionsPickList .ui-picklist-list, .usersPickList .ui-picklist-list, .adminsPickList .ui-picklist-list {
 	width:310px;
 }
@@ -1062,6 +1066,13 @@
     margin-bottom:-5px;
 }
 
+.centerAlignBottomUserGroupsDialog, .centerAlignBottomAdminGroupsDialog {
+    text-align:center;  
+    width:100%; 
+    margin-top:-10px;
+    margin-bottom:-5px;
+}
+
 .confirmButton {
 	font-size:80% !important;
 	margin-bottom:15px;
@@ -1228,11 +1239,15 @@
 }
 
 .columnUser {
-	width:210px;
+	width:175px;
+}
+
+.columnGroup {
+    width:175px;
 }
 
 .columnRole {
-	width:350px;
+	width:175px;
 }
 
 .columnOmUser {

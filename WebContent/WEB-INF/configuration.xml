@@ -29,16 +29,14 @@
   <!-- Proxy settings: Uncomment and set next options only if your web application is behind a proxy -->
   <!--
   <Proxy-URL></Proxy-URL>
-  <Proxy-Port></Proxy-Port>
+  <Proxy-Port>80</Proxy-Port>
   <Proxy-Username></Proxy-Username>
   <Proxy-Password></Proxy-Password>
-  <Non-Proxy-Hosts></Non-Proxy-Hosts>
+  <Non-Proxy-Hosts>localhost</Non-Proxy-Hosts>
   -->
   
   <!-- OpenMark Test Navigator web services encryption passwords: Uncomment and set next options only if 
        you configure OpenMark Test Navigator web services to use encryption for some arguments -->
-  <!--
-  <OmTnEncryptionPassword></OmTnEncryptionPassword>
-  <OmTnProEncryptionPassword></OmTnProEncryptionPassword>
-  -->
+  <!-- <OmTnEncryptionPassword></OmTnEncryptionPassword> -->
+  <!-- <OmTnProEncryptionPassword></OmTnProEncryptionPassword> -->
 </Configuration>

@@ -94,6 +94,8 @@ public class Test implements java.io.Serializable {
 	private List<SupportContact> supportContacts = new ArrayList<SupportContact>(0);
 	private List<Evaluator> evaluators = new ArrayList<Evaluator>(0);
 	private List<TestUser> testUsers = new ArrayList<TestUser>(0);
+	private String userGroups;
+	private String adminGroups;
 	
 	public Test() {
 		addSection(new Section());
@@ -578,6 +580,24 @@ public class Test implements java.io.Serializable {
 		this.testUsers = testUsers;
 	}
 
+	@Column(name = "usergroups")
+	public String getUserGroups() {
+		return this.userGroups;
+	}
+
+	public void setUserGroups(String userGroups) {
+		this.userGroups = userGroups;
+	}
+
+	@Column(name = "admingroups")
+	public String getAdminGroups() {
+		return this.adminGroups;
+	}
+
+	public void setAdminGroups(String adminGroups) {
+		this.adminGroups = adminGroups;
+	}
+
 	@Transient
 	public String getSignature()
 	{
@@ -641,6 +661,8 @@ public class Test implements java.io.Serializable {
 			setFeedbackScoresPrevious(otherTest.getFeedbackScoresPrevious());
 			setFeedbackAdvancedPrevious(otherTest.getFeedbackAdvancedPrevious());
 			setFeedbackAdvancedNext(otherTest.getFeedbackAdvancedNext());
+			setUserGroups(otherTest.getUserGroups());
+			setAdminGroups(otherTest.getAdminGroups());
 		}
 	}
 	

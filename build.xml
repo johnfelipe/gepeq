@@ -890,13 +890,31 @@
         <delete dir="${om-tn-pro.encryption.output}"/>
 	</target>
 	
-	<target description="Deletes directories used as output for deploying web applications" depends="save-keep" name="clean-webapps">
-		<delete dir="${gepeq-webapp.output}"/>
-		<delete dir="${om-webapp.output}"/>
+	<target description="Deletes directory used as output for deploying OpenMark Authoring Tool Web application (GEPEQ)" depends="save-keep" name="clean-gepeq-webapp">
+        <delete dir="${gepeq-webapp.output}"/>
+	</target>
+	
+    <target description="Deletes directory used as output for deploying OpenMark Develover Web application (om)" depends="save-keep" name="clean-om-webapp">
+        <delete dir="${om-webapp.output}"/>
+    </target>
+	
+    <target description="Deletes directory used as output for deploying OpenMark Question Engine Web application for preview environment (om-qe)" depends="save-keep" name="clean-om-qe-webapp">
         <delete dir="${om-qe-webapp.output}"/>
+    </target>
+	
+    <target description="Deletes directory used as output for deploying OpenMark Test Navigator Web application for preview environment (om-tn)" depends="save-keep" name="clean-om-tn-webapp">
         <delete dir="${om-tn-webapp.output}"/>
+    </target>
+	
+    <target description="Deletes directory used as output for deploying OpenMark Question Engine Web application for publication environment (om-qe-pro)" depends="save-keep" name="clean-om-qe-pro-webapp">
         <delete dir="${om-qe-pro-webapp.output}"/>
+    </target>
+    
+    <target description="Deletes directory used as output for deploying OpenMark Test Navigator Web application for publication environment (om-tn-pro)" depends="save-keep" name="clean-om-tn-pro-webapp">
         <delete dir="${om-tn-pro-webapp.output}"/>
+    </target>
+	
+	<target description="Deletes directories used as output for deploying web applications" depends="save-keep,clean-gepeq-webapp,clean-om-webapp,clean-om-qe-webapp,clean-om-tn-webapp,clean-om-qe-pro-webapp,clean-om-tn-pro-webapp" name="clean-webapps">
 	</target>
 	
 	<target description="Deletes directories used as temporary output for files from folders to keep" name="clean-keep">
@@ -1143,6 +1161,27 @@
             <include name="${primefaces.lib.patched.classes.include}"/>
     	</jar>
     </target>
+	
+	<target description="Only deploys jar files after building and packing" name="deploy-jars" depends="jar">
+		<!-- Only deploy jar files if output folder exists -->
+		<if>
+			<available file="${gepeq-webapp.output}/WEB-INF/lib" type="dir"/>
+			<then>
+				<!-- First delete old jar files -->
+				<delete>
+					<fileset dir="${gepeq-webapp.output}/WEB-INF/lib">
+						<include name="${gepeq.lib.name}"/>
+						<include name="${jsf.lib.patched.name}"/>
+						<include name="${primefaces.lib.patched.name}"/>
+					</fileset>
+				</delete>
+				<!-- Now copy the new jar files -->
+		        <copy todir="${gepeq-webapp.output}/WEB-INF/lib">
+		        	<fileset dir="${build.jars}"/>
+		        </copy>
+			</then>
+		</if>
+	</target>
 	
 	<target description="Deploys OpenMark Authoring Tool web application (GEPEQ)" name="gepeq-webapp" depends="jar">
         <!-- Create needed output folders for deploying OpenMark Authoring Tool web application (GEPEQ)-->

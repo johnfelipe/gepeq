@@ -38,6 +38,7 @@ import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HtmlUtils;
 import es.uned.lsi.gepec.util.StringUtils;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
+import es.uned.lsi.gepec.web.backbeans.UserGroupBean;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 import es.uned.lsi.gepec.web.services.PermissionsService;
 import es.uned.lsi.gepec.web.services.QuestionsService;
@@ -117,6 +118,10 @@ public class AdministrationBean implements Serializable
 	private Map<Long,Boolean> editUserTypesAllowed;
 	private Map<Long,Boolean> deleteUserTypesAllowed;
 	
+	private User lastUser;
+	private String lastUserGroupsShort;
+	private String lastUserGroupsLong;
+	
 	public AdministrationBean()
 	{
 		filterUserTypeId=0L;
@@ -149,6 +154,7 @@ public class AdministrationBean implements Serializable
 		deleteUsersAllowed=new HashMap<Long,Boolean>();
 		editUserTypesAllowed=new HashMap<Long,Boolean>();
 		deleteUserTypesAllowed=new HashMap<Long,Boolean>();
+		lastUser=null;
 	}
 	
 	public void setUserSessionService(UserSessionService userSessionService)
@@ -250,6 +256,7 @@ public class AdministrationBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
+			lastUser=null;
 			long filterUserTypeId=getFilterUserTypeId();
 			if (filterUserTypeId>0L)
 			{
@@ -1219,6 +1226,30 @@ public class AdministrationBean implements Serializable
 		setUsers(null);
     }
 	
+    public String getUserGroupsShort(User user)
+    {
+    	if (!user.equals(lastUser))
+    	{
+    		UserGroupBean ug=new UserGroupBean(user);
+    		lastUserGroupsShort=ug.getGroupShort();
+    		lastUserGroupsLong=ug.getGroupLong();
+    		lastUser=user;
+    	}
+    	return lastUserGroupsShort;
+    }
+    
+    public String getUserGroupsLong(User user)
+    {
+    	if (!user.equals(lastUser))
+    	{
+    		UserGroupBean ug=new UserGroupBean(user);
+    		lastUserGroupsShort=ug.getGroupShort();
+    		lastUserGroupsLong=ug.getGroupLong();
+    		lastUser=user;
+    	}
+    	return lastUserGroupsLong;
+    }
+    
 	/**
 	 * Adds a new user.
 	 * @return Next view

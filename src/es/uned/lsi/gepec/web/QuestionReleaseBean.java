@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.faces.FacesException;
 import javax.faces.application.FacesMessage;
@@ -52,7 +53,9 @@ import es.uned.lsi.gepec.model.entities.UserType;
 import es.uned.lsi.gepec.om.OmHelper;
 import es.uned.lsi.gepec.om.QuestionGenerator;
 import es.uned.lsi.gepec.om.TestGenerator;
+import es.uned.lsi.gepec.util.StringUtils;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
+import es.uned.lsi.gepec.web.backbeans.UserGroupBean;
 import es.uned.lsi.gepec.web.services.CategoriesService;
 import es.uned.lsi.gepec.web.services.ConfigurationService;
 import es.uned.lsi.gepec.web.services.LocalizationService;
@@ -117,7 +120,14 @@ public class QuestionReleaseBean implements Serializable
 	private List<UserType> userTypes;
 	private long filterUsersUserTypeId;
 	private boolean filterUsersIncludeOmUsers;
+	private List<UserGroupBean> questionUsersGroups;
 	private DualListModel<User> usersDualList;
+	private String userGroup;
+	private boolean userGroupsDialogDisplayed;
+	private String availableUserGroupsHidden;
+	private String userGroupsToAddHidden;
+	private DualListModel<String> userGroupsDualList;
+	
 	private boolean enabledCheckboxesSetters;
 	
 	public QuestionReleaseBean()
@@ -128,7 +138,13 @@ public class QuestionReleaseBean implements Serializable
 		userTypes=null;
 		filterUsersUserTypeId=0L;
 		filterUsersIncludeOmUsers=true;
+		questionUsersGroups=null;
 		usersDualList=null;
+		userGroup=null;
+		userGroupsDialogDisplayed=false;
+		availableUserGroupsHidden="";
+		userGroupsToAddHidden="";
+		userGroupsDualList=null;
 		enabledCheckboxesSetters=true;
 		activeQuestionReleaseTabName=GENERAL_WIZARD_TAB;
 		publishAllowed=true;
@@ -260,6 +276,17 @@ public class QuestionReleaseBean implements Serializable
     	    	setStartDateHidden(startDate==null?"":df.format(startDate));
     	    	setCloseDateHidden(closeDate==null?"":df.format(closeDate));
     	    	setWarningDateHidden(warningDate==null?"":df.format(warningDate));
+    	    	
+    	    	List<UserGroupBean> questionUserGroups=new ArrayList<UserGroupBean>();
+    	    	setQuestionUsersGroups(questionUserGroups);
+    	    	for (User questionUser:questionRelease.getUsers())
+    	    	{
+    	    		questionUserGroups.add(new UserGroupBean(questionUser));
+    	    	}
+    	    	for (String questionUserGroup:questionRelease.getUserGroups())
+    	    	{
+    	    		questionUserGroups.add(new UserGroupBean(usersService,userSessionService,questionUserGroup));
+    	    	}
     		}
 		}
 		return questionRelease;
@@ -668,6 +695,35 @@ public class QuestionReleaseBean implements Serializable
 		this.filterUsersIncludeOmUsers=filterUsersIncludeOmUsers;
 	}
 	
+	/**
+	 * @return Users and groups with permission to do this question
+	 */
+	public List<UserGroupBean> getQuestionUsersGroups()
+	{
+		return getQuestionUsersGroups(null);
+	}
+	
+	/**
+	 * @param questionUsersGroups Users and groups with permission to do this question
+	 */
+	public void setQuestionUsersGroups(List<UserGroupBean> questionUsersGroups)
+	{
+		this.questionUsersGroups=questionUsersGroups;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Users and groups with permission to do this question
+	 */
+	private List<UserGroupBean> getQuestionUsersGroups(Operation operation)
+	{
+    	if (questionUsersGroups==null)
+    	{
+    		getQuestionRelease(operation);
+    	}
+    	return questionUsersGroups;
+	}
+	
     /**
      * Flow listener to handle a step change within wizard component. 
      * @param event Flow event
@@ -771,6 +827,26 @@ public class QuestionReleaseBean implements Serializable
 		return ok;
     }
     
+	public String getUserGroup()
+	{
+		return userGroup;
+	}
+	
+	public void setUserGroup(String userGroup)
+	{
+		this.userGroup=userGroup;
+	}
+	
+	public boolean isUserGroupsDialogDisplayed()
+	{
+		return userGroupsDialogDisplayed;
+	}
+	
+	public void setUserGroupsDialogDisplayed(boolean userGroupsDialogDisplayed)
+	{
+		this.userGroupsDialogDisplayed=userGroupsDialogDisplayed;
+	}
+    
 	/**
 	 * @return Users without permission to do this question release (except if it is allowed that all users do the 
 	 * question release)
@@ -844,6 +920,149 @@ public class QuestionReleaseBean implements Serializable
 	}
 	
 	/**
+	 * @return Available groups within "Add groups" dialog as a string with the groups separated by commas
+	 */
+	public String getAvailableUserGroupsHidden()
+	{
+		return availableUserGroupsHidden;
+	}
+	
+	/**
+	 * @param availableUserGroupsHidden Available groups within "Add groups" dialog as a string with the groups 
+	 * separated by commas
+	 */
+	public void setAvailableUserGroupsHidden(String availableUserGroupsHidden)
+	{
+		this.availableUserGroupsHidden=availableUserGroupsHidden;
+	}
+    
+	/**
+	 * @return Groups selected to add within "Add groups" dialog as a string with the groups separated by commas
+	 */
+	public String getUserGroupsToAddHidden()
+	{
+		return userGroupsToAddHidden;
+	}
+	
+	/**
+	 * @param userGroupsToAddHidden Groups selected to add within "Add groups" dialog as a string with the groups 
+	 * separated by commas
+	 */
+	public void setUserGroupsToAddHidden(String userGroupsToAddHidden)
+	{
+		this.userGroupsToAddHidden=userGroupsToAddHidden;
+	}
+    
+	/**
+	 * @return User groups as dual list
+	 */
+	public DualListModel<String> getUserGroupsDualList()
+	{
+		return getUserGroupsDualList(null);
+	}
+	
+	/**
+	 * Set dual list for user groups.
+	 * @param userGroupsDualList User groups as dual list
+	 */
+	public void setUserGroupsDualList(DualListModel<String> userGroupsDualList)
+	{
+		this.userGroupsDualList=userGroupsDualList;
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return User groups as dual list
+	 */
+	private DualListModel<String> getUserGroupsDualList(Operation operation)
+	{
+		if (userGroupsDualList==null)
+		{
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			List<String> availableUserGroups=usersService.getGroups(operation);
+			for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+			{
+				if (!userGroup.isTestUser())
+				{
+					availableUserGroups.remove(userGroup.getGroup());
+				}
+			}
+			userGroupsDualList=new DualListModel<String>(availableUserGroups,new ArrayList<String>());
+		}
+		return userGroupsDualList;
+	}
+	
+	/**
+	 * Display a dialog to add groups to the user 
+     * @param event Action event
+	 */
+	public void showAddUserGroups(ActionEvent event)
+	{
+		setUserGroupsDualList(null);
+		setUserGroup("");
+		setUserGroupsDialogDisplayed(true);
+		
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addUserGroupsDialog.show()");
+	}
+	
+    /**
+     * Adds a user group.
+     * @param event Action event
+     */
+	public void addUserGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add groups" dialog
+		refreshUserGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddUserGroup(operation,true))
+		{
+			getUserGroupsDualList(operation).getTarget().add(getUserGroup());
+		}
+	}
+	
+    /**
+     * Add user groups selected within dialog
+     * @param event Action event
+     */
+    public void acceptAddUserGroups(ActionEvent event)
+    {
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add groups" dialog
+		refreshUserGroupsDualList(operation,event.getComponent());
+    	
+		// Add selected groups
+		List<UserGroupBean> questionUsersGroups=getQuestionUsersGroups(operation);
+   		for (String userGroup:getUserGroupsDualList(operation).getTarget())
+  		{
+  			questionUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
+   		}
+   		//Collections.sort(getUserGroups());
+   		
+   		setUserGroupsDialogDisplayed(false);
+   		
+		// Close dialog
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addUserGroupsDialog.hide()");
+    }
+    
+    /**
+     * @param event Action event
+     */
+    public void cancelAddUserGroups(ActionEvent event)
+    {
+    	setUserGroupsDialogDisplayed(false);
+    }
+	
+	/**
 	 * Display a dialog to add users allowed to do test. 
      * @param event Action event
 	 */
@@ -864,23 +1083,268 @@ public class QuestionReleaseBean implements Serializable
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
-   		for (User user:usersDualList.getTarget())
+		QuestionRelease questionRelease=getQuestionRelease(operation);
+		List<UserGroupBean> questionUserGroups=getQuestionUsersGroups(operation);
+   		for (User user:getUsersDualList(operation).getTarget())
   		{
-   			getQuestionRelease(operation).getUsers().add(user);
+   			questionRelease.getUsers().add(user);
+   			questionUserGroups.add(new UserGroupBean(user));
    		}
     }
 	
     /**
-     * ActionListener that deletes an user from list of users allowed to do test.
+     * ActionListener that deletes an user or group from list of users allowed to do test.
      * @param event Action event
      */
-    public void removeUser(ActionEvent event)
+    public void removeUserGroup(ActionEvent event)
     {
-		// We need to process some input fields
-		getQuestionRelease(getCurrentUserOperation(null)).getUsers().remove(
-			(User)event.getComponent().getAttributes().get("user"));
+    	// Get current user session operation
+    	Operation operation=getCurrentUserOperation(null);
+    	
+    	QuestionRelease questionRelease=getQuestionRelease(operation);
+    	UserGroupBean userGroup=(UserGroupBean)event.getComponent().getAttributes().get("userGroup");
+    	if (userGroup!=null)
+    	{
+    		if (userGroup.isTestUser())
+    		{
+    			questionRelease.getUsers().remove(userGroup.getUser());
+    		}
+    		else
+    		{
+    			questionRelease.getUserGroups().remove(userGroup.getGroup());
+    		}
+    		getQuestionUsersGroups(operation).remove(userGroup);
+    	}
 	}
 	
+	private void refreshUserGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden fields with user groups
+		if (processUserGroupsHiddens(component))
+		{
+			// Get current available user groups
+			List<String> availableUserGroups=new ArrayList<String>();
+			if (getAvailableUserGroupsHidden()!=null && !"".equals(getAvailableUserGroupsHidden()))
+			{
+				for (String availableUserGroup:getAvailableUserGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableUserGroups.add(availableUserGroup);
+				}
+			}
+			
+			// Get current user groups to add
+			List<String> userGroupsToAdd=new ArrayList<String>();
+			if (getUserGroupsToAddHidden()!=null && !"".equals(getUserGroupsToAddHidden()))
+			{
+				for (String userGroupToAdd:getUserGroupsToAddHidden().split(Pattern.quote(",")))
+				{
+					userGroupsToAdd.add(userGroupToAdd);
+				}
+			}
+			
+			// Refresh user groups dual list
+			DualListModel<String> userGroupsDualList=getUserGroupsDualList(getCurrentUserOperation(operation));
+			userGroupsDualList.setSource(availableUserGroups);
+			userGroupsDualList.setTarget(userGroupsToAdd);
+		}
+	}
+	
+	private boolean processUserGroupsHiddens(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableUserGroupsHiddenInput=
+			(UIInput)component.findComponent(":userGroupsDialogForm:availableUserGroupsHidden");
+		availableUserGroupsHiddenInput.processDecodes(context);
+		if (availableUserGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableUserGroupsHidden((String)availableUserGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput userGroupsToAddHiddenInput=
+			(UIInput)component.findComponent(":userGroupsDialogForm:userGroupsToAddHidden");
+		userGroupsToAddHiddenInput.processDecodes(context);
+		if (userGroupsToAddHiddenInput.getSubmittedValue()!=null)
+		{
+			setUserGroupsToAddHidden((String)userGroupsToAddHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
+	 * Checks that group entered by user only includes valid characters or displays an error message if desired.
+     * @param group Group
+	 * @param displayError true to display error message, false otherwise
+	 * @return true if group only includes valid characters (letters, digits), false otherwise
+	 */
+    private boolean checkValidCharactersForUserGroup(String group,boolean displayError)
+    {
+    	boolean ok=true;
+    	if (StringUtils.hasUnexpectedCharacters(group,true,true,false,null))
+    	{
+    		if (displayError)
+    		{
+    			addErrorMessage("INCORRECT_OPERATION","USER_GROUP_INVALID_CHARACTERS");
+    		}
+    		ok=false;
+    	}
+    	return ok;
+    }
+    
+    /**
+     * Check that first character of the group entered by user is a letter or displays an error message if
+     * desired.
+     * @param group Group
+	 * @param displayError true to display error message, false otherwise
+	 * @return true if first character of group is a letter, false otherwise
+     */
+    private boolean checkFirstCharacterLetterForUserGroup(String group,boolean displayError)
+    {
+    	boolean ok=true;
+    	if (!StringUtils.isFirstCharacterLetter(group))
+    	{
+    		if (displayError)
+    		{
+    			addErrorMessage("INCORRECT_OPERATION","USER_GROUP_FIRST_CHARACTER_INVALID");
+    		}
+    		ok=false;
+    	}
+    	return ok;
+    }
+	
+    /**
+     * Check that group entered by user is valid displays error messages indicating the causes if desired.
+     * @param group Group
+	 * @param displayErrors true to display error messages, false otherwise
+     * @return true if group entered by user is valid, false otherwise
+     */
+    private boolean checkUserGroup(String group,boolean displayErrors)
+    {
+    	boolean ok=true;
+    	if (group!=null && !"".equals(group))
+    	{
+        	if (displayErrors)
+        	{
+        		if (!checkValidCharactersForUserGroup(group,true))
+        		{
+        			ok=false;
+        		}
+        		if (!checkFirstCharacterLetterForUserGroup(group,true))
+        		{
+        			ok=false;
+        		}
+        	}
+        	else
+        	{
+        		ok=checkValidCharactersForUserGroup(group,false) && 
+        			checkFirstCharacterLetterForUserGroup(group,false);
+        	}
+    	}
+    	return ok;
+    }
+	
+	/**
+	 * @return true if button to add a user group is enabled, false if it is disabled
+	 */
+	public boolean isEnabledAddUserGroup()
+	{
+		return isEnabledAddUserGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(Operation operation)
+	{
+		return isEnabledAddUserGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(boolean displayErrors)
+	{
+		return isEnabledAddUserGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getUserGroup()==null || getUserGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getUserGroup(),true))
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+				{
+					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> userGroupsDualList=getUserGroupsDualList(operation);
+					if (userGroupsDualList.getSource().contains(getUserGroup()) || 
+						userGroupsDualList.getTarget().contains(getUserGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+					}
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getUserGroup()!=null && !getUserGroup().equals("") && checkUserGroup(getUserGroup(),false);
+			if (ok)
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+				{
+					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
+					{
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> userGroupsDualList=getUserGroupsDualList(operation);
+					if (userGroupsDualList.getSource().contains(getUserGroup()) || 
+						userGroupsDualList.getTarget().contains(getUserGroup()))
+					{
+						ok=false;
+					}
+				}
+			}
+		}
+		return ok;
+	}
+    
     /**
      * Reset start date.
      * @param event Action event
@@ -998,6 +1462,19 @@ public class QuestionReleaseBean implements Serializable
 					questionRelease.setStartDate(null);
 					questionRelease.setCloseDate(null);
 					questionRelease.setWarningDate(null);
+				}
+				questionRelease.getUsers().clear();
+				questionRelease.getUserGroups().clear();
+				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+				{
+					if (userGroup.isTestUser())
+					{
+						questionRelease.getUsers().add(userGroup.getUser());
+					}
+					else
+					{
+						questionRelease.getUserGroups().add(userGroup.getGroup());
+					}
 				}
 			}
 		}
@@ -1306,10 +1783,20 @@ public class QuestionReleaseBean implements Serializable
 	 */
 	private void addErrorMessage(String message)
 	{
-		lastErrorMessage=message;
+		addErrorMessage(message,null);
+	}
+	
+	/**
+	 * Displays an error message.
+	 * @param title Error title (before localization)
+	 * @param message Error message (before localization)
+	 */
+	private void addErrorMessage(String title,String message)
+	{
 		FacesContext context=FacesContext.getCurrentInstance();
-		context.addMessage(null,
-			new FacesMessage(FacesMessage.SEVERITY_ERROR,localizationService.getLocalizedMessage(message),null));
+		context.addMessage(null,new FacesMessage(FacesMessage.SEVERITY_ERROR,
+			localizationService.getLocalizedMessage(title),
+			message==null?null:localizationService.getLocalizedMessage(message)));
 	}
 	
 	/**

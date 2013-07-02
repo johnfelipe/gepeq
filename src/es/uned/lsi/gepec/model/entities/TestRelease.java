@@ -19,8 +19,10 @@ package es.uned.lsi.gepec.model.entities;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import es.uned.lsi.gepec.web.backbeans.EvaluatorBean;
 import es.uned.lsi.gepec.web.backbeans.SupportContactBean;
@@ -56,7 +58,9 @@ public class TestRelease implements Serializable
 	private RedoQuestionValue redoQuestion;
 	private boolean redoTest;
 	private List<User> users;
+	private List<String> userGroups;
 	private List<User> admins;
+	private List<String> adminGroups;
 	private List<SupportContactBean> supportContacts;
 	private List<EvaluatorBean> evaluators;
 	
@@ -72,27 +76,49 @@ public class TestRelease implements Serializable
 			test.getFeedbackDate(),test.getAssessement(),test.isAllUsersAllowed(),test.isAllowAdminReports(),
 			test.isFreeSummary(),test.isFreeStop(),test.isSummaryQuestions(),test.isSummaryScores(),
 			test.isSummaryAttempts(),test.isNavigation(),test.getNavLocation(),test.getRedoQuestion(),
-			test.isRedoTest(),new ArrayList<User>(0),new ArrayList<User>(0),new ArrayList<SupportContactBean>(0),
-			new ArrayList<EvaluatorBean>(0));
+			test.isRedoTest(),new ArrayList<User>(0),new ArrayList<String>(0),new ArrayList<User>(0),
+			new ArrayList<String>(0),new ArrayList<SupportContactBean>(0),new ArrayList<EvaluatorBean>(0));
 		for (TestUser testUser:test.getTestUsers())
 		{
 			User user=testUser.getUser();
 			if (testUser.isOmUser())
 			{
-				users.add(user);
+				getUsers().add(user);
 			}
 			if (testUser.isOmAdmin())
 			{
-				admins.add(user);
+				getAdmins().add(user);
 			}
+		}
+		if (test.getUserGroups()!=null && !"".equals(test.getUserGroups()))
+		{
+			for (String userGroup:test.getUserGroups().split(Pattern.quote(";")))
+			{
+				if (!getUserGroups().contains(userGroup))
+				{
+					getUserGroups().add(userGroup);
+				}
+			}
+			Collections.sort(getUserGroups());
+		}
+		if (test.getAdminGroups()!=null && !"".equals(test.getAdminGroups()))
+		{
+			for (String adminGroup:test.getAdminGroups().split(Pattern.quote(";")))
+			{
+				if (!getAdminGroups().contains(adminGroup))
+				{
+					getAdminGroups().add(adminGroup);
+				}
+			}
+			Collections.sort(getAdminGroups());
 		}
 		for (SupportContact supportContact:test.getSupportContacts())
 		{
-			supportContacts.add(new SupportContactBean(supportContact));
+			getSupportContacts().add(new SupportContactBean(supportContact));
 		}
 		for (Evaluator evaluator:test.getEvaluators())
 		{
-			evaluators.add(new EvaluatorBean(evaluator));
+			getEvaluators().add(new EvaluatorBean(evaluator));
 		}
 	}
 	
@@ -100,8 +126,9 @@ public class TestRelease implements Serializable
 		Date deleteDate,Date warningDate,Date feedbackDate,Assessement assessement,boolean allUsersAllowed,
 		boolean allowAdminReports,boolean freeSummary,boolean freeStop,boolean summaryQuestions,
 		boolean summaryScores,boolean summaryAttempts,boolean navigation,NavLocation navLocation,
-		RedoQuestionValue redoQuestion,boolean redoTest,List<User> users,List<User> admins,
-		List<SupportContactBean> supportContacts,List<EvaluatorBean> evaluators)
+		RedoQuestionValue redoQuestion,boolean redoTest,List<User> users,List<String> userGroups,
+		List<User> admins,List<String> adminGroups,List<SupportContactBean> supportContacts,
+		List<EvaluatorBean> evaluators)
 	{
 		this.test=test;
 		this.version=version;
@@ -125,7 +152,9 @@ public class TestRelease implements Serializable
 		this.redoQuestion=redoQuestion;
 		this.redoTest=redoTest;
 		this.users=users;
+		this.userGroups=userGroups;
 		this.admins=admins;
+		this.adminGroups=adminGroups;
 		this.supportContacts=supportContacts;
 		this.evaluators=evaluators;
 	}
@@ -350,6 +379,16 @@ public class TestRelease implements Serializable
 		this.users=users;
 	}
 	
+	public List<String> getUserGroups()
+	{
+		return userGroups;
+	}
+	
+	public void setUserGroups(List<String> userGroups)
+	{
+		this.userGroups=userGroups;
+	}
+	
 	public List<User> getAdmins()
 	{
 		return admins;
@@ -358,6 +397,16 @@ public class TestRelease implements Serializable
 	public void setAdmins(List<User> admins)
 	{
 		this.admins=admins;
+	}
+	
+	public List<String> getAdminGroups()
+	{
+		return adminGroups;
+	}
+	
+	public void setAdminGroups(List<String> adminGroups)
+	{
+		this.adminGroups=adminGroups;
 	}
 	
 	public List<SupportContactBean> getSupportContacts()

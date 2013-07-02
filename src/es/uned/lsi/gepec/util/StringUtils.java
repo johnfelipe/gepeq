@@ -280,6 +280,15 @@ public class StringUtils
 	
 	/**
 	 * @param str String
+	 * @return true if first character of string is a letter, false otherwise
+	 */
+	public static boolean isFirstCharacterLetter(String str)
+	{
+		return str!=null && !str.equals("") && Character.isLetter(str.charAt(0));
+	}
+	
+	/**
+	 * @param str String
 	 * @return true if first character of string is a digit, false otherwise
 	 */
 	public static boolean isFirstCharacterDigit(String str)
@@ -358,20 +367,23 @@ public class StringUtils
 						break;
 					}
 				}
-				if (otherExpectedCharacters!=null)
+				if (otherExpectedCharacters==null)
 				{
-					boolean foundOtherExpectedCharacter=false;
+					foundUnexpectedCharacter=true;
+					break;
+				}
+				else
+				{
 					for (char otherExpectedCharacter:otherExpectedCharacters)
 					{
 						if (c==otherExpectedCharacter)
 						{
-							foundOtherExpectedCharacter=true;
+							foundUnexpectedCharacter=true;
 							break;
 						}
 					}
-					if (!foundOtherExpectedCharacter)
+					if (foundUnexpectedCharacter)
 					{
-						foundUnexpectedCharacter=true;
 						break;
 					}
 				}

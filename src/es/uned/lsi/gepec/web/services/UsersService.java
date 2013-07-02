@@ -20,7 +20,9 @@ package es.uned.lsi.gepec.web.services;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.faces.bean.ApplicationScoped;
 import javax.faces.bean.ManagedBean;
@@ -967,6 +969,133 @@ public class UsersService implements Serializable
 			throw new ServiceException(de.getMessage(),de);
 		}
 		return userFound;
+	}
+	
+	/**
+	 * @param userId Filtering user identifier or 0 to get groups of all users
+	 * @return List of groups filtered optionally by user
+	 * @throws ServiceException
+	 */
+	public List<String> getGroups(long userId) throws ServiceException
+	{
+		return getGroups(null,userId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param userId Filtering user identifier or 0 to get groups of all users
+	 * @return List of groups filtered optionally by user
+	 * @throws ServiceException
+	 */
+	public List<String> getGroups(Operation operation,long userId) throws ServiceException
+	{
+		List<String> groups=new ArrayList<String>();
+		List<User> users=null;
+		if (userId>0L)
+		{
+			users=new ArrayList<User>();
+			try
+			{
+				USERS_DAO.setOperation(operation);
+				User user=USERS_DAO.getUser(userId,false);
+				if (user!=null)
+				{
+					users.add(user);
+				}
+			}
+			catch (DaoException de)
+			{
+				throw new ServiceException(de.getMessage(),de);
+			}
+		}
+		else
+		{
+			users=getUsers(operation,0L,true,false);
+		}
+		for (User user:users)
+		{
+			if (user.getGroups()!=null && !"".equals(user.getGroups()))
+			{
+				for (String userGroup:user.getGroups().split(Pattern.quote(";")))
+				{
+					if (!groups.contains(userGroup))
+					{
+						groups.add(userGroup);
+					}
+				}
+			}
+		}
+		Collections.sort(groups);
+		return groups;
+	}
+	
+	/**
+	 * @return List of groups
+	 * @throws ServiceException
+	 */
+	public List<String> getGroups() throws ServiceException
+	{
+		return getGroups(null,0L);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return List of groups
+	 * @throws ServiceException
+	 */
+	public List<String> getGroups(Operation operation) throws ServiceException
+	{
+		return getGroups(operation,0L);
+	}
+	
+	/**
+	 * @param group Filtering group
+	 * @return List of users filtered by group
+	 * @throws ServiceException
+	 */
+	public List<User> getUsersWithGroup(String group)
+	{
+		return getUsersWithGroup(null,group);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param group Filtering group (null to get users without groups)
+	 * @return List of users filtered by group
+	 * @throws ServiceException
+	 */
+	public List<User> getUsersWithGroup(Operation operation,String group)
+	{
+		List<User> usersWithGroup=new ArrayList<User>();
+		List<User> users=getUsers(operation,0L,true,false);
+		if (group==null)
+		{
+			for (User user:users)
+			{
+				if (user.getGroups()==null || "".equals(user.getGroups()))
+				{
+					usersWithGroup.add(user);
+				}
+			}
+		}
+		else
+		{
+			for (User user:users)
+			{
+				if (user.getGroups()!=null && !"".equals(user.getGroups()) && user.getGroups().contains(group))
+				{
+					for (String userGroup:user.getGroups().split(Pattern.quote(";")))
+					{
+						if (group.equals(userGroup))
+						{
+							usersWithGroup.add(user);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return usersWithGroup;
 	}
 	
 	/**

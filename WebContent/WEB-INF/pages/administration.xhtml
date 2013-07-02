@@ -83,17 +83,23 @@
             
             <p:column styleClass="columnLogin" sortBy="#{user.login}">
               <f:facet name="header">#{msgs.USER}</f:facet>
-              #{user.login}
-            </p:column>
-            <p:column styleClass="columnNick" sortBy="#{user.nick}">
-              <f:facet name="header">#{msgs.USER_NICK}</f:facet>
-              #{user.nick}
+              <h:outputText id="userLogin" value="#{user.login}"/>
+              <p:tooltip for="userLogin">
+                #{user.nick}
+              </p:tooltip>
             </p:column>
             <p:column styleClass="columnName" sortBy="#{user.name}">
               <f:facet name="header">#{msgs.USER_NAME}</f:facet>
               <h:outputText id="userName" value="#{user.name}" />
               <p:tooltip for="userName">
                 #{user.longName}
+              </p:tooltip>
+            </p:column>
+            <p:column styleClass="columnGroups" sortBy="#{administrationBean.getUserGroupsShort(user)}">
+              <f:facet name="header">#{msgs.USER_GROUPS}</f:facet>
+              <h:outputText id="userGroups" value="#{administrationBean.getUserGroupsShort(user)}" />
+              <p:tooltip for="userGroups" style="max-width:430px;" rendered="#{administrationBean.getUserGroupsLong(user)!=null}">
+                #{administrationBean.getUserGroupsLong(user)}
               </p:tooltip>
             </p:column>
             <p:column styleClass="columnRole" sortBy="#{user.userType.type}">

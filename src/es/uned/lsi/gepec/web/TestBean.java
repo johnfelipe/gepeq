@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
@@ -87,6 +88,7 @@ import es.uned.lsi.gepec.web.backbeans.SectionBean;
 import es.uned.lsi.gepec.web.backbeans.SupportContactBean;
 import es.uned.lsi.gepec.web.backbeans.TestFeedbackBean;
 import es.uned.lsi.gepec.web.backbeans.TestFeedbackConditionBean;
+import es.uned.lsi.gepec.web.backbeans.UserGroupBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 import es.uned.lsi.gepec.web.services.AddressTypesService;
 import es.uned.lsi.gepec.web.services.AssessementsService;
@@ -313,13 +315,22 @@ public class TestBean implements Serializable
 	private List<UserType> userTypes;
 	private long filterUsersUserTypeId;
 	private boolean filterUsersIncludeOmUsers;
-	private List<User> testUsers;
+	private List<UserGroupBean> testUsersGroups;
 	private DualListModel<User> usersDualList;
+	private String userGroup;
+	private boolean userGroupsDialogDisplayed;
+	private String availableUserGroupsHidden;
+	private String userGroupsToAddHidden;
+	private DualListModel<String> userGroupsDualList;
 	private long filterAdminsUserTypeId;
 	private boolean filterAdminsIncludeOmUsers;
-	private List<User> testAdmins;
+	private List<UserGroupBean> testAdminsGroups;
 	private DualListModel<User> adminsDualList;
-	
+	private String adminGroup;
+	private boolean adminGroupsDialogDisplayed;
+	private String availableAdminGroupsHidden;
+	private String adminGroupsToAddHidden;
+	private DualListModel<String> adminGroupsDualList;
 	private String supportContactFilterType;
 	private String supportContactFilterSubtype;
 	private List<String> supportContactFilterSubtypes;
@@ -449,12 +460,23 @@ public class TestBean implements Serializable
 		userTypes=null;
 		filterUsersUserTypeId=0L;
 		filterUsersIncludeOmUsers=true;
-		testUsers=null;
+		testUsersGroups=null;
 		usersDualList=null;
+		userGroup=null;
+		userGroupsDialogDisplayed=false;
+		availableUserGroupsHidden="";
+		userGroupsToAddHidden="";
+		userGroupsDualList=null;
 		filterAdminsUserTypeId=0L;
 		filterAdminsIncludeOmUsers=true;
-		testAdmins=null;
+		testAdminsGroups=null;
 		adminsDualList=null;
+		adminGroup=null;
+		adminGroupsDialogDisplayed=false;
+		availableAdminGroupsHidden="";
+		adminGroupsToAddHidden="";
+		adminGroupsDualList=null;
+		
 		activeTestTabName=GENERAL_WIZARD_TAB;
 		activeTestIndex=GENERAL_TABVIEW_TAB;
 		nextTestTabNameOnChangePropertyConfirm=null;
@@ -4673,23 +4695,55 @@ public class TestBean implements Serializable
     	setFeedbackAdvancedNext(test.getFeedbackAdvancedNext());
     	
     	// Users with permission to do/administrate this test
-    	List<User> testUsers=new ArrayList<User>();
-    	setTestUsers(testUsers);
-    	List<User> testAdmins=new ArrayList<User>();
-    	setTestAdmins(testAdmins);
+    	List<UserGroupBean> testUsersGroups=new ArrayList<UserGroupBean>();
+    	setTestUsersGroups(testUsersGroups);
+    	List<UserGroupBean> testAdminsGroups=new ArrayList<UserGroupBean>();
+    	setTestAdminsGroups(testAdminsGroups);
     	for (TestUser tu:test.getTestUsers())
     	{
     		if (tu.isOmUser())
     		{
     			User testUser=new User();
     			testUser.setFromOtherUser(tu.getUser());
-    			testUsers.add(testUser);
+    			testUsersGroups.add(new UserGroupBean(testUser));
     		}
     		if (tu.isOmAdmin())
     		{
     			User testAdmin=new User();
     			testAdmin.setFromOtherUser(tu.getUser());
-    			testAdmins.add(testAdmin);
+    			testAdminsGroups.add(new UserGroupBean(testAdmin));
+    		}
+    	}
+    	if (test.getUserGroups()!=null && !"".equals(test.getUserGroups()))
+    	{
+    		List<String> userGroups=new ArrayList<String>();
+    		for (String userGroup:test.getUserGroups().split(Pattern.quote(";")))
+    		{
+    			if (!userGroups.contains(userGroup))
+    			{
+    				userGroups.add(userGroup);
+    			}
+    		}
+    		Collections.sort(userGroups);
+    		for (String userGroup:userGroups)
+    		{
+    			testUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
+    		}
+    	}
+    	if (test.getAdminGroups()!=null && !"".equals(test.getAdminGroups()))
+    	{
+    		List<String> adminGroups=new ArrayList<String>();
+    		for (String adminGroup:test.getAdminGroups().split(Pattern.quote(";")))
+    		{
+    			if (!adminGroups.contains(adminGroup))
+    			{
+    				adminGroups.add(adminGroup);
+    			}
+    		}
+    		Collections.sort(adminGroups);
+    		for (String adminGroup:adminGroups)
+    		{
+    			testAdminsGroups.add(new UserGroupBean(usersService,userSessionService,adminGroup));
     		}
     	}
     	
@@ -4802,56 +4856,92 @@ public class TestBean implements Serializable
        	test.setFeedbackAdvancedPrevious(getFeedbackAdvancedPrevious(operation));
        	test.setFeedbackAdvancedNext(getFeedbackAdvancedNext(operation));
    		
-        // Users with permission to do/administrate this test
-        for (User testUser:getTestUsers(operation))
+        // Users and groups with permission to do/administrate this test
+       	StringBuffer sGroups=new StringBuffer();
+        for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
         {
-        	TestUser tu=null;
-        	TestUser testUserFromDB=testUsersService.getTestUser(operation,test,testUser);
-        	if (testUserFromDB==null)
+        	if (testUserGroup.isTestUser())
         	{
-        		tu=new TestUser(0L,test,testUser,true,false);
+        		User testUser=testUserGroup.getUser();
+            	TestUser tu=null;
+            	TestUser testUserFromDB=testUsersService.getTestUser(operation,test,testUser);
+            	if (testUserFromDB==null)
+            	{
+            		tu=new TestUser(0L,test,testUser,true,false);
+            	}
+            	else
+            	{
+            		tu=new TestUser();
+            		tu.setFromOtherTestUser(testUserFromDB);
+            		tu.setOmUser(true);
+            		tu.setOmAdmin(false);
+            	}
+            	test.getTestUsers().add(tu);
         	}
         	else
         	{
-        		tu=new TestUser();
-        		tu.setFromOtherTestUser(testUserFromDB);
-        		tu.setOmUser(true);
-        		tu.setOmAdmin(false);
+        		String userGroup=testUserGroup.getGroup();
+        		if (checkUserGroup(userGroup,false))
+        		{
+            		if (sGroups.length()>0)
+            		{
+            			sGroups.append(';');
+            		}
+            		sGroups.append(testUserGroup.getGroup());
+        		}
         	}
-        	test.getTestUsers().add(tu);
         }
-       	for (User testAdmin:getTestAdmins(operation))
+        test.setUserGroups(sGroups.toString());
+        sGroups.setLength(0);
+       	for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
        	{
-       		TestUser ta=null;
-       		for (TestUser tu:test.getTestUsers())
+       		if (testAdminGroup.isTestUser())
        		{
-       			if (testAdmin.equals(tu.getUser()))
-       			{
-       				ta=tu;
-       				break;
-       			}
-       		}
-       		if (ta==null)
-       		{
-          		TestUser testAdminFromDB=testUsersService.getTestUser(operation,test,testAdmin);
-           		if (testAdminFromDB==null)
+       			User testAdmin=testAdminGroup.getUser();
+           		TestUser ta=null;
+           		for (TestUser tu:test.getTestUsers())
            		{
-           			ta=new TestUser(0L,test,testAdmin,false,true);
+           			if (testAdmin.equals(tu.getUser()))
+           			{
+           				ta=tu;
+           				break;
+           			}
            		}
-           		else
+           		if (ta==null)
            		{
-           			ta=new TestUser();
-           			ta.setFromOtherTestUser(testAdminFromDB);
-           			ta.setOmUser(false);
+              		TestUser testAdminFromDB=testUsersService.getTestUser(operation,test,testAdmin);
+               		if (testAdminFromDB==null)
+               		{
+               			ta=new TestUser(0L,test,testAdmin,false,true);
+               		}
+               		else
+               		{
+               			ta=new TestUser();
+               			ta.setFromOtherTestUser(testAdminFromDB);
+               			ta.setOmUser(false);
+               			ta.setOmAdmin(true);
+               		}
+               		test.getTestUsers().add(ta);
+           		}
+          		else
+           		{
            			ta.setOmAdmin(true);
            		}
-           		test.getTestUsers().add(ta);
        		}
-      		else
+       		else
        		{
-       			ta.setOmAdmin(true);
+       			String adminGroup=testAdminGroup.getGroup();
+       			if (checkUserGroup(adminGroup,false))
+       			{
+           			if (sGroups.length()>0)
+           			{
+           				sGroups.append(';');
+           			}
+           			sGroups.append(adminGroup);
+       			}
        		}
        	}
+       	test.setAdminGroups(sGroups.toString());
     	
     	// Sections (note that it is important to initialize sections before feedbacks)
     	for (SectionBean section:getSections(operation))
@@ -5240,12 +5330,12 @@ public class TestBean implements Serializable
         	setFeedbackAdvancedNext("");
         	
            	// Users with permission to do this test
-        	setTestUsers(new ArrayList<User>());
+        	setTestUsersGroups(new ArrayList<UserGroupBean>());
         	
            	// Users with permission to administrate this test
-        	List<User> testAdmins=new ArrayList<User>();
-           	setTestAdmins(testAdmins);
-           	testAdmins.add(currentUser);
+        	List<UserGroupBean> testAdminsGroups=new ArrayList<UserGroupBean>();
+           	setTestAdminsGroups(testAdminsGroups);
+           	testAdminsGroups.add(new UserGroupBean(currentUser));
         	
         	// Sections (note that it is important to initialize sections before feedbacks)
            	List<SectionBean> sections=new ArrayList<SectionBean>();
@@ -6277,8 +6367,22 @@ public class TestBean implements Serializable
 			}
 			if (!isAllUsersAllowed(operation))
 			{
-				List<User> testUsers=getTestUsers(operation);
-				List<User> testAdmins=getTestAdmins(operation);
+				List<User> testUsers=new ArrayList<User>();
+				for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+				{
+					if (testUserGroup.isTestUser())
+					{
+						testUsers.add(testUserGroup.getUser());
+					}
+				}
+				List<User> testAdmins=new ArrayList<User>();
+				for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+				{
+					if (testAdminGroup.isTestUser())
+					{
+						testAdmins.add(testAdminGroup.getUser());
+					}
+				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
 				for (User user:filteredUsersForAddingSupportContactFilterUsers)
 				{
@@ -6337,8 +6441,22 @@ public class TestBean implements Serializable
 			
 			if (!isAllUsersAllowed(operation))
 			{
-				List<User> testUsers=getTestUsers(operation);
-				List<User> testAdmins=getTestAdmins(operation);
+				List<User> testUsers=new ArrayList<User>();
+				for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+				{
+					if (testUserGroup.isTestUser())
+					{
+						testUsers.add(testUserGroup.getUser());
+					}
+				}
+				List<User> testAdmins=new ArrayList<User>();
+				for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+				{
+					if (testAdminGroup.isTestUser())
+					{
+						testAdmins.add(testAdminGroup.getUser());
+					}
+				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
 				for (User user:filteredUsersForAddingEvaluatorFilterUsers)
 				{
@@ -6375,6 +6493,46 @@ public class TestBean implements Serializable
 		this.userTypes=userTypes;
 	}
 	
+	public String getUserGroup()
+	{
+		return userGroup;
+	}
+	
+	public void setUserGroup(String userGroup)
+	{
+		this.userGroup=userGroup;
+	}
+	
+	public boolean isUserGroupsDialogDisplayed()
+	{
+		return userGroupsDialogDisplayed;
+	}
+	
+	public void setUserGroupsDialogDisplayed(boolean userGroupsDialogDisplayed)
+	{
+		this.userGroupsDialogDisplayed=userGroupsDialogDisplayed;
+	}
+	
+	public String getAdminGroup()
+	{
+		return adminGroup;
+	}
+	
+	public void setAdminGroup(String adminGroup)
+	{
+		this.adminGroup=adminGroup;
+	}
+	
+	public boolean isAdminGroupsDialogDisplayed()
+	{
+		return adminGroupsDialogDisplayed;
+	}
+	
+	public void setAdminGroupsDialogDisplayed(boolean adminGroupsDialogDisplayed)
+	{
+		this.adminGroupsDialogDisplayed=adminGroupsDialogDisplayed;
+	}
+	
 	public long getFilterUsersUserTypeId()
 	{
 		return filterUsersUserTypeId;
@@ -6396,32 +6554,32 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * @return Users with permission to do this test
+	 * @return Users and groups with permission to do this test
 	 */
-	public List<User> getTestUsers()
+	public List<UserGroupBean> getTestUsersGroups()
 	{
-		return getTestUsers(null);
+		return getTestUsersGroups(null);
 	}
 	
 	/**
-	 * @param testUsers Users with permission to do this test
+	 * @param testUsers Users and groups with permission to do this test
 	 */
-	public void setTestUsers(List<User> testUsers)
+	public void setTestUsersGroups(List<UserGroupBean> testUsersGroups)
 	{
-		this.testUsers=testUsers;
+		this.testUsersGroups=testUsersGroups;
 	}
 	
 	/**
 	 * @param operation Operation
-	 * @return Users with permission to do this test
+	 * @return Users and groups with permission to do this test
 	 */
-	private List<User> getTestUsers(Operation operation)
+	private List<UserGroupBean> getTestUsersGroups(Operation operation)
 	{
     	if (!testInitialized)
     	{
     		initializeTest(operation);
     	}
-    	return testUsers;
+    	return testUsersGroups;
 	}
 	
 	/**
@@ -6443,7 +6601,14 @@ public class TestBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		List<User> testUsers=getTestUsers(operation);
+		List<User> testUsers=new ArrayList<User>();
+		for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+		{
+			if (testUserGroup.isTestUser())
+			{
+				testUsers.add(testUserGroup.getUser());
+			}
+		}
 		for (User user:getFilteredUsersForAddingUsers(operation))
 		{
 			if (!testUsers.contains(user))
@@ -6477,32 +6642,32 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * @return Users with permission to administrate this test
+	 * @return Users and groups with permission to administrate this test
 	 */
-	public List<User> getTestAdmins()
+	public List<UserGroupBean> getTestAdminsGroups()
 	{
-		return getTestAdmins(null);
+		return getTestAdminsGroups(null);
 	}
 	
 	/**
-	 * @param testAdmins Users with permission to administrate this test
+	 * @param testAdminsGroups Users and groups with permission to administrate this test
 	 */
-	public void setTestAdmins(List<User> testAdmins)
+	public void setTestAdminsGroups(List<UserGroupBean> testAdminsGroups)
 	{
-		this.testAdmins=testAdmins;
+		this.testAdminsGroups=testAdminsGroups;
 	}
 	
 	/**
 	 * @param operation Operation
-	 * @return Users with permission to administrate this test
+	 * @return Users and groups with permission to administrate this test
 	 */
-	private List<User> getTestAdmins(Operation operation)
+	private List<UserGroupBean> getTestAdminsGroups(Operation operation)
 	{
     	if (!testInitialized)
     	{
     		initializeTest(operation);
     	}
-    	return testAdmins;
+    	return testAdminsGroups;
 	}
 	
 	/**
@@ -6524,7 +6689,14 @@ public class TestBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		List<User> testAdmins=getTestAdmins(operation);
+		List<User> testAdmins=new ArrayList<User>();
+		for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+		{
+			if (testAdminGroup.isTestUser())
+			{
+				testAdmins.add(testAdminGroup.getUser());
+			}
+		}
 		for (User user:getFilteredUsersForAddingAdmins(operation))
 		{
 			if (!testAdmins.contains(user))
@@ -6750,7 +6922,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (String userId:getSupportContactFilterUsersIdsHidden().split(","))
+				for (String userId:getSupportContactFilterUsersIdsHidden().split(Pattern.quote(",")))
 				{
 					testSupportContactFilterUsers.add(usersService.getUser(operation,Long.parseLong(userId)));
 				}
@@ -6831,7 +7003,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation 
 				operation=getCurrentUserOperation(operation);
 				
-				for (String userId:getEvaluatorFilterUsersIdsHidden().split(","))
+				for (String userId:getEvaluatorFilterUsersIdsHidden().split(Pattern.quote(",")))
 				{
 					testEvaluatorFilterUsers.add(usersService.getUser(operation,Long.parseLong(userId)));
 				}
@@ -9098,13 +9270,165 @@ public class TestBean implements Serializable
 	}
 	
 	/**
+	 * @return Available groups within "Add groups" dialog (users) as a string with the groups separated 
+	 * by commas
+	 */
+	public String getAvailableUserGroupsHidden()
+	{
+		return availableUserGroupsHidden;
+	}
+	
+	/**
+	 * @param availableUserGroupsHidden Available groups within "Add groups" dialog (users) as a string 
+	 * with the groups separated by commas
+	 */
+	public void setAvailableUserGroupsHidden(String availableUserGroupsHidden)
+	{
+		this.availableUserGroupsHidden=availableUserGroupsHidden;
+	}
+    
+	/**
+	 * @return Groups selected to add within "Add groups" dialog (users) as a string with the groups separated 
+	 * by commas
+	 */
+	public String getUserGroupsToAddHidden()
+	{
+		return userGroupsToAddHidden;
+	}
+	
+	/**
+	 * @param userGroupsToAddHidden Groups selected to add within "Add groups" dialog (users) as a string 
+	 * with the groups separated by commas
+	 */
+	public void setUserGroupsToAddHidden(String userGroupsToAddHidden)
+	{
+		this.userGroupsToAddHidden=userGroupsToAddHidden;
+	}
+    
+	/**
+	 * @return User groups as dual list
+	 */
+	public DualListModel<String> getUserGroupsDualList()
+	{
+		return getUserGroupsDualList(null);
+	}
+	
+	/**
+	 * Set dual list for user groups.
+	 * @param userGroupsDualList User groups as dual list
+	 */
+	public void setUserGroupsDualList(DualListModel<String> userGroupsDualList)
+	{
+		this.userGroupsDualList=userGroupsDualList;
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return User groups as dual list
+	 */
+	private DualListModel<String> getUserGroupsDualList(Operation operation)
+	{
+		if (userGroupsDualList==null)
+		{
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			List<String> availableUserGroups=usersService.getGroups(operation);
+			for (UserGroupBean userGroup:getTestUsersGroups(operation))
+			{
+				if (!userGroup.isTestUser())
+				{
+					availableUserGroups.remove(userGroup.getGroup());
+				}
+			}
+			userGroupsDualList=new DualListModel<String>(availableUserGroups,new ArrayList<String>());
+		}
+		return userGroupsDualList;
+	}
+	
+	/**
+	 * Display a dialog to add groups to the user 
+     * @param event Action event
+	 */
+	public void showAddUserGroups(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// We need to process some input fields
+		processCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		
+		setUserGroupsDualList(null);
+		setUserGroup("");
+		setUserGroupsDialogDisplayed(true);
+		
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addUserGroupsDialog.show()");
+	}
+	
+    /**
+     * Adds a user group.
+     * @param event Action event
+     */
+	public void addUserGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add groups" dialog
+		refreshUserGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddUserGroup(operation,true))
+		{
+			getUserGroupsDualList(operation).getTarget().add(getUserGroup());
+		}
+	}
+	
+    /**
+     * Add user groups selected within dialog
+     * @param event Action event
+     */
+    public void acceptAddUserGroups(ActionEvent event)
+    {
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add groups" dialog
+		refreshUserGroupsDualList(operation,event.getComponent());
+    	
+		// Add selected groups
+		List<UserGroupBean> testUsersGroups=getTestUsersGroups(operation);
+   		for (String userGroup:getUserGroupsDualList(operation).getTarget())
+  		{
+  			testUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
+   		}
+   		//Collections.sort(getUserGroups());
+   		
+   		setUserGroupsDialogDisplayed(false);
+   		
+		// Close dialog
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addUserGroupsDialog.hide()");
+    }
+    
+    /**
+     * @param event Action event
+     */
+    public void cancelAddUserGroups(ActionEvent event)
+    {
+    	setUserGroupsDialogDisplayed(false);
+    }
+	
+	/**
 	 * Display a dialog to add users allowed to do test. 
      * @param event Action event
 	 */
 	public void showAddUsers(ActionEvent event)
 	{
-		usersDualList=null;
-   		
+   		setUsersDualList(null);
+		
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
@@ -9124,15 +9448,15 @@ public class TestBean implements Serializable
     {
    		for (User user:usersDualList.getTarget())
   		{
-   			testUsers.add(user);
+   			testUsersGroups.add(new UserGroupBean(user));
    		}
     }
 	
     /**
-     * ActionListener that deletes an user from list of users allowed to do test.
+     * ActionListener that deletes an user or group from list of users allowed to do test.
      * @param event Action event
      */
-    public void removeUser(ActionEvent event)
+    public void removeUserGroup(ActionEvent event)
     {
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
@@ -9141,9 +9465,389 @@ public class TestBean implements Serializable
 		processCommonDataInputFields(operation,event.getComponent());
 		processUsersTabCommonDataInputFields(operation,event.getComponent());
 		
-		testUsers.remove((User)event.getComponent().getAttributes().get("user"));
+		testUsersGroups.remove((UserGroupBean)event.getComponent().getAttributes().get("userGroup"));
 	}
     
+	private void refreshUserGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden fields with user groups
+		if (processUserGroupsHiddens(component))
+		{
+			// Get current available user groups
+			List<String> availableUserGroups=new ArrayList<String>();
+			if (getAvailableUserGroupsHidden()!=null && !"".equals(getAvailableUserGroupsHidden()))
+			{
+				for (String availableUserGroup:getAvailableUserGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableUserGroups.add(availableUserGroup);
+				}
+			}
+			
+			// Get current user groups to add
+			List<String> userGroupsToAdd=new ArrayList<String>();
+			if (getUserGroupsToAddHidden()!=null && !"".equals(getUserGroupsToAddHidden()))
+			{
+				for (String userGroupToAdd:getUserGroupsToAddHidden().split(Pattern.quote(",")))
+				{
+					userGroupsToAdd.add(userGroupToAdd);
+				}
+			}
+			
+			// Refresh user groups dual list
+			DualListModel<String> userGroupsDualList=getUserGroupsDualList(getCurrentUserOperation(operation));
+			userGroupsDualList.setSource(availableUserGroups);
+			userGroupsDualList.setTarget(userGroupsToAdd);
+		}
+	}
+	
+	private boolean processUserGroupsHiddens(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableUserGroupsHiddenInput=
+			(UIInput)component.findComponent(":userGroupsDialogForm:availableUserGroupsHidden");
+		availableUserGroupsHiddenInput.processDecodes(context);
+		if (availableUserGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableUserGroupsHidden((String)availableUserGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput userGroupsToAddHiddenInput=
+			(UIInput)component.findComponent(":userGroupsDialogForm:userGroupsToAddHidden");
+		userGroupsToAddHiddenInput.processDecodes(context);
+		if (userGroupsToAddHiddenInput.getSubmittedValue()!=null)
+		{
+			setUserGroupsToAddHidden((String)userGroupsToAddHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
+	 * Checks that group entered by user only includes valid characters or displays an error message if desired.
+     * @param group Group
+	 * @param displayError true to display error message, false otherwise
+	 * @return true if group only includes valid characters (letters, digits), false otherwise
+	 */
+    private boolean checkValidCharactersForUserGroup(String group,boolean displayError)
+    {
+    	boolean ok=true;
+    	if (StringUtils.hasUnexpectedCharacters(group,true,true,false,null))
+    	{
+    		if (displayError)
+    		{
+    			addErrorMessage("INCORRECT_OPERATION","USER_GROUP_INVALID_CHARACTERS");
+    		}
+    		ok=false;
+    	}
+    	return ok;
+    }
+    
+    /**
+     * Check that first character of the group entered by user is a letter or displays an error message if
+     * desired.
+     * @param group Group
+	 * @param displayError true to display error message, false otherwise
+	 * @return true if first character of group is a letter, false otherwise
+     */
+    private boolean checkFirstCharacterLetterForUserGroup(String group,boolean displayError)
+    {
+    	boolean ok=true;
+    	if (!StringUtils.isFirstCharacterLetter(group))
+    	{
+    		if (displayError)
+    		{
+    			addErrorMessage("INCORRECT_OPERATION","USER_GROUP_FIRST_CHARACTER_INVALID");
+    		}
+    		ok=false;
+    	}
+    	return ok;
+    }
+	
+    /**
+     * Check that group entered by user is valid displays error messages indicating the causes if desired.
+     * @param group Group
+	 * @param displayErrors true to display error messages, false otherwise
+     * @return true if group entered by user is valid, false otherwise
+     */
+    private boolean checkUserGroup(String group,boolean displayErrors)
+    {
+    	boolean ok=true;
+    	if (group!=null && !"".equals(group))
+    	{
+        	if (displayErrors)
+        	{
+        		if (!checkValidCharactersForUserGroup(group,true))
+        		{
+        			ok=false;
+        		}
+        		if (!checkFirstCharacterLetterForUserGroup(group,true))
+        		{
+        			ok=false;
+        		}
+        	}
+        	else
+        	{
+        		ok=checkValidCharactersForUserGroup(group,false) && 
+        			checkFirstCharacterLetterForUserGroup(group,false);
+        	}
+    	}
+    	return ok;
+    }
+	
+	/**
+	 * @return true if button to add a user group is enabled, false if it is disabled
+	 */
+	public boolean isEnabledAddUserGroup()
+	{
+		return isEnabledAddUserGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(Operation operation)
+	{
+		return isEnabledAddUserGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(boolean displayErrors)
+	{
+		return isEnabledAddUserGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if user group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddUserGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getUserGroup()==null || getUserGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getUserGroup(),true))
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				{
+					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> userGroupsDualList=getUserGroupsDualList(operation);
+					if (userGroupsDualList.getSource().contains(getUserGroup()) || 
+						userGroupsDualList.getTarget().contains(getUserGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+					}
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getUserGroup()!=null && !getUserGroup().equals("") && checkUserGroup(getUserGroup(),false);
+			if (ok)
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				{
+					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
+					{
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> userGroupsDualList=getUserGroupsDualList(operation);
+					if (userGroupsDualList.getSource().contains(getUserGroup()) || 
+						userGroupsDualList.getTarget().contains(getUserGroup()))
+					{
+						ok=false;
+					}
+				}
+			}
+		}
+		return ok;
+	}
+    
+	/**
+	 * @return Available Groups within "Add groups" dialog (administrators) as a string with the groups 
+	 * separated by commas
+	 */
+	public String getAvailableAdminGroupsHidden()
+	{
+		return availableAdminGroupsHidden;
+	}
+	
+	/**
+	 * @param availableAdminGroupsHidden Available groups within "Add groups" dialog (administrators) 
+	 * as a string with the groups separated by commas
+	 */
+	public void setAvailableAdminGroupsHidden(String availableAdminGroupsHidden)
+	{
+		this.availableAdminGroupsHidden=availableAdminGroupsHidden;
+	}
+    
+	/**
+	 * @return Groups selected to add within "Add groups" dialog (administrators) as a string with the groups 
+	 * separated by commas
+	 */
+	public String getAdminGroupsToAddHidden()
+	{
+		return adminGroupsToAddHidden;
+	}
+	
+	/**
+	 * @param adminGroupsToAddHidden Groups selected to add within "Add groups" dialog (administrators) 
+	 * as a string with the groups separated by commas
+	 */
+	public void setAdminGroupsToAddHidden(String adminGroupsToAddHidden)
+	{
+		this.adminGroupsToAddHidden=adminGroupsToAddHidden;
+	}
+    
+	/**
+	 * @return Administration groups as dual list
+	 */
+	public DualListModel<String> getAdminGroupsDualList()
+	{
+		return getAdminGroupsDualList(null);
+	}
+	
+	/**
+	 * Set dual list for administration groups.
+	 * @param adminGroupsDualList Administration groups as dual list
+	 */
+	public void setAdminGroupsDualList(DualListModel<String> adminGroupsDualList)
+	{
+		this.adminGroupsDualList=adminGroupsDualList;
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return Administration groups as dual list
+	 */
+	private DualListModel<String> getAdminGroupsDualList(Operation operation)
+	{
+		if (adminGroupsDualList==null)
+		{
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			List<String> availableAdminGroups=usersService.getGroups(operation);
+			for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+			{
+				if (!adminGroup.isTestUser())
+				{
+					availableAdminGroups.remove(adminGroup.getGroup());
+				}
+			}
+			adminGroupsDualList=new DualListModel<String>(availableAdminGroups,new ArrayList<String>());
+		}
+		return adminGroupsDualList;
+	}
+	
+	/**
+	 * Display a dialog to add administration groups 
+     * @param event Action event
+	 */
+	public void showAddAdminGroups(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// We need to process some input fields
+		processCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		
+		setAdminGroupsDualList(null);
+		setAdminGroup("");
+		setAdminGroupsDialogDisplayed(true);
+		
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addAdminGroupsDialog.show()");
+	}
+	
+    /**
+     * Adds an administration group.
+     * @param event Action event
+     */
+	public void addAdminGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of administration groups for "Add groups" dialog
+		refreshAdminGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddAdminGroup(operation,true))
+		{
+			getAdminGroupsDualList(operation).getTarget().add(getAdminGroup());
+		}
+	}
+	
+    /**
+     * Add administration groups selected within dialog
+     * @param event Action event
+     */
+    public void acceptAddAdminGroups(ActionEvent event)
+    {
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of administration groups for "Add groups" dialog
+		refreshAdminGroupsDualList(operation,event.getComponent());
+    	
+		// Add selected groups
+		List<UserGroupBean> testAdminsGroups=getTestAdminsGroups(operation);
+   		for (String adminGroup:getAdminGroupsDualList(operation).getTarget())
+  		{
+  			testAdminsGroups.add(new UserGroupBean(usersService,userSessionService,adminGroup));
+   		}
+   		//Collections.sort(getAdminGroups());
+   		
+   		setAdminGroupsDialogDisplayed(false);
+   		
+		// Close dialog
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("addAdminGroupsDialog.hide()");
+    }
+    
+    /**
+     * @param event Action event
+     */
+    public void cancelAddAdminGroups(ActionEvent event)
+    {
+    	setAdminGroupsDialogDisplayed(false);
+    }
+	
 	/**
 	 * Display a dialog to add administrators to test. 
      * @param event Action event
@@ -9171,15 +9875,15 @@ public class TestBean implements Serializable
     {
    		for (User admin:adminsDualList.getTarget())
   		{
-   			testAdmins.add(admin);
+   			testAdminsGroups.add(new UserGroupBean(admin));
    		}
     }
 	
     /**
-     * Deletes an administrator from test.
+     * Deletes an administrator or group from test.
      * @param event Action event
      */
-    public void removeAdmin(ActionEvent event)
+    public void removeAdminGroup(ActionEvent event)
     {
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
@@ -9188,7 +9892,163 @@ public class TestBean implements Serializable
 		processCommonDataInputFields(operation,event.getComponent());
 		processUsersTabCommonDataInputFields(operation,event.getComponent());
     	
-    	testAdmins.remove((User)event.getComponent().getAttributes().get("admin"));
+    	testAdminsGroups.remove((UserGroupBean)event.getComponent().getAttributes().get("adminGroup"));
+	}
+    
+	private void refreshAdminGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden fields with adminstration groups
+		if (processAdminGroupsHiddens(component))
+		{
+			// Get current available administration groups
+			List<String> availableAdminGroups=new ArrayList<String>();
+			if (getAvailableAdminGroupsHidden()!=null && !"".equals(getAvailableAdminGroupsHidden()))
+			{
+				for (String availableAdminGroup:getAvailableAdminGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableAdminGroups.add(availableAdminGroup);
+				}
+			}
+			
+			// Get current administration groups to add
+			List<String> adminGroupsToAdd=new ArrayList<String>();
+			if (getAdminGroupsToAddHidden()!=null && !"".equals(getAdminGroupsToAddHidden()))
+			{
+				for (String adminGroupToAdd:getAdminGroupsToAddHidden().split(Pattern.quote(",")))
+				{
+					adminGroupsToAdd.add(adminGroupToAdd);
+				}
+			}
+			
+			// Refresh administration groups dual list
+			DualListModel<String> adminGroupsDualList=getAdminGroupsDualList(getCurrentUserOperation(operation));
+			adminGroupsDualList.setSource(availableAdminGroups);
+			adminGroupsDualList.setTarget(adminGroupsToAdd);
+		}
+	}
+	
+	private boolean processAdminGroupsHiddens(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableAdminGroupsHiddenInput=
+			(UIInput)component.findComponent(":adminGroupsDialogForm:availableAdminGroupsHidden");
+		availableAdminGroupsHiddenInput.processDecodes(context);
+		if (availableAdminGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableAdminGroupsHidden((String)availableAdminGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput adminGroupsToAddHiddenInput=
+			(UIInput)component.findComponent(":adminGroupsDialogForm:adminGroupsToAddHidden");
+		adminGroupsToAddHiddenInput.processDecodes(context);
+		if (adminGroupsToAddHiddenInput.getSubmittedValue()!=null)
+		{
+			setAdminGroupsToAddHidden((String)adminGroupsToAddHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+    
+	/**
+	 * @return true if administration group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddAdminGroup()
+	{
+		return isEnabledAddAdminGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if administration group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddAdminGroup(Operation operation)
+	{
+		return isEnabledAddAdminGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if administration group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddAdminGroup(boolean displayErrors)
+	{
+		return isEnabledAddAdminGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true if administration group entered by user is valid, false otherwise
+	 */
+	public boolean isEnabledAddAdminGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getAdminGroup()==null || getAdminGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getAdminGroup(),true))
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				{
+					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> adminGroupsDualList=getAdminGroupsDualList(operation);
+					if (adminGroupsDualList.getSource().contains(getAdminGroup()) || 
+						adminGroupsDualList.getTarget().contains(getAdminGroup()))
+					{
+						addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+						ok=false;
+					}
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getAdminGroup()!=null && !getAdminGroup().equals("") && checkUserGroup(getAdminGroup(),false);
+			if (ok)
+			{
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(operation);
+				
+				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				{
+					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
+					{
+						ok=false;
+						break;
+					}
+				}
+				if (ok)
+				{
+					DualListModel<String> adminGroupsDualList=getAdminGroupsDualList(operation);
+					if (adminGroupsDualList.getSource().contains(getAdminGroup()) || 
+						adminGroupsDualList.getTarget().contains(getAdminGroup()))
+					{
+						ok=false;
+					}
+				}
+			}
+		}
+		return ok;
 	}
     
     /**

@@ -85,7 +85,9 @@ public class TestReleasesService implements Serializable
 	
 	private final static String TEST_RELEASES_ADDRESS_METADATA_SEPARATOR=":";
 	private final static String TEST_RELEASES_ADDRESS_MAILS_SEPARATOR=",";
+	private final static String TEST_RELEASE_METADATA_USERGROUPS_SEPARATOR="@";
 	private final static String TEST_RELEASE_METADATA_ADMINS_SEPARATOR="@";
+	private final static String TEST_RELEASE_METADATA_ADMINGROUPS_SEPARATOR="@";
 	
 	@ManagedProperty(value="#{configurationService}")
 	private ConfigurationService configurationService;
@@ -495,8 +497,12 @@ public class TestReleasesService implements Serializable
 					List<SupportContactBean> supportContacts=new ArrayList<SupportContactBean>();
 					List<EvaluatorBean> evaluators=new ArrayList<EvaluatorBean>();
 					List<User> users=new ArrayList<User>();
+					List<String> userGroups=new ArrayList<String>();
 					List<User> admins=new ArrayList<User>();
+					List<String> adminGroups=new ArrayList<String>();
 					boolean usersDone=false;
+					boolean userGroupsDone=false;
+					boolean adminsDone=false;
 					DateFormat dateFormat=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 					for (String testReleaseMetadata:allTestReleaseMetadata.split(";",-1))
 					{
@@ -897,48 +903,79 @@ public class TestReleasesService implements Serializable
 							default:
 								if (usersDone)
 								{
-									if (publisher!=null && testReleaseMetadata.equals(publisher.getOucu()))
+									if (userGroupsDone)
 									{
-										if (!admins.contains(publisher))
+										if (adminsDone)
 										{
-											admins.add(publisher);
+											if (!adminGroups.contains(testReleaseMetadata))
+											{
+												adminGroups.add(testReleaseMetadata);
+											}
+										}
+										else
+										{
+											if (TEST_RELEASE_METADATA_ADMINGROUPS_SEPARATOR.equals(
+												testReleaseMetadata))
+											{
+												adminsDone=true;
+											}
+											else if (publisher!=null &&
+												testReleaseMetadata.equals(publisher.getOucu()))
+											{
+												if (!admins.contains(publisher))
+												{
+													admins.add(publisher);
+												}
+											}
+											else
+											{
+												User admin=null;
+												for (User a:admins)
+												{
+													if (testReleaseMetadata.equals(a.getOucu()))
+													{
+														admin=a;
+														break;
+													}
+												}
+												if (admin==null)
+												{
+													for (User u:users)
+													{
+														if (testReleaseMetadata.equals(u.getOucu()))
+														{
+															admin=u;
+															break;
+														}
+													}
+													if (admin==null)
+													{
+														admin=usersService.getUserFromOucu(
+															operation,testReleaseMetadata);
+													}
+													if (admin!=null)
+													{
+														admins.add(admin);
+													}
+												}
+											}
 										}
 									}
 									else
 									{
-										User admin=null;
-										for (User a:admins)
+										if (TEST_RELEASE_METADATA_ADMINS_SEPARATOR.equals(testReleaseMetadata))
 										{
-											if (testReleaseMetadata.equals(a.getOucu()))
-											{
-												admin=a;
-												break;
-											}
+											userGroupsDone=true;
 										}
-										if (admin==null)
+										else if (!allUsersAllowed && !userGroups.contains(testReleaseMetadata))
 										{
-											for (User u:users)
-											{
-												if (testReleaseMetadata.equals(u.getOucu()))
-												{
-													admin=u;
-													break;
-												}
-											}
-											if (admin==null)
-											{
-												admin=usersService.getUserFromOucu(operation,testReleaseMetadata);
-											}
-											if (admin!=null)
-											{
-												admins.add(admin);
-											}
+											userGroups.add(testReleaseMetadata);
 										}
 									}
 								}
 								else
 								{
-									if (TEST_RELEASE_METADATA_ADMINS_SEPARATOR.equals(testReleaseMetadata))
+									if (TEST_RELEASE_METADATA_USERGROUPS_SEPARATOR.equals(testReleaseMetadata))
 									{
 										usersDone=true;
 									}
@@ -988,7 +1025,8 @@ public class TestReleasesService implements Serializable
 						testRelease=new TestRelease(test,version,publisher,releaseDate,startDate,closeDate,
 							deleteDate,warningDate,feedbackDate,assessement,allUsersAllowed,allowAdminReports,
 							freeSummary,freeStop,summaryQuestions,summaryScores,summaryAttempts,navigation,
-							navLocation,redoQuestion,redoTest,users,admins,supportContacts,evaluators);
+							navLocation,redoQuestion,redoTest,users,userGroups,admins,adminGroups,
+							supportContacts,evaluators);
 					}
 				}
 			}

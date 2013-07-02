@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ©UNED -->
+<Themes>
+  <Theme default="true">
+    <Name>aristo</Name>
+    <DisplayName>Aristo</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>blitzer</Name>
+    <DisplayName>Blitzer</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>bluesky</Name>
+    <DisplayName>Bluesky</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>casablanca</Name>
+    <DisplayName>Casablanca</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>cupertino</Name>
+    <DisplayName>Cupertino</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>eggplant</Name>
+    <DisplayName>Eggplant</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>excite-bike</Name>
+    <DisplayName>Excite-Bike</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>flick</Name>
+    <DisplayName>Flick</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>glass-x</Name>
+    <DisplayName>Glass-X</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>hot-sneaks</Name>
+    <DisplayName>Hot-Sneaks</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>overcast</Name>
+    <DisplayName>Overcast</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>pepper-grinder</Name>
+    <DisplayName>Pepper-Grinder</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>south-street</Name>
+    <DisplayName>South-Street</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>sunny</Name>
+    <DisplayName>Sunny</DisplayName>
+  </Theme>
+  <Theme>
+    <Name>ui-lightness</Name>
+    <DisplayName>UI-Lightness</DisplayName>
+  </Theme>
+</Themes>

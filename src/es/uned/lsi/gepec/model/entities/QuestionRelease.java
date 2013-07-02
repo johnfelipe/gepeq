@@ -37,20 +37,22 @@ public class QuestionRelease implements Serializable
 	private Date warningDate;
 	private Date deleteDate;
 	private List<User> users;
+	private List<String> userGroups;
 	
 	public QuestionRelease(Question question,User publisher)
 	{
-		this(question,publisher,null,null,null,null,null,true,new ArrayList<User>(0));
+		this(question,publisher,null,null,null,null,null,true,new ArrayList<User>(0),new ArrayList<String>(0));
 	}
 	
 	public QuestionRelease(Question question,User publisher,Date releaseDate,Date startDate,Date closeDate,
 		Date deleteDate)
 	{
-		this(question,publisher,releaseDate,startDate,closeDate,deleteDate,null,true,new ArrayList<User>(0));
+		this(question,publisher,releaseDate,startDate,closeDate,deleteDate,null,true,new ArrayList<User>(0),
+			new ArrayList<String>(0));
 	}
 	
 	public QuestionRelease(Question question,User publisher,Date releaseDate,Date startDate,Date closeDate,
-		Date deleteDate,Date warningDate,boolean allUsersAllowed,List<User> users)
+		Date deleteDate,Date warningDate,boolean allUsersAllowed,List<User> users,List<String> userGroups)
 	{
 		this.question=question;
 		this.publisher=publisher;
@@ -61,6 +63,7 @@ public class QuestionRelease implements Serializable
 		this.warningDate=warningDate;
 		this.allUsersAllowed=allUsersAllowed;
 		this.users=users;
+		this.userGroups=userGroups;
 	}
 	
 	public Question getQuestion()
@@ -151,6 +154,16 @@ public class QuestionRelease implements Serializable
 	public void setUsers(List<User> users)
 	{
 		this.users=users;
+	}
+	
+	public List<String> getUserGroups()
+	{
+		return userGroups;
+	}
+	
+	public void setUserGroups(List<String> userGroups)
+	{
+		this.userGroups=userGroups;
 	}
 	
 	@Override

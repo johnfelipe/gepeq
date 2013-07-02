@@ -1,4 +1,8 @@
 /* ©UNED */
+.userGroupsPickList .ui-picklist-list {
+    width:215px;
+}
+
 .ui-wizard-content {
 	font-size:90%;
 }
@@ -33,6 +37,11 @@
     font-size:90% !important;
 }
 
+.dialogPanel {
+    vertical-align:middle; 
+    margin-bottom:5px;
+}
+
 .panelTab {
 	width:99%;	
 }
@@ -56,6 +65,26 @@
     padding-bottom:12px;
 }
 
+.userGroupsLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.userGroupsText {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:420px;
+}
+
+.userGroupsAddGroups {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+}
+
 .displayUserPermissionsLabel {
     vertical-align:middle;
     padding-top:8px;
@@ -74,17 +103,73 @@
     width:100%; 
 }
 
+.rightAlignTop {
+    text-align:right;
+    width:100%; 
+    margin-top:-5px;
+    margin-bottom:5px;
+}
+
+.rightAlignTopDialog {
+    text-align:right;
+    width:100%;
+    margin-top:5px;
+    margin-bottom:-5px;
+}
+
+.centerAlignBottom {
+    text-align:center;  
+    width:100%; 
+    margin-top:-10px;
+    margin-bottom:-5px;
+}
+
 .confirmButtons {
     margin:10px;
     font-size:85% !important;
+}
+
+.button {
+    font-size:85% !important;
+}
+
+.addUserGroupButton {
+    font-size:85% !important;
+	margin-right:20px;
 }
 
 .ui-messages-error {
 	font-size:90% !important;
 }
 
-/* Permissions table */
-.permissionsTable {
+.ui-growl-message {
+    font-size:90% !important;
+}
+
+.userGroupsAlignTop {
+    width:100%;
+    margin-top:0px; 
+    margin-bottom:5px;
+}
+
+.userGroupsTopGrid {
+    width:100%;
+}
+
+.columnUserGroupsLabel {
+    vertical-align:middle;
+    padding-top:8px;
+    padding-bottom:12px;
+    width:160px;
+}
+
+.userGroupsPanel {
+    float:right;
+}
+
+/* Tables */
+/* ------ */
+.userGroupsTable, .permissionsTable {
     width:100%;
     font-size:90% !important;
 }
@@ -95,6 +180,15 @@
 .dataRow {
     padding:5px;
     margin:5px;
+}
+
+th .columnUserGroup {
+	width:680px;
+	text-align:center;
+}
+
+.dataRow td .columnUserGroup {
+    text-align:left;
 }
 
 .columnPermission {
@@ -120,6 +214,11 @@
 .columnEdit {
     width:20px;
 	text-align:center;
+}
+
+.columnDelete {
+    width:20px;
+    text-align:center;
 }
 
 .columnReset {

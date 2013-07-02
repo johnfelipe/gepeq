@@ -1,4 +1,8 @@
 /* ©UNED */
+.userGroupsPickList .ui-picklist-list {
+    width:215px;
+}
+
 .usersPickList .ui-picklist-list {
     width:310px;
 }
@@ -26,6 +30,10 @@
 
 .ui-messages-error {
     font-size:95% !important;
+}
+
+.ui-growl-message {
+    font-size:90% !important;
 }
 
 .panelTab {
@@ -332,10 +340,24 @@
 	margin-bottom:10px;
 }
 
+.rightAlignTop {
+    text-align:right;
+    width:100%;
+    margin-top:5px;
+    margin-bottom:-5px;
+}
+
 .centerAlignBottom {
     text-align:center;  
     width:100%; 
     margin-top:5px;
+    margin-bottom:-5px;
+}
+
+.centerAlignBottomUserGroupsDialog {
+    text-align:center;  
+    width:100%; 
+    margin-top:-10px;
     margin-bottom:-5px;
 }
 
@@ -396,11 +418,15 @@
 }
 
 .columnUser {
-    width:220px;
+    width:175px;
+}
+
+.columnGroup {
+    width:175px;
 }
 
 .columnRole {
-    width:220px;
+    width:175px;
 }
 
 .columnOmUser {

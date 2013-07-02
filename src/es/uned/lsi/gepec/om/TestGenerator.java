@@ -884,7 +884,7 @@ public class TestGenerator
 		Element access=doc.createElement("access");
 		root.appendChild(access);
 		
-		// Add users to access
+		// Add users and groups to access
 		Element users=doc.createElement("users");
 		if (testRelease.isAllUsersAllowed())
 		{
@@ -899,10 +899,17 @@ public class TestGenerator
 				oucu.appendChild(userId);
 				users.appendChild(oucu);
 			}
+			for (String userGroup:testRelease.getUserGroups())
+			{
+				Element authid=doc.createElement("authid");
+				Text groupId=doc.createTextNode(userGroup);
+				authid.appendChild(groupId);
+				users.appendChild(authid);
+			}
 		}
 		access.appendChild(users);
 		
-		// Add admins to access
+		// Add admins and groups to access
 		Element admins=doc.createElement("admins");
 		if (testRelease.isAllowAdminReports())
 		{
@@ -914,6 +921,14 @@ public class TestGenerator
 				oucu.appendChild(adminId);
 				admins.appendChild(oucu);
 			}
+			for (String adminGroup:testRelease.getAdminGroups())
+			{
+				Element authid=doc.createElement("authid");
+				authid.setAttribute("reports","yes");
+				Text groupId=doc.createTextNode(adminGroup);
+				authid.appendChild(groupId);
+				admins.appendChild(authid);
+			}
 		}
 		else
 		{
@@ -923,6 +938,13 @@ public class TestGenerator
 				Text adminId=doc.createTextNode(admin.getOucu());
 				oucu.appendChild(adminId);
 				admins.appendChild(oucu);
+			}
+			for (String adminGroup:testRelease.getAdminGroups())
+			{
+				Element authid=doc.createElement("authid");
+				Text groupId=doc.createTextNode(adminGroup);
+				authid.appendChild(groupId);
+				admins.appendChild(authid);
 			}
 		}
 		access.appendChild(admins);

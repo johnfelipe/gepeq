@@ -29,7 +29,7 @@
   <!-- Proxy settings: Uncomment and set next options only if your web application is behind a proxy -->
   @gepeq.proxy.config@
   
-  <!-- OpenMark Test Navigator web services encryption passwords: Uncomment and set next options only if 
+  <!-- OpenMark Test Navigator web services encryption passwords: Uncomment and set next options only if
        you configure OpenMark Test Navigator web services to use encryption for some arguments -->
   @gepeq.om-tn.encryption.config@
   @gepeq.om-tn-pro.encryption.config@
