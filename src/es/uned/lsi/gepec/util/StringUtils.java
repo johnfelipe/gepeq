@@ -374,11 +374,12 @@ public class StringUtils
 				}
 				else
 				{
+					foundUnexpectedCharacter=true;
 					for (char otherExpectedCharacter:otherExpectedCharacters)
 					{
 						if (c==otherExpectedCharacter)
 						{
-							foundUnexpectedCharacter=true;
+							foundUnexpectedCharacter=false;
 							break;
 						}
 					}
