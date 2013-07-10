@@ -610,6 +610,35 @@
         </h:form>
       </p:dialog>
       
+      <p:dialog widgetVar="resortResourcesDialog" id="resortResourcesDialog" styleClass="dialog" width="380" 
+        height="420" header="#{msgs.RE_SORT_RESOURCES}" modal="true" closable="true" draggable="false" 
+        resizable="false" onShow="centerDialog('resortResourcesDialog');">
+        
+        <h:form id="resortResourcesDialogForm">
+          <p:panel styleClass="dialogPanel" style="border-width:0px;">
+            <p:orderList styleClass="resourcesOrderList" iconOnly="true" 
+              value="#{questionBean.questionResourcesSorting}" var="questionResource" 
+              itemValue="#{questionResource}" converter="QuestionResourceConverter">
+              
+              <f:facet name="caption">#{msgs.RESOURCES}</f:facet>
+              <p:column styleClass="columnResourceTitle">
+                #{questionBean.getValidResourceName(questionResource)}
+              </p:column>
+              <p:column styleClass="columnImage">
+                <p:graphicImage value="#{questionResource.resource.fileName}" width="35" height="20" 
+                  rendered="#{questionResource.resource!=null}" />
+              </p:column>
+            </p:orderList>
+          </p:panel>
+          <h:panelGroup layout="block" styleClass="centerAlignBottom">
+            <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionBean.acceptReSortResources}" oncomplete="resortResourcesDialog.hide();" />
+            <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+              onclick="resortResourcesDialog.hide();" />
+          </h:panelGroup>
+        </h:form>
+      </p:dialog>
+      
       <p:dialog widgetVar="addFeedbackDialog" id="addFeedbackDialog" styleClass="dialog" width="700" height="670" 
         header="#{questionBean.addEditFeedbackTitle}" modal="true" closable="true" draggable="false" resizable="false"
         onShow="centerDialog('addFeedbackDialog');">

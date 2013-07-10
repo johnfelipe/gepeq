@@ -186,9 +186,9 @@
             </h:panelGrid>
           </ui:fragment>
           <ui:fragment rendered="#{questionBean.resourcesSize!=0}">
-            <p:accordionPanel id="questionResourcesAccordion" styleClass="accordion" style="text-align:left;" 
-              value="#{questionBean.question.questionResourcesSortedByPosition}" var="questionResource" 
-              widgetVar="questionResourcesAccordion">
+            <p:accordionPanel id="questionResourcesAccordion" styleClass="questionResourcesAccordion" 
+              style="text-align:left;" value="#{questionBean.question.questionResourcesSortedByPosition}" 
+              var="questionResource" widgetVar="questionResourcesAccordion">
               
               <p:ajax event="tabChange" listener="#{questionBean.changeActiveQuestionResource}" 
                 update="@this questionForm:resourcesMessages" />
@@ -209,8 +209,24 @@
                     <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
                       rendered="#{questionResource.resource.id!=-1}">
                       
-                      <p:graphicImage value="#{questionResource.resource.fileName}" width="35" height="20" />
-                      <h:outputText style="margin-right:5px;" value="#{questionResource.resource.name}" />
+                      <h:panelGroup>
+                        <p:graphicImage id="questionResourceImageThumb" value="#{questionResource.resource.fileName}" 
+                          width="35" height="20" />
+                        <p:tooltip widgetVar="questionResourceImageTooltip" for="questionResourceImageThumb" 
+                          rendered="#{questionBean.isResourceNameAbbreviated(questionResource.resource.name)}">
+                          
+                          #{questionResource.resource.name}
+                        </p:tooltip>
+                      </h:panelGroup>
+                      <h:panelGrid columns="1" style="margin-right:5px;" 
+                        rendered="#{questionBean.isResourceNameAbbreviated(questionResource.resource.name)}"
+                        onmouseover="questionResourceImageTooltip.show();" 
+                        onmouseout="questionResourceImageTooltip.hide();">
+                        
+                        #{questionBean.getAbbreviatedResourceName(questionResource.resource.name)}
+                      </h:panelGrid>
+                      <h:outputText style="margin-right:5px;" value="#{questionResource.resource.name}" 
+                        rendered="#{!questionBean.isResourceNameAbbreviated(questionResource.resource.name)}" />
                       <p:commandButton id="selectImageQuestionResourceButton" value="#{msgs.SELECT_IMAGE}" 
                         styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
                         update="selectImageDialog questionForm:resourcesMessages" />

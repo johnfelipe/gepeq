@@ -275,6 +275,9 @@ public class QuestionBean implements Serializable
 	// Local list needed to allow sorting in 'answersAccordion' accordion for a "Drag & Drop" question
 	private List<Answer> droppableAnswersSorting;
 	
+	// Local list needed to allow sorting in 'questionResourcesAccordion' accordion
+	private List<QuestionResource> questionResourcesSorting;
+	
 	// Local lists needed to allow sorting in 'feedbacks' datatable
 	private List<FeedbackBean> feedbacks;
 	private List<FeedbackBean> feedbacksSorting;
@@ -288,6 +291,9 @@ public class QuestionBean implements Serializable
 	
 	private String activeQuestionTabName;
 	private int activeQuestionTabIndex;
+	
+	private String resourceNameToAbbreviate;
+	private String abbreviatedResourceName;
 	
 	// Select Image Dialog
 	private SpecialCategoryFilter allCategories;
@@ -399,9 +405,12 @@ public class QuestionBean implements Serializable
 		activeDraggableItemName="";
 		activeQuestionResourceIndex=-1;
 		activeQuestionResourceName="";
+		resourceNameToAbbreviate=null;
 		activeConditionIndex=-1;
 		answersSorting=new ArrayList<Answer>();
 		draggableItemsSorting=new ArrayList<Answer>();
+		droppableAnswersSorting=new ArrayList<Answer>(); //???
+		questionResourcesSorting=new ArrayList<QuestionResource>();
 		resourcesTabviewTab=-1;
 		feedbackTabviewTab=-1;
 		activeQuestionTabName=GENERAL_WIZARD_TAB;
@@ -851,6 +860,11 @@ public class QuestionBean implements Serializable
     		}
     		if (question instanceof OmXmlQuestion)
     		{
+    			if (!question.getQuestionResources().isEmpty())
+    			{
+    				activeQuestionResourceIndex=0;
+    				activeQuestionResourceName=getActiveQuestionResource(operation,context.getViewRoot()).getName();
+    			}
     			resourcesTabviewTab=RESOURCES_OR_FEEDBACK_TABVIEW_TAB;
     			feedbackTabviewTab=resourcesTabviewTab+1;
     		}
@@ -1176,6 +1190,26 @@ public class QuestionBean implements Serializable
 		{
 			((OmXmlQuestion)question).setXmlContent(xmlContent);
 		}
+	}
+	
+	public List<QuestionResource> getQuestionResourcesSorting()
+	{
+		return getQuestionResourcesSorting(null);
+	}
+	
+	public void setQuestionResourcesSorting(List<QuestionResource> questionResourcesSorting)
+	{
+		this.questionResourcesSorting=questionResourcesSorting;
+	}
+	
+	private List<QuestionResource> getQuestionResourcesSorting(Operation operation)
+	{
+		if (questionResourcesSorting==null)
+		{
+			Question question=getQuestion(getCurrentUserOperation(operation));
+			questionResourcesSorting=question.getQuestionResourcesSortedByPosition();
+		}
+		return questionResourcesSorting;
 	}
 	
 	public Resource getCurrentResource()
@@ -3421,6 +3455,21 @@ public class QuestionBean implements Serializable
         	}
     	}
     	return resourceName.toString();
+    }
+    
+    public String getAbbreviatedResourceName(String resourceName)
+    {
+    	if (!resourceName.equals(resourceNameToAbbreviate))
+    	{
+    		resourceNameToAbbreviate=resourceName;
+    		abbreviatedResourceName=abbreviate(abbreviateWords(resourceName, 15),20);
+    	}
+    	return abbreviatedResourceName;
+    }
+    
+    public boolean isResourceNameAbbreviated(String resourceName)
+    {
+    	return !resourceName.equals(getAbbreviatedResourceName(resourceName));
     }
     
 	/**
@@ -5957,34 +6006,33 @@ public class QuestionBean implements Serializable
 	 */
 	public void showReSortResources(ActionEvent event)
 	{
-		/*
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		// Get current answer
-		Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+		// Get current question resource
+		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentAnswer);
+		processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
 		
-		// Check that current answer name entered by user is valid
-		if (checkAnswerName(currentAnswer.getName()))
+		// Check that current question resource name entered by user is valid
+		if (checkResourceName(getQuestion(operation),currentQuestionResource.getName(),
+			currentQuestionResource.getPosition()))
 		{
-			activeAnswerName=currentAnswer.getName();
+			activeQuestionResourceName=currentQuestionResource.getName();
 			
-			setAnswersSorting(null);
+			setQuestionResourcesSorting(null);
 			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("resortAnswersDialog.show()");
+			rq.execute("resortResourcesDialog.show()");
 		}
 		else
 		{
-			// Restore old answer name
-			currentAnswer.setName(activeAnswerName);
+			// Restore old question resource name
+			currentQuestionResource.setName(activeQuestionResourceName);
 			
 			// Scroll page to top position
 			scrollToTop();
 		}
-		*/
 	}
     
 	/**
@@ -5994,47 +6042,24 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptReSortResources(ActionEvent event)
 	{
-		/*
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		// First we need to change position of answers conditions of feedbacks
-		List<Answer> answersSorting=getAnswersSorting(operation);
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		// We change question resources positions
+		for (int questionResourcePos=1;questionResourcePos<=questionResourcesSorting.size();questionResourcePos++)
 		{
-			for (AnswerConditionBean answerCondition:feedback.getAnswerConditions())
+			QuestionResource questionResource=questionResourcesSorting.get(questionResourcePos-1);
+			questionResource.setPosition(questionResourcePos);
+			if (questionResourcePos==activeQuestionResourceIndex+1)
 			{
-				for (SingleAnswerConditionBean singleAnswerCondition:answerCondition.getSingleAnswerConditions())
-				{
-					int answerConditionPos=singleAnswerCondition.getAnswerPosition();
-					for (int answerPos=1;answerPos<=answersSorting.size();answerPos++)
-					{
-						Answer answer=answersSorting.get(answerPos-1);
-						if (answer.getPosition()==answerConditionPos)
-						{
-							singleAnswerCondition.setAnswerPosition(answerPos);
-							break;
-						}
-					}
-				}
-			}
-		}
-		// We change answers positions
-		for (int answerPos=1;answerPos<=answersSorting.size();answerPos++)
-		{
-			Answer answer=answersSorting.get(answerPos-1);
-			answer.setPosition(answerPos);
-			if (answerPos==activeAnswerIndex+1)
-			{
-				activeAnswerName=answer.getName()==null?"":answer.getName();
+				activeQuestionResourceName=questionResource.getName()==null?"":questionResource.getName();
 			}
 		}
 		
-		getQuestion(operation).setAnswers(answersSorting);
+		getQuestion(operation).setQuestionResources(questionResourcesSorting);
 		
 		// We need to update answers text fields
-		updateAnswersTextFields(operation,event.getComponent(),answersSorting.size());
-		*/
+		updateResourcesTextFields(operation,event.getComponent(),questionResourcesSorting.size());
 	}
 	
     /**
