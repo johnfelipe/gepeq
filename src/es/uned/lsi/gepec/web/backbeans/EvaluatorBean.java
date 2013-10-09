@@ -20,6 +20,7 @@ package es.uned.lsi.gepec.web.backbeans;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.el.ELContext;
 import javax.el.ELResolver;
@@ -41,6 +42,7 @@ import es.uned.lsi.gepec.web.services.UsersService;
 public class EvaluatorBean implements Serializable
 {
 	private final static int MAXIMUM_NICKS_DISPLAYED_WITHIN_FILTERING_STRING=10;
+	private final static int MAXIMUM_GROUPS_DISPLAYED_WITHIN_FILTERING_STRING=10;
 	
 	private TestBean testBean;
 	private long id;
@@ -148,10 +150,11 @@ public class EvaluatorBean implements Serializable
    	        		// Get current user session Hibernate operation
    	        		Operation operation=userSessionService.getCurrentUserOperation();
    	        		
-   	        		String[] sOUCUs=getFilterValue().split(",");
+   	        		String[] sOUCUs=getFilterValue().split(Pattern.quote(","));
    	        		List<String> checkedOUCUs=new ArrayList<String>();
    	        		int displayedNicks=0;
-   	        		for (int i=0;i<sOUCUs.length && displayedNicks<=MAXIMUM_NICKS_DISPLAYED_WITHIN_FILTERING_STRING;i++)
+   	        		for (int i=0;i<sOUCUs.length && displayedNicks<=MAXIMUM_NICKS_DISPLAYED_WITHIN_FILTERING_STRING;
+   	        			i++)
   	       			{
    	       				String sOUCU=sOUCUs[i];
    	       				if (!checkedOUCUs.contains(sOUCU))
@@ -191,6 +194,40 @@ public class EvaluatorBean implements Serializable
         			"RANGE_SURNAME_FILTERING").replace("?",getFilterValue().replace("-",".."));
         	}
         }
+        else if ("GROUP_FILTER".equals(getFilterType()))
+        {
+    		StringBuffer groups=new StringBuffer();
+			if (getFilterValue()!=null && !"".equals(getFilterValue()))
+			{
+	        	String[] sAuthIds=getFilterValue().split(Pattern.quote(","));
+        		List<String> checkedAuthIds=new ArrayList<String>();
+	        	int displayedGroups=0;
+	       		for (int i=0;i<sAuthIds.length && displayedGroups<=MAXIMUM_GROUPS_DISPLAYED_WITHIN_FILTERING_STRING;
+	  	        	i++)
+	       		{
+	       			String sAuthId=sAuthIds[i];
+	       			if (!checkedAuthIds.contains(sAuthId))
+	       			{
+	       				if (groups.length()>0)
+	       				{
+	       					groups.append(", ");
+	       				}
+	       				if (displayedGroups<MAXIMUM_GROUPS_DISPLAYED_WITHIN_FILTERING_STRING)
+	       				{
+	       					groups.append(sAuthId);
+	       				}
+	       				else
+	       				{
+	       					groups.append("...");
+	       				}
+	       				displayedGroups++;
+	       				checkedAuthIds.add(sAuthId);
+	       			}
+	       		}
+			}
+    		filteringString=
+    			localizationService.getLocalizedMessage("GROUP_SELECTION_FILTERING").replace("?",groups.toString());
+        }
         if (filteringString==null)
 		{
 			filteringString=localizationService.getLocalizedMessage("NO_FILTERING");
@@ -217,19 +254,8 @@ public class EvaluatorBean implements Serializable
 	 */
 	public Evaluator getAsEvaluator(Test test)
 	{
-		return getAsEvaluator(null,test);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param test Test object
-	 * @return Evaluator object with data from this evaluator bean
-	 */
-	public Evaluator getAsEvaluator(Operation operation,Test test)
-	{
 		return testBean==null?null:new Evaluator(getId(),test,
-			testBean.getAddressType(testBean.getCurrentUserOperation(operation),getFilterType(),getFilterSubtype()),
-			getFilterValue(),getEvaluator());
+			testBean.getAddressType(getFilterType(),getFilterSubtype()),getFilterValue(),getEvaluator());
 	}
 	
 	@Override

@@ -318,4 +318,48 @@ public class DragDropQuestion extends Question {
 			setClusteredDrops(((DragDropQuestion)otherQuestion).isClusteredDrops());
 		}
 	}
+	
+	@Transient
+	@Override
+	public Question getQuestionCopy()
+	{
+		DragDropQuestion dragDropQuestion=new DragDropQuestion(
+			isInfinite(),isForceBorders(),isShuffleDrags(),isShuffleDrops(),isClusteredDrags(),isClusteredDrops());
+		dragDropQuestion.setId(getId());
+		dragDropQuestion.setVersion(getVersion());
+		dragDropQuestion.setCategory(getCategory());
+		dragDropQuestion.setResource(getResource());
+		dragDropQuestion.setCorrectFeedbackResource(getCorrectFeedbackResource());
+		dragDropQuestion.setIncorrectFeedbackResource(getIncorrectFeedbackResource());
+		dragDropQuestion.setPassFeedbackResource(getPassFeedbackResource());
+		dragDropQuestion.setFinalFeedbackResource(getFinalFeedbackResource());
+		dragDropQuestion.setName(getName());
+		dragDropQuestion.setQuestionText(getQuestionText());
+		dragDropQuestion.setType(getType());
+		dragDropQuestion.setCreatedBy(getCreatedBy());
+		dragDropQuestion.setModifiedBy(getModifiedBy());
+		dragDropQuestion.setTimecreated(getTimecreated());
+		dragDropQuestion.setTimemodified(getTimemodified());
+		dragDropQuestion.setTimebuild(getTimebuild());
+		dragDropQuestion.setTimedeploy(getTimedeploy());
+		dragDropQuestion.setTimepublished(getTimepublished());
+		dragDropQuestion.setCorrectFeedback(getCorrectFeedback());
+		dragDropQuestion.setIncorrectFeedback(getIncorrectFeedback());
+		dragDropQuestion.setStillFeedback(getStillFeedback());
+		dragDropQuestion.setPassFeedback(getPassFeedback());
+		dragDropQuestion.setAnswerFeedback(getAnswerFeedback());
+		dragDropQuestion.setLevel(getLevel());
+		dragDropQuestion.setResourceWidth(getResourceWidth());
+		dragDropQuestion.setResourceHeight(getResourceHeight());
+		dragDropQuestion.setCorrectFeedbackResourceWidth(getCorrectFeedbackResourceWidth());
+		dragDropQuestion.setCorrectFeedbackResourceHeight(getCorrectFeedbackResourceHeight());
+		dragDropQuestion.setIncorrectFeedbackResourceWidth(getIncorrectFeedbackResourceWidth());
+		dragDropQuestion.setIncorrectFeedbackResourceHeight(getIncorrectFeedbackResourceHeight());
+		dragDropQuestion.setPassFeedbackResourceWidth(getPassFeedbackResourceWidth());
+		dragDropQuestion.setPassFeedbackResourceHeight(getPassFeedbackResourceHeight());
+		dragDropQuestion.setFinalFeedbackResourceWidth(getFinalFeedbackResourceWidth());
+		dragDropQuestion.setFinalFeedbackResourceHeight(getFinalFeedbackResourceHeight());
+		dragDropQuestion.setDisplayEquations(isDisplayEquations());
+		return dragDropQuestion;
+	}
 }

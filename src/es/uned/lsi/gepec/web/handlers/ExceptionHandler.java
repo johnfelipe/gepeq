@@ -37,6 +37,7 @@ import javax.faces.render.RenderKitFactory;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
+import es.uned.lsi.gepec.web.listeners.ForceLoginPhaseListenerException;
 import es.uned.lsi.gepec.web.services.UserSessionService;
 
 /**
@@ -98,7 +99,13 @@ public class ExceptionHandler extends ExceptionHandlerWrapper
 				
 				String errorCode=null;
 				String plainError=null;
-				if (t instanceof FileNotFoundException)
+				if (t instanceof ForceLoginPhaseListenerException)
+				{
+					errorCode=((ForceLoginPhaseListenerException)t).getErrorCode();
+					plainError=((ForceLoginPhaseListenerException)t).getPlainMessage();
+					handled=true;
+				}
+				else if (t instanceof FileNotFoundException)
 				{
 					errorCode="PAGE_NON_EXIST_ERROR";
 					plainError="The page you are trying to access does not exist.";

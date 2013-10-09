@@ -27,7 +27,6 @@ import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.QuestionOrder;
 import es.uned.lsi.gepec.model.entities.Section;
 import es.uned.lsi.gepec.model.entities.Test;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.TestBean;
 
 //Backbean de soporte para la vista prueba
@@ -316,15 +315,6 @@ public class SectionBean implements Serializable
      */
     public List<Question> getQuestions()
     {
-    	return getQuestions(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return List of section's questions sorted
-     */
-    private List<Question> getQuestions(Operation operation)
-    {
     	// Get questions orders sorted by order 
     	List<QuestionOrderBean> sortedQuestionOrders=new ArrayList<QuestionOrderBean>();
     	for (QuestionOrderBean questionOrderBean:getQuestionOrders())
@@ -333,14 +323,11 @@ public class SectionBean implements Serializable
     	}
     	Collections.sort(sortedQuestionOrders,getQuestionOrderBeanComparatorByOrder());
     	
-    	// Get current user session Hibernate operation
-    	operation=test.getCurrentUserOperation(operation);
-    	
     	// Get list of section's questions sorted
     	List<Question> questions = new ArrayList<Question>(getQuestionOrdersSize());
         for (QuestionOrderBean questionOrderBean:sortedQuestionOrders)
         {
-    		Question question=test.getQuestion(operation,questionOrderBean.getQuestionId());
+    		Question question=test.getQuestion(questionOrderBean.getQuestionId());
     		questions.add(question);
         }
     	return questions;
@@ -444,16 +431,6 @@ public class SectionBean implements Serializable
 	 */
 	public Section getAsSection(Test test)
 	{
-		return getAsSection(null,test);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param test Test object
-	 * @return Section object with data from this section bean
-	 */
-	public Section getAsSection(Operation operation,Test test)
-	{
 		Section section=new Section();
 		section.setId(getId());
 		section.setTest(test);
@@ -464,10 +441,7 @@ public class SectionBean implements Serializable
 		section.setName(getName());
 		section.setTitle(getTitle());
 		
-		// Get current user session Hibernate operation
-		operation=this.test.getCurrentUserOperation(operation);
-		
-		if (this.test.isSectionsWeightsDisplayed(operation))
+		if (this.test.isSectionsWeightsDisplayed())
 		{
 			section.setWeight(getWeight());
 		}
@@ -479,10 +453,8 @@ public class SectionBean implements Serializable
 		// QuestionOrders
 		for (QuestionOrderBean questionOrder:getQuestionOrders())
 		{
-			section.getQuestionOrders().add(questionOrder.getAsQuestionOrder(operation,section));
+			section.getQuestionOrders().add(questionOrder.getAsQuestionOrder(section));
 		}
 		return section;
 	}
-	
-	
 }

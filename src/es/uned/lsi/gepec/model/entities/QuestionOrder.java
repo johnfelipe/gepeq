@@ -47,12 +47,12 @@ public class QuestionOrder implements java.io.Serializable {
 	public QuestionOrder() {
 	}
 
-	public QuestionOrder(long id, Question question,
-			Section section, int order) {
+	public QuestionOrder(long id, Question question, Section section, int order, int weight) {
 		this.id = id;
 		this.question = question;
 		this.section = section;
 		this.order = order;
+		this.weight = weight;
 	}
 
 	@Id
@@ -66,7 +66,7 @@ public class QuestionOrder implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_question", nullable = false)
+	@JoinColumn(name = "id_question")
 	public Question getQuestion() {
 		return this.question;
 	}
@@ -76,7 +76,7 @@ public class QuestionOrder implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_section", nullable = false)
+	@JoinColumn(name = "id_section")
 	public Section getSection() {
 		return this.section;
 	}
@@ -118,6 +118,15 @@ public class QuestionOrder implements java.io.Serializable {
 			setOrder(otherQuestionOrder.getOrder());
 			setWeight(otherQuestionOrder.getWeight());
 		}
+	}
+	
+	/**
+	 * @return A copy of this question order.
+	 */
+	@Transient
+	public QuestionOrder getQuestionOrderCopy()
+	{
+		return new QuestionOrder(getId(),getQuestion(),getSection(),getOrder(),getWeight());
 	}
 	
 	@Override

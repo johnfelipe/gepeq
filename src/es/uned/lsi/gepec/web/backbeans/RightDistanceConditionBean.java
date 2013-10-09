@@ -23,7 +23,6 @@ import javax.faces.event.AjaxBehaviorEvent;
 
 import org.primefaces.component.selectonemenu.SelectOneMenu;
 
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.QuestionBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 
@@ -59,7 +58,7 @@ public class RightDistanceConditionBean extends ConditionBean implements Seriali
 		super(TYPE);
 		this.question=question;
 		oldComparator=null;
-		int absoluteMaxRightDistance=getMaxRightDistanceValue(question.getCurrentUserOperation(null));
+		int absoluteMaxRightDistance=getMaxRightDistanceValue();
 		rightDistanceCmp=1;
 		rightDistanceBetweenMin=1;
 		rightDistanceBetweenMax=absoluteMaxRightDistance;
@@ -147,6 +146,12 @@ public class RightDistanceConditionBean extends ConditionBean implements Seriali
 		this.comparator=comparator;
 	}
 	
+	public void setNewComparator(String newComparator)
+	{
+		this.oldComparator=newComparator;
+		this.comparator=newComparator;
+	}
+	
 	public int getRightDistanceCmp()
 	{
 		return rightDistanceCmp;
@@ -180,80 +185,67 @@ public class RightDistanceConditionBean extends ConditionBean implements Seriali
 	public int getRightDistanceMin()
 	{
 		int rightDistanceMin=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			rightDistanceMin=rightDistanceCmp;
+			rightDistanceMin=getRightDistanceCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
-			rightDistanceMin=rightDistanceCmp+1;
+			rightDistanceMin=getRightDistanceCmp()+1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER_EQUAL))
 		{
-			rightDistanceMin=rightDistanceCmp;
+			rightDistanceMin=getRightDistanceCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			rightDistanceMin=rightDistanceBetweenMin;
+			rightDistanceMin=getRightDistanceBetweenMin();
 		}
 		return rightDistanceMin;
 	}
 	
 	public int getRightDistanceMax()
 	{
-		return getRightDistanceMax(null);
-	}
-	
-	public int getRightDistanceMax(Operation operation)
-	{
-		int rightDistanceMax=getMaxRightDistanceValue(question.getCurrentUserOperation(operation));
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		int rightDistanceMax=0;
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			rightDistanceMax=rightDistanceCmp;
+			rightDistanceMax=getRightDistanceCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
-			rightDistanceMax=rightDistanceCmp-1;
+			rightDistanceMax=getRightDistanceCmp()-1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
-			rightDistanceMax=rightDistanceCmp;
+			rightDistanceMax=getRightDistanceCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			rightDistanceMax=rightDistanceBetweenMax;
+			rightDistanceMax=getRightDistanceBetweenMax();
+		}
+		else
+		{
+			rightDistanceMax=getMaxRightDistanceValue();
 		}
 		return rightDistanceMax;
 	}
 	
 	public boolean isBetween()
 	{
-		return NumberComparator.compareU(comparator,NumberComparator.BETWEEN);
+		return NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN);
 	}
 	
 	public int getMaxRightDistanceValue()
 	{
-		return getMaxRightDistanceValue(null);
-	}
-	
-	public int getMaxRightDistanceValue(Operation operation)
-	{
-		// Get current user session Hibernate operation
-		operation=question.getCurrentUserOperation(operation);
-		
-		int selectableRightAnswers=question.getNumberOfSelectableRightAnswers(operation);
-		int selectableWrongAnswers=question.getNumberOfSelectableWrongAnswers(operation);
+		int selectableRightAnswers=question.getNumberOfSelectableRightAnswers();
+		int selectableWrongAnswers=question.getNumberOfSelectableWrongAnswers();
 		return selectableRightAnswers>=selectableWrongAnswers?selectableRightAnswers:selectableWrongAnswers;
 	}
 	
 	public int getMinValueRightDistanceCmp()
 	{
 		int minValue=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
-		{
-			minValue=-1;
-		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
 			minValue=1;
 		}
@@ -262,17 +254,16 @@ public class RightDistanceConditionBean extends ConditionBean implements Seriali
 	
 	public int getMaxValueRightDistanceCmp()
 	{
-		return getMaxValueRightDistanceCmp(null);
-	}
-	
-	public int getMaxValueRightDistanceCmp(Operation operation)
-	{
-		int maxValue=getMaxRightDistanceValue(question.getCurrentUserOperation(operation));
-		if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		int maxValue=getMaxRightDistanceValue();
+		if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
-			maxValue--;
+			if (maxValue>0)
+			{
+				maxValue--;
+			}
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS) || 
+			NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
 			maxValue++;
 		}
@@ -281,56 +272,63 @@ public class RightDistanceConditionBean extends ConditionBean implements Seriali
 	
 	public void changeComparator(AjaxBehaviorEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=question.getCurrentUserOperation(null);
-		
 		comparator=(String)((SelectOneMenu)event.getComponent()).getValue();
-		if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			if (rightDistanceCmp<0)
+			if (getRightDistanceCmp()<0)
 			{
-				rightDistanceBetweenMin=0;
+				setRightDistanceBetweenMin(0);
 			}
 			else
 			{
-				rightDistanceBetweenMin=rightDistanceCmp;
+				int maxValue=getMaxRightDistanceValue();
+				if (getRightDistanceCmp()>maxValue)
+				{
+					setRightDistanceBetweenMin(maxValue);
+				}
+				else
+				{
+					setRightDistanceBetweenMin(getRightDistanceCmp());
+				}
 			}
-			if (rightDistanceBetweenMax<rightDistanceBetweenMin)
+			if (getRightDistanceBetweenMax()<getRightDistanceBetweenMin())
 			{
-				rightDistanceBetweenMax=rightDistanceBetweenMin;
+				setRightDistanceBetweenMax(getRightDistanceMin());
 			}
 		}
 		else if (NumberComparator.compareU(oldComparator,NumberComparator.BETWEEN))
 		{
-			if (rightDistanceBetweenMin<getMinValueRightDistanceCmp())
+			int minValueCmp=getMinValueRightDistanceCmp();
+			if (getRightDistanceBetweenMin()<minValueCmp)
 			{
-				rightDistanceCmp=getMinValueRightDistanceCmp();
+				setRightDistanceCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueRightDistanceCmp=getMaxValueRightDistanceCmp(operation);
-				if (rightDistanceBetweenMin>maxValueRightDistanceCmp)
+				int maxValueCmp=getMaxValueRightDistanceCmp();
+				if (getRightDistanceCmp()>maxValueCmp)
 				{
-					rightDistanceCmp=maxValueRightDistanceCmp;
+					setRightDistanceCmp(maxValueCmp);
 				}
 				else
 				{
-					rightDistanceCmp=rightDistanceBetweenMin;
+					setRightDistanceCmp(getRightDistanceMin());
 				}
 			}
 		}
 		else
 		{
-			if (rightDistanceCmp<getMinValueRightDistanceCmp())
+			int minValueCmp=getMinValueRightDistanceCmp();
+			if (getRightDistanceCmp()<minValueCmp)
 			{
-				rightDistanceCmp=getMinValueRightDistanceCmp();
+				setRightDistanceCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueRightDistanceCmp=getMaxValueRightDistanceCmp(operation);
-				if (rightDistanceCmp>maxValueRightDistanceCmp)
+				int maxValueCmp=getMaxValueRightDistanceCmp();
+				if (getRightDistanceCmp()>maxValueCmp)
 				{
-					rightDistanceCmp=maxValueRightDistanceCmp;
+					setRightDistanceCmp(maxValueCmp);
 				}
 			}
 		}

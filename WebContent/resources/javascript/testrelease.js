@@ -65,8 +65,14 @@ function applyEvaluatorFilterUsersFilterStart() {
 	readEvaluatorFilterUsersIdsHidden();
 }
 
+function addEvaluatorGroupStart() {
+	readAvailableEvaluatorFilterGroupsHidden();
+	readEvaluatorFilterGroupsHidden();
+}
+
 function acceptAddEvaluatorStart() {
 	readEvaluatorFilterUsersIdsHidden();
+	readEvaluatorFilterGroupsHidden();
 }
 
 function readEvaluatorFilterUsersIdsHidden() {
@@ -75,6 +81,24 @@ function readEvaluatorFilterUsersIdsHidden() {
 		
 		setInputFieldValue('assessementAddressDialogForm:evaluatorFilterUsersIdsHidden',getInputFieldValue(
 			'assessementAddressDialogForm:evaluatorFilterUsersList_target').replace(/\"/g,''));
+	}
+}
+
+function readAvailableEvaluatorFilterGroupsHidden() {
+	if (getJQueryElementById('assessementAddressDialogForm:availableEvaluatorFilterGroupsHidden').length!=0 &&
+		getJQueryElementById('assessementAddressDialogForm:evaluatorFilterGroupsList_source').length!=0) {
+		
+		setInputFieldValue('assessementAddressDialogForm:availableEvaluatorFilterGroupsHidden',getInputFieldValue(
+			'assessementAddressDialogForm:evaluatorFilterGroupsList_source').replace(/\"/g,''));
+	}
+}
+
+function readEvaluatorFilterGroupsHidden() {
+	if (getJQueryElementById('assessementAddressDialogForm:evaluatorFilterGroupsHidden').length!=0 &&
+		getJQueryElementById('assessementAddressDialogForm:evaluatorFilterGroupsList_target').length!=0) {
+		
+		setInputFieldValue('assessementAddressDialogForm:evaluatorFilterGroupsHidden',getInputFieldValue(
+			'assessementAddressDialogForm:evaluatorFilterGroupsList_target').replace(/\"/g,''));
 	}
 }
 
@@ -90,8 +114,14 @@ function applySupportContactFilterUsersFilterStart() {
 	readSupportContactFilterUsersIdsHidden();
 }
 
+function addSupportContactGroupStart() {
+	readAvailableSupportContactFilterGroupsHidden();
+	readSupportContactFilterGroupsHidden();
+}
+
 function acceptAddSupportContactStart() {
 	readSupportContactFilterUsersIdsHidden();
+	readSupportContactFilterGroupsHidden();
 }
 
 function readSupportContactFilterUsersIdsHidden() {
@@ -101,5 +131,23 @@ function readSupportContactFilterUsersIdsHidden() {
 		
 		setInputFieldValue('techSupportAddressDialogForm:supportContactFilterUsersIdsHidden',getInputFieldValue(
 			'techSupportAddressDialogForm:supportContactFilterUsersList_target').replace(/\"/g,''));
+	}
+}
+
+function readAvailableSupportContactFilterGroupsHidden() {
+	if (getJQueryElementById('techSupportAddressDialogForm:availableSupportContactFilterGroupsHidden').length!=0 &&
+		getJQueryElementById('techSupportAddressDialogForm:supportContactFilterGroupsList_source').length!=0) {
+		
+		setInputFieldValue('techSupportAddressDialogForm:availableSupportContactFilterGroupsHidden',getInputFieldValue(
+			'techSupportAddressDialogForm:supportContactFilterGroupsList_source').replace(/\"/g,''));
+	}
+}
+
+function readSupportContactFilterGroupsHidden() {
+	if (getJQueryElementById('techSupportAddressDialogForm:supportContactFilterGroupsHidden').length!=0 &&
+		getJQueryElementById('techSupportAddressDialogForm:supportContactFilterGroupsList_target').length!=0) {
+		
+		setInputFieldValue('techSupportAddressDialogForm:supportContactFilterGroupsHidden',getInputFieldValue(
+			'techSupportAddressDialogForm:supportContactFilterGroupsList_target').replace(/\"/g,''));
 	}
 }

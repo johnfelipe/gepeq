@@ -23,10 +23,12 @@ import javax.el.ELContext;
 import javax.faces.context.FacesContext;
 
 import es.uned.lsi.gepec.model.entities.Answer;
+import es.uned.lsi.gepec.model.entities.DragDropAnswer;
 import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 
+import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.type.StandardBasicTypes;
@@ -142,6 +144,18 @@ public class AnswersDao
 		{
 			startOperation();
 			answer=(Answer)operation.session.get(Answer.class,id);
+			if (answer!=null)
+			{
+				Hibernate.initialize(answer.getQuestion());
+				if (answer.getResource()!=null)
+				{
+					Hibernate.initialize(answer.getResource());
+				}
+				if (answer instanceof DragDropAnswer && ((DragDropAnswer)answer).getRightAnswer()!=null)
+				{
+					Hibernate.initialize(((DragDropAnswer)answer).getRightAnswer());
+				}
+			}
 		}
 		catch (HibernateException he)
 		{
@@ -180,6 +194,18 @@ public class AnswersDao
 				query.setParameter("questionId",Long.valueOf(questionId),StandardBasicTypes.LONG);
 			}
 			answers=query.list();
+			for (Answer answer:answers)
+			{
+				Hibernate.initialize(answer.getQuestion());
+				if (answer.getResource()!=null)
+				{
+					Hibernate.initialize(answer.getResource());
+				}
+				if (answer instanceof DragDropAnswer && ((DragDropAnswer)answer).getRightAnswer()!=null)
+				{
+					Hibernate.initialize(((DragDropAnswer)answer).getRightAnswer());
+				}
+			}
 		}
 		catch (HibernateException he)
 		{

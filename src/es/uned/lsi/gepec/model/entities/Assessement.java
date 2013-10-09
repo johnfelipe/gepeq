@@ -19,16 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 // Generated 21-nov-2012 14:22:32 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -44,7 +39,6 @@ public class Assessement implements java.io.Serializable {
 
 	private long id;
 	private String type;
-	private Set<Test> tests = new HashSet<Test>(0);
 
 	public Assessement() {
 	}
@@ -53,10 +47,9 @@ public class Assessement implements java.io.Serializable {
 		this.id = id;
 	}
 
-	public Assessement(long id, String type, Set<Test> tests) {
+	public Assessement(long id, String type) {
 		this.id = id;
 		this.type = type;
-		this.tests = tests;
 	}
 
 	@Id
@@ -79,15 +72,6 @@ public class Assessement implements java.io.Serializable {
 		this.type = type;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "assessement")
-	public Set<Test> getTests() {
-		return this.tests;
-	}
-
-	public void setTests(Set<Test> tests) {
-		this.tests = tests;
-	}
-
 	/**
 	 * Set the fields of this assesement with the values from fields from other assessement.
 	 * @param otherAssessement Other assessement
@@ -101,7 +85,16 @@ public class Assessement implements java.io.Serializable {
 			setType(otherAssessement.getType());
 		}
 	}
-
+	
+	/**
+	 * @return A copy of this assessement.
+	 */
+	@Transient
+	public Assessement getAssessementCopy()
+	{
+		return new Assessement(getId(),getType());
+	}
+	
 	@Override
 	public boolean equals(Object obj)
 	{

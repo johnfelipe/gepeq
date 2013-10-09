@@ -74,7 +74,6 @@ import es.uned.lsi.gepec.om.axis.OmDevProxy;
 import es.uned.lsi.gepec.om.axis.OmQeProxy;
 import es.uned.lsi.gepec.om.axis.OmTnProxy;
 import es.uned.lsi.gepec.util.HibernateUtil;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.util.OmTnEncryptor;
 import es.uned.lsi.gepec.util.OmTnProEncryptor;
 import es.uned.lsi.gepec.web.QuestionBean;
@@ -749,31 +748,27 @@ public class QuestionGenerator
 			ResourceBean res=new ResourceBean(resource);
 			res.setResourcesService(resourcesService);
 			res.setUserSessionService(userSessionService);
-			isImg=res.isImage(userSessionService.getCurrentUserOperation());
+			isImg=res.isImage();
 		}
 		return isImg;
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param draggableItem Draggable item
 	 * @return Draggable item name or null if it is not possible to get it
 	 */
-	private static String getDraggableItemName(Operation operation,DragDropAnswer draggableItem)
+	private static String getDraggableItemName(DragDropAnswer draggableItem)
 	{
-		String draggableItemName=questionBean==null?null:
-			questionBean.getNumberedDraggableItemName(questionBean.getCurrentUserOperation(operation),draggableItem);
+		String draggableItemName=questionBean==null?null:questionBean.getNumberedDraggableItemName(draggableItem);
 		return draggableItemName==null || draggableItemName.equals("")?null:draggableItemName;
 	}
 	/**
-	 * @param operation Operation
 	 * @param answer Answer
 	 * @return Answer name or null if it is not possible to get it
 	 */
-	private static String getDroppableAnswerName(Operation operation,DragDropAnswer answer)
+	private static String getDroppableAnswerName(DragDropAnswer answer)
 	{
-		String answerName=questionBean==null?
-			null:questionBean.getNumberedDroppableAnswerName(questionBean.getCurrentUserOperation(operation),answer);
+		String answerName=questionBean==null?null:questionBean.getNumberedDroppableAnswerName(answer);
 		return answerName==null || answerName.equals("")?null:answerName;
 	}
 	
@@ -1272,34 +1267,39 @@ public class QuestionGenerator
 		OmXmlQuestion question)
 	{
 		StringBuffer newText=new StringBuffer();
-		int i=0;
-		while (i<text.length())
+		boolean ok=!"filePath".equals(attributeName) || text.startsWith("${") || 
+			text.indexOf('}')!=text.length()-1;
+		if (ok)
 		{
-			int iStartVar=text.indexOf("${",i);
-			if (iStartVar!=-1)
+			int i=0;
+			while (i<text.length())
 			{
-				if (iStartVar>i)
+				int iStartVar=text.indexOf("${",i);
+				if (iStartVar!=-1)
 				{
-					newText.append(text.substring(i,iStartVar));
-					i=iStartVar;
-				}
-				int iEndVar=text.indexOf('}',iStartVar);
-				if (iEndVar!=-1)
-				{
-					newText.append(getOmXmlVariableValueAsString(
-						tagName,attributeName,text.substring(iStartVar+"${".length(),iEndVar),question));
-					i=iEndVar+1;
+					if (iStartVar>i)
+					{
+						newText.append(text.substring(i,iStartVar));
+						i=iStartVar;
+					}
+					int iEndVar=text.indexOf('}',iStartVar);
+					if (iEndVar!=-1)
+					{
+						newText.append(getOmXmlVariableValueAsString(
+							tagName,attributeName,text.substring(iStartVar+"${".length(),iEndVar),question));
+						i=iEndVar+1;
+					}
+					else
+					{
+						newText.append(text.substring(iStartVar));
+						i=text.length();
+					}
 				}
 				else
 				{
-					newText.append(text.substring(iStartVar));
+					newText.append(text.substring(i));
 					i=text.length();
 				}
-			}
-			else
-			{
-				newText.append(text.substring(i));
-				i=text.length();
 			}
 		}
 		return newText.toString();
@@ -1311,7 +1311,7 @@ public class QuestionGenerator
 		String variableValue="";
 		if (OM_XML_GENERIC_QUESTION_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlGenericQuestionValueAsString(question);
+			variableValue=getOmXmlGenericQuestionValueAsString(attributeName,question);
 		}
 		else if (OM_XML_QUESTION_IMAGE_VARIABLE.equals(variableName) || 
 			OM_XML_QUESTION_IMAGE_GAP_VARIABLE.equals(variableName))
@@ -1321,7 +1321,7 @@ public class QuestionGenerator
 		else if (OM_XML_QUESTION_TEXT_VARIABLE.equals(variableName) || 
 			OM_XML_QUESTION_TEXT_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlQuestionTextValueAsString(question);
+			variableValue=getOmXmlQuestionTextValueAsString(attributeName,question);
 		}
 		else if (OM_XML_SUBMIT_BUTTON_VARIABLE.equals(variableName))
 		{
@@ -1334,7 +1334,7 @@ public class QuestionGenerator
 		else if (OM_XML_CORRECT_VARIABLE.equals(variableName) || 
 			OM_XML_CORRECT_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlCorrectValueAsString(question);
+			variableValue=getOmXmlCorrectValueAsString(attributeName,question);
 		}
 		else if (OM_XML_CORRECT_IMAGE_VARIABLE.equals(variableName) ||
 			OM_XML_CORRECT_IMAGE_GAP_VARIABLE.equals(variableName))
@@ -1344,7 +1344,7 @@ public class QuestionGenerator
 		else if (OM_XML_INCORRECT_VARIABLE.equals(variableName) || 
 			OM_XML_INCORRECT_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlIncorrectValueAsString(question);
+			variableValue=getOmXmlIncorrectValueAsString(attributeName,question);
 		}
 		else if (OM_XML_INCORRECT_IMAGE_VARIABLE.equals(variableName) || 
 			OM_XML_INCORRECT_IMAGE_GAP_VARIABLE.equals(variableName))
@@ -1353,11 +1353,11 @@ public class QuestionGenerator
 		}
 		else if (OM_XML_STILL_VARIABLE.equals(variableName) || OM_XML_STILL_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlStillValueAsString(question);
+			variableValue=getOmXmlStillValueAsString(attributeName,question);
 		}
 		else if (OM_XML_PASS_VARIABLE.equals(variableName) || OM_XML_PASS_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlPassValueAsString(question);
+			variableValue=getOmXmlPassValueAsString(attributeName,question);
 		}
 		else if (OM_XML_PASS_IMAGE_VARIABLE.equals(variableName) ||
 			OM_XML_PASS_IMAGE_GAP_VARIABLE.equals(variableName))
@@ -1366,7 +1366,7 @@ public class QuestionGenerator
 		}
 		else if (OM_XML_FINAL_VARIABLE.equals(variableName) || OM_XML_FINAL_GAP_VARIABLE.equals(variableName))
 		{
-			variableValue=getOmXmlFinalValueAsString(question);
+			variableValue=getOmXmlFinalValueAsString(attributeName,question);
 		}
 		else if (OM_XML_FINAL_IMAGE_VARIABLE.equals(variableName) ||
 			OM_XML_FINAL_IMAGE_GAP_VARIABLE.equals(variableName))
@@ -1423,9 +1423,9 @@ public class QuestionGenerator
 		return variableValue.replaceAll(Pattern.quote("\r"),"").replaceAll(Pattern.quote("\n"),"");
 	}
 	
-	private static String getOmXmlGenericQuestionValueAsString(OmXmlQuestion question)
+	private static String getOmXmlGenericQuestionValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		return getFullClassName(question.getPackage());
+		return "filePath".equals(attributeName)?"":getFullClassName(question.getPackage());
 	}
 	
 	private static String getOmXmlQuestionImageValueAsString(String tagName,String attributeName,
@@ -1435,7 +1435,7 @@ public class QuestionGenerator
 		Resource resource=question.getResource();
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1454,7 +1454,7 @@ public class QuestionGenerator
 					questionImageValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				questionImageValue=resource.getName();
 			}
@@ -1462,17 +1462,22 @@ public class QuestionGenerator
 		return questionImageValue==null?"":questionImageValue;
 	}
 	
-	private static String getOmXmlQuestionTextValueAsString(OmXmlQuestion question)
+	private static String getOmXmlQuestionTextValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String questionText=question.getQuestionText();
-		if (question.isDisplayEquations())
+		String questionText=null;
+		if (!"filePath".equals(attributeName))
 		{
-			questionText=replaceEquationsAsString(questionText);
+			questionText=question.getQuestionText();
+			if (question.isDisplayEquations())
+			{
+				questionText=replaceEquationsAsString(questionText);
+			}
 		}
 		return questionText==null?"":questionText;
 	}
 	
-	private static String getOmXmlSubmitButtonAsString(String tagName,String attributeName,OmXmlQuestion question)
+	private static String getOmXmlSubmitButtonAsString(String tagName,String attributeName,
+		OmXmlQuestion question)
 	{
 		String submitButtonValue=null;
 		if ("button".equals(tagName))
@@ -1514,12 +1519,16 @@ public class QuestionGenerator
 		return passButtonValue==null?"":passButtonValue;
 	}
 	
-	private static String getOmXmlCorrectValueAsString(OmXmlQuestion question)
+	private static String getOmXmlCorrectValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String correct=question.getCorrectFeedback();
-		if (question.isDisplayEquations())
+		String correct=null;
+		if (!"filePath".equals(attributeName))
 		{
-			correct=replaceEquationsAsString(correct);
+			correct=question.getCorrectFeedback();
+			if (question.isDisplayEquations())
+			{
+				correct=replaceEquationsAsString(correct);
+			}
 		}
 		return correct==null?"":correct;
 	}
@@ -1531,7 +1540,7 @@ public class QuestionGenerator
 		Resource resource=question.getCorrectFeedbackResource();
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1550,7 +1559,7 @@ public class QuestionGenerator
 					questionImageValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				questionImageValue=resource.getName();
 			}
@@ -1558,12 +1567,16 @@ public class QuestionGenerator
 		return questionImageValue==null?"":questionImageValue;
 	}
 	
-	private static String getOmXmlIncorrectValueAsString(OmXmlQuestion question)
+	private static String getOmXmlIncorrectValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String incorrect=question.getIncorrectFeedback();
-		if (question.isDisplayEquations())
+		String incorrect=null;
+		if (!"filePath".equals(attributeName))
 		{
-			incorrect=replaceEquationsAsString(incorrect);
+			incorrect=question.getIncorrectFeedback();
+			if (question.isDisplayEquations())
+			{
+				incorrect=replaceEquationsAsString(incorrect);
+			}
 		}
 		return incorrect==null?"":incorrect;
 	}
@@ -1575,7 +1588,7 @@ public class QuestionGenerator
 		Resource resource=question.getIncorrectFeedbackResource();
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1594,7 +1607,7 @@ public class QuestionGenerator
 					questionImageValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				questionImageValue=resource.getName();
 			}
@@ -1602,22 +1615,30 @@ public class QuestionGenerator
 		return questionImageValue==null?"":questionImageValue;
 	}
 	
-	private static String getOmXmlStillValueAsString(OmXmlQuestion question)
+	private static String getOmXmlStillValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String still=question.getStillFeedback();
-		if (question.isDisplayEquations())
+		String still=null;
+		if (!"filePath".equals(attributeName))
 		{
-			still=replaceEquationsAsString(still);
+			still=question.getStillFeedback();
+			if (question.isDisplayEquations())
+			{
+				still=replaceEquationsAsString(still);
+			}
 		}
 		return still==null?"":still;
 	}
 	
-	private static String getOmXmlPassValueAsString(OmXmlQuestion question)
+	private static String getOmXmlPassValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String pass=question.getPassFeedback();
-		if (question.isDisplayEquations())
+		String pass=null;
+		if (!"filePath".equals(attributeName))
 		{
-			pass=replaceEquationsAsString(pass);
+			pass=question.getPassFeedback();
+			if (question.isDisplayEquations())
+			{
+				pass=replaceEquationsAsString(pass);
+			}
 		}
 		return pass==null?"":pass;
 	}
@@ -1629,7 +1650,7 @@ public class QuestionGenerator
 		Resource resource=question.getPassFeedbackResource();
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1648,7 +1669,7 @@ public class QuestionGenerator
 					questionImageValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				questionImageValue=resource.getName();
 			}
@@ -1656,12 +1677,16 @@ public class QuestionGenerator
 		return questionImageValue==null?"":questionImageValue;
 	}
 	
-	private static String getOmXmlFinalValueAsString(OmXmlQuestion question)
+	private static String getOmXmlFinalValueAsString(String attributeName,OmXmlQuestion question)
 	{
-		String finalV=question.getAnswerFeedback();
-		if (question.isDisplayEquations())
+		String finalV=null;
+		if (!"filePath".equals(attributeName))
 		{
-			finalV=replaceEquationsAsString(finalV);
+			finalV=question.getAnswerFeedback();
+			if (question.isDisplayEquations())
+			{
+				finalV=replaceEquationsAsString(finalV);
+			}
 		}
 		return finalV==null?"":finalV;
 	}
@@ -1673,7 +1698,7 @@ public class QuestionGenerator
 		Resource resource=question.getFinalFeedbackResource();
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1692,7 +1717,7 @@ public class QuestionGenerator
 					questionImageValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				questionImageValue=resource.getName();
 			}
@@ -1717,7 +1742,7 @@ public class QuestionGenerator
 		}
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1736,7 +1761,7 @@ public class QuestionGenerator
 					resourceValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				resourceValue=resource.getName();
 			}
@@ -1761,7 +1786,7 @@ public class QuestionGenerator
 		}
 		if (resource!=null)
 		{
-			if ("image".equals(tagName))
+			if ("image".equals(tagName) || "canvas".equals(tagName))
 			{
 				if ("filePath".equals(attributeName))
 				{
@@ -1780,7 +1805,7 @@ public class QuestionGenerator
 					resourceValue=resource.getDescription();
 				}
 			}
-			else
+			else if (!"filePath".equals(attributeName))
 			{
 				resourceValue=resource.getName();
 			}
@@ -1788,7 +1813,8 @@ public class QuestionGenerator
 		return resourceValue==null?"":resourceValue;
 	}
 	
-	private static String getOmXmlTryAgainButtonAsString(String tagName,String attributeName,OmXmlQuestion question)
+	private static String getOmXmlTryAgainButtonAsString(String tagName,String attributeName,
+		OmXmlQuestion question)
 	{
 		String tryAgainButtonValue=null;
 		if ("button".equals(tagName))
@@ -2548,9 +2574,6 @@ public class QuestionGenerator
 		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 		if (question.getDraggableItems(1)!=null)
 		{
-			// Get current user session Hibernate operation
-			Operation operation=questionBean.getCurrentUserOperation(null);
-			
 			// Get a list of draggable items sorted by position
 			List<DragDropAnswer> draggableItems=new ArrayList<DragDropAnswer>();
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -2586,7 +2609,7 @@ public class QuestionGenerator
 				if (draggableItem.getText()==null || draggableItem.getText().equals(""))
 				{
 					// If there is no text for draggable item use answerIndex+1 as answerline for summary
-					String draggableItemName=getDraggableItemName(operation,draggableItem);
+					String draggableItemName=getDraggableItemName(draggableItem);
 					if (draggableItemName!=null)
 					{
 						dragBox.setAttribute("answerline",draggableItemName);
@@ -2615,7 +2638,7 @@ public class QuestionGenerator
 							"filePath",getOnlyFileName(draggableItem.getResource().getFileName()));
 						if (draggableItem.getText()==null || draggableItem.getText().equals(""))
 						{
-							String draggableItemName=getDraggableItemName(operation,draggableItem);
+							String draggableItemName=getDraggableItemName(draggableItem);
 							if (draggableItemName==null)
 							{
 								image.setAttribute("alt",draggableItem.getOmId());
@@ -2675,9 +2698,6 @@ public class QuestionGenerator
 		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 		if (question.getDroppableAnswers(1)!=null)
 		{
-			// Get current user session Hibernate operation
-			Operation operation=questionBean.getCurrentUserOperation(null);
-			
 			// Get a list of answers sorted by position
 			List<DragDropAnswer> answers=new ArrayList<DragDropAnswer>();
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -2758,7 +2778,7 @@ public class QuestionGenerator
 						image.setAttribute("filePath",getOnlyFileName(answer.getResource().getFileName()));
 						if (answer.getText()==null || answer.getText().equals(""))
 						{
-							String answerName=getDroppableAnswerName(operation,answer);
+							String answerName=getDroppableAnswerName(answer);
 							if (answerName==null)
 							{
 								image.setAttribute("alt",answer.getOmId());
@@ -3013,13 +3033,10 @@ public class QuestionGenerator
 		}
 		else
 		{
-			// Get current user session Hibernate operation
-			Operation operation=questionBean.getCurrentUserOperation(null);
-			
 			StringBuffer answerMap=new StringBuffer("answermap[");
 			StringBuffer answerMapValues=new StringBuffer();
 			boolean insertComma=false;
-			for (Answer answer:questionBean.getDroppableAnswersSortedByPosition(operation))
+			for (Answer answer:questionBean.getDroppableAnswersSortedByPosition())
 			{
 				if (insertComma)
 				{
@@ -3034,7 +3051,7 @@ public class QuestionGenerator
 				String answerMapValue=null;
 				if (answer.getText()==null || answer.getText().equals(""))
 				{
-					answerMapValue=getDroppableAnswerName(operation,(DragDropAnswer)answer);
+					answerMapValue=getDroppableAnswerName((DragDropAnswer)answer);
 					if (answerMapValue==null)
 					{
 						answerMapValue=answer.getOmId();

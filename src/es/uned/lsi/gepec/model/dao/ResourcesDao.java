@@ -137,8 +137,8 @@ public class ResourcesDao
 	 * @return Resource from DB
 	 * @throws DaoException
 	 */
-	public Resource getResource(long resourceId,boolean includeUsers,boolean includeCategory,
-		boolean includeCopyright) throws DaoException
+	public Resource getResource(long resourceId,boolean includeUsers,boolean includeCategory,boolean includeCopyright) 
+		throws DaoException
 	{
 		Resource resource=null;
 		try
@@ -599,6 +599,34 @@ public class ResourcesDao
 			}
 		}
 		return resources;
+	}
+	
+	/**
+	 * Checks if exists a resource with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists a resource with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkResourceId(long id) throws DaoException
+	{
+		boolean resourceFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(r) from Resource r Where r.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			resourceFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return resourceFound;
 	}
 	
 	//Inicia una sesión e inicia una transacción contra el dbms

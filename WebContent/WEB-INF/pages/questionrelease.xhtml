@@ -66,8 +66,8 @@
                 
                 <h:outputText style="margin-left:5px;margin-right:5px;" value="#{msgs.IMAGE}" />
                 <h:panelGrid columns="2" columnClasses="columnThumb,columnImageName">
-                  <p:graphicImage value="#{questionReleaseBean.questionRelease.question.resource.fileName}" 
-                    width="35" height="20" style="margin-left:15px;" />
+                  <h:graphicImage value="#{questionReleaseBean.questionRelease.question.resource.fileName}" 
+                    styleClass="graphics" width="35" height="20" style="margin-left:15px;" />
                   <h:outputText style="margin-right:5px;" 
                     value="#{questionReleaseBean.questionRelease.question.resource.name}" />
                 </h:panelGrid>
@@ -127,10 +127,9 @@
                   </h:panelGroup>
                   <p:outputPanel id="usersPanel">
                     <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
-                      emptyMessage="#{msgs.NO_USERS}" 
-                      value="#{questionReleaseBean.questionUsersGroups}" var="userGroup"
-                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                      paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                      emptyMessage="#{msgs.NO_USERS}" value="#{questionReleaseBean.questionUsersGroups}" 
+                      var="userGroup" paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" 
+                      rows="5" rowsPerPageTemplate="5,10,25,50">
                       
                       <p:column styleClass="columnUser" sortBy="#{userGroup.nickShort}">
                         <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
@@ -215,11 +214,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{questionReleaseBean.resetStartDate}" immediate="true" 
                       update="questionReleaseForm:startDate questionReleaseForm:startDateHidden" 
-                      onclick="clearDate(startDate);">
+                      onclick="resetStartDateTooltip.hide();clearDate(startDate);">
                       
                       <h:graphicImage id="resetStartDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetStartDateImage">
+                      <p:tooltip widgetVar="resetStartDateTooltip" for="resetStartDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink>
@@ -233,11 +232,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{questionReleaseBean.resetCloseDate}" immediate="true" 
                       update="questionReleaseForm:closeDate questionReleaseForm:closeDateHidden" 
-                      onclick="clearDate(closeDate);">
+                      onclick="resetCloseDateTooltip.hide();clearDate(closeDate);">
                       
                       <h:graphicImage id="resetCloseDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetCloseDateImage">
+                      <p:tooltip widgetVar="resetCloseDateTooltip" for="resetCloseDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink>
@@ -251,11 +250,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{questionReleaseBean.resetWarningDate}" immediate="true" 
                       update="questionReleaseForm:warningDate questionReleaseForm:warningDateHidden"
-                      onclick="clearDate(warningDate);">
+                      onclick="resetWarningDateTooltip.hide();clearDate(warningDate);">
                       
                       <h:graphicImage id="resetWarningDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetWarningDateImage">
+                      <p:tooltip widgetVar="resetWarningDateTooltip" for="resetWarningDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink>
@@ -278,11 +277,11 @@
                   </p:calendar>
                   <p:commandLink actionListener="#{questionReleaseBean.resetDeleteDate}" immediate="true" 
                     update="questionReleaseForm:deleteDate questionReleaseForm:deleteDateHidden" 
-                    onclick="clearDate(deleteDate);">
+                    onclick="resetDeleteDateTooltip.hide();clearDate(deleteDate);">
                     
                     <h:graphicImage id="resetDeleteDateImage" styleClass="links" 
                       value="#{resource['images:reset.png']}" />
-                    <p:tooltip for="resetDeleteDateImage">
+                    <p:tooltip widgetVar="resetDeleteDateTooltip" for="resetDeleteDateImage">
                       #{msgs.RESET}
                     </p:tooltip>
                   </p:commandLink>
@@ -300,8 +299,7 @@
                 </p>
                 <p:commandButton id="publishButton" value="#{msgs.PUBLISH}" ajax="false" 
                   styleClass="confirmButtons" image="ui-icon ui-icon-check" 
-                  action="#{questionReleaseBean.publishQuestion}" onclick="publishingDialog.show()" 
-                  disabled="#{!questionReleaseBean.publishAllowed}" />
+                  action="#{questionReleaseBean.publishQuestion}" onclick="publishingDialog.show()" />
                 <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
                   image="ui-icon ui-icon-cancel" action="publication" />
               </h:panelGroup>
@@ -311,7 +309,7 @@
       </h:form>
       
       <p:dialog widgetVar="addUserGroupsDialog" id="addUserGroupsDialog" styleClass="dialog" width="530" 
-        height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+        height="330"  header="#{msgs.ADD_USER_GROUPS_TITLE}" modal="true" closable="true" draggable="false" 
         resizable="false" onShow="centerDialog('addUserGroupsDialog');">
         
         <h:form id="userGroupsDialogForm">

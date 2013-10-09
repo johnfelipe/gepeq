@@ -42,15 +42,29 @@
             #{msgs.TEST_NAME}
             <h:inputText id="nameInput" style="width:545px;" maxlength="50" value="#{testBean.name}" />
             #{msgs.CATEGORY}
-            <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:545px;" 
-              value="#{testBean.categoryId}" var="testCategoryId">
-              
-              <f:selectItems value="#{testBean.testsCategoriesIds}" var="catId" 
-                itemLabel="#{testBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
-              <p:column>
-                #{testBean.getLocalizedCategoryLongName(testCategoryId,65)}
-              </p:column>
-            </p:selectOneMenu>
+            <h:panelGroup>
+              <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:520px;margin-right:5px;" 
+                value="#{testBean.categoryId}" var="testCategoryId" disabledValueValidation="true">
+                
+                <f:selectItems value="#{testBean.testsCategoriesIds}" var="catId" 
+                  itemLabel="#{testBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                <p:column>
+                  #{testBean.getLocalizedCategoryLongName(testCategoryId,65)}
+                </p:column>
+              </p:selectOneMenu>
+              <h:panelGroup style="display:inline-block;vertical-align:top;padding-top:6px;">
+                <p:commandLink id="refreshTestCategoriesButton" actionListener="#{testBean.refreshTestCategories}" 
+                  update="testForm:testFormTabs:categoryInput testForm:testFormTabs:generalMessages"
+                  onclick="refreshTestCategoriesTooltip.hide();">
+                  
+                  <h:graphicImage id="refreshTestCategoriesImage" styleClass="links" 
+                    value="#{resource['images:reset.png']}" />
+                  <p:tooltip widgetVar="refreshTestCategoriesTooltip" for="refreshTestCategoriesImage">
+                    #{msgs.REFRESH}
+                  </p:tooltip>
+                </p:commandLink>
+              </h:panelGroup>
+            </h:panelGroup>
           </h:panelGrid>
           <h:panelGrid columns="4" cellpadding="5" 
             columnClasses="#{localizationService.getLocalizedStyleClasses('columnTestTitleLabel,columnTestTitleInput,columnAuthorLabel,columnAuthorInput')}">
@@ -135,10 +149,10 @@
                     </h:panelGrid>
                   </h:panelGroup>
                   <p:outputPanel id="usersPanel">
-                    <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
-                      emptyMessage="#{msgs.NO_USERS}" value="#{testBean.testUsersGroups}" var="userGroup"
-                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                      paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow"  
+                      emptyMessage="#{msgs.NO_USERS}" value="#{testBean.testUsersGroups}" var="userGroup" 
+                      paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                      rowsPerPageTemplate="5,10,25,50">
                       
                       <p:column styleClass="columnUser" sortBy="#{userGroup.nickShort}">
                         <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
@@ -212,9 +226,9 @@
               </h:panelGroup>
               <p:outputPanel id="adminsPanel">
                 <p:dataTable id="adminsTable" styleClass="adminsTable" rowStyleClass="dataRow" 
-                  emptyMessage="#{msgs.NO_ADMINS}" value="#{testBean.testAdminsGroups}" var="adminGroup"
-                  paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                  paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                  emptyMessage="#{msgs.NO_ADMINS}" value="#{testBean.testAdminsGroups}" var="adminGroup" 
+                  paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                  rowsPerPageTemplate="5,10,25,50">
                   
                   <p:column styleClass="columnUser" sortBy="#{adminGroup.nickShort}">
                     <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
@@ -304,11 +318,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{testBean.resetStartDate}" immediate="true" 
                       update="testForm:testFormTabs:generalAccordion:startDate testForm:testFormTabs:generalAccordion:startDateHidden" 
-                      onclick="clearDate(startDate);">
+                      onclick="resetStartDateTooltip.hide();clearDate(startDate);">
                       
                       <h:graphicImage id="resetStartDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetStartDateImage">
+                      <p:tooltip widgetVar="resetStartDateTooltip" for="resetStartDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink> 
@@ -322,11 +336,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{testBean.resetCloseDate}" immediate="true" 
                       update="testForm:testFormTabs:generalAccordion:closeDate testForm:testFormTabs:generalAccordion:closeDateHidden" 
-                      onclick="clearDate(closeDate);">
+                      onclick="resetCloseDateTooltip.hide();clearDate(closeDate);">
                       
                       <h:graphicImage id="resetCloseDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetCloseDateImage">
+                      <p:tooltip widgetVar="resetCloseDateTooltip" for="resetCloseDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink> 
@@ -340,14 +354,14 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{testBean.resetWarningDate}" immediate="true" 
                       update="testForm:testFormTabs:generalAccordion:warningDate testForm:testFormTabs:generalAccordion:warningDateHidden" 
-                      onclick="clearDate(warningDate);">
+                      onclick="resetWarningDateTooltip.hide();clearDate(warningDate);">
                       
                       <h:graphicImage id="resetWarningDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetWarningDateImage">
+                      <p:tooltip widgetVar="resetWarningDateTooltip" for="resetWarningDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
-                    </p:commandLink> 
+                    </p:commandLink>
                   </h:panelGrid>
                 </ui:fragment>
               </h:panelGroup>
@@ -377,11 +391,11 @@
                     </p:calendar>
                     <p:commandLink actionListener="#{testBean.resetFeedbackDate}" immediate="true" 
                       update="testForm:testFormTabs:generalAccordion:feedbackDate testForm:testFormTabs:generalAccordion:feedbackDateHidden" 
-                      onclick="clearDate(feedbackDate);">
+                      onclick="resetFeedbackDateTooltip.hide();clearDate(feedbackDate);">
                       
                       <h:graphicImage id="resetFeedbackDateImage" styleClass="links" 
                         value="#{resource['images:reset.png']}" />
-                      <p:tooltip for="resetFeedbackDateImage">
+                      <p:tooltip widgetVar="resetFeedbackDateTooltip" for="resetFeedbackDateImage">
                         #{msgs.RESET}
                       </p:tooltip>
                     </p:commandLink> 
@@ -464,11 +478,10 @@
                 </h:panelGrid>
               </h:panelGroup>
               <p:outputPanel id="assessementAddressesPanel">
-                <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" 
-                  rowStyleClass="dataRow" emptyMessage="#{msgs.NO_EVALUATORS}" 
-                  value="#{testBean.evaluators}" var="evaluator"
-                  paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                  paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" rowStyleClass="dataRow" 
+                  emptyMessage="#{msgs.NO_EVALUATORS}" value="#{testBean.evaluators}" var="evaluator" 
+                  paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                  rowsPerPageTemplate="5,10,25,50">
                   
                   <p:column styleClass="columnFiltering" sortBy="#{evaluator.filteringString}">
                     <f:facet name="header">#{msgs.FILTERING}</f:facet>
@@ -480,24 +493,26 @@
                   </p:column>
                   <p:column styleClass="columnEdit">
                     <p:commandLink actionListener="#{testBean.showEditEvaluator}" immediate="true" 
-                      update="addAssessementAddressDialog testForm:testFormTabs:generalMessages">
+                      update="addAssessementAddressDialog testForm:testFormTabs:generalMessages"
+                      onclick="editAssessementAddressTooltip.hide();">
                       
                       <f:attribute name="evaluator" value="#{evaluator}" />
                       <h:graphicImage id="editAssessementAddressImage" styleClass="links" 
                         value="#{resource['images:edit16.png']}" />
-                      <p:tooltip for="editAssessementAddressImage">
+                      <p:tooltip widgetVar="editAssessementAddressTooltip" for="editAssessementAddressImage">
                         #{msgs.EDIT_ADDRESS}
                       </p:tooltip>
                     </p:commandLink>
                   </p:column>
                   <p:column styleClass="columnDelete">
                     <p:commandLink actionListener="#{testBean.removeEvaluator}" immediate="true" process="@this" 
-                      update="testForm:testFormTabs:generalAccordion:assessementAddressesPanel testForm:testFormTabs:generalMessages">
+                      update="testForm:testFormTabs:generalAccordion:assessementAddressesPanel testForm:testFormTabs:generalMessages"
+                      onclick="removeEvaluatorTooltip.hide();">
                       
                       <f:attribute name="evaluator" value="#{evaluator}" />
                       <h:graphicImage id="removeEvaluatorImage" styleClass="links" 
                         value="#{resource['images:delete.png']}" />
-                      <p:tooltip for="removeEvaluatorImage">
+                      <p:tooltip widgetVar="removeEvaluatorTooltip" for="removeEvaluatorImage">
                         #{msgs.REMOVE_ADDRESS}
                       </p:tooltip>
                     </p:commandLink> 
@@ -524,11 +539,10 @@
                 </h:panelGrid>
               </h:panelGroup>
               <p:outputPanel id="techSupportAddressesPanel">
-                <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" 
-                  rowStyleClass="dataRow" emptyMessage="#{msgs.NO_TECH_SUPPORT}" 
-                  value="#{testBean.supportContacts}" var="supportContact"
-                  paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                  paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" rowStyleClass="dataRow" 
+                  emptyMessage="#{msgs.NO_TECH_SUPPORT}" value="#{testBean.supportContacts}" var="supportContact" 
+                  paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                  rowsPerPageTemplate="5,10,25,50">
                   
                   <p:column styleClass="columnFiltering" sortBy="#{supportContact.filteringString}">
                     <f:facet name="header">#{msgs.FILTERING}</f:facet>
@@ -540,12 +554,13 @@
                   </p:column>
                   <p:column styleClass="columnEdit">
                     <p:commandLink actionListener="#{testBean.showEditSupportContact}" immediate="true" 
-                      update="addTechSupportAddressDialog testForm:testFormTabs:generalMessages">
+                      update="addTechSupportAddressDialog testForm:testFormTabs:generalMessages"
+                      onclick="editTechSupportAddressTooltip.hide();">
                       
                       <f:attribute name="supportContact" value="#{supportContact}" />
                       <h:graphicImage id="editTechSupportAddressImage" styleClass="links" 
                         value="#{resource['images:edit16.png']}" />
-                      <p:tooltip for="editTechSupportAddressImage">
+                      <p:tooltip widgetVar="editTechSupportAddressTooltip" for="editTechSupportAddressImage">
                         #{msgs.EDIT_ADDRESS}
                       </p:tooltip>
                     </p:commandLink>
@@ -553,12 +568,13 @@
                   <p:column styleClass="columnDelete">
                     <p:commandLink actionListener="#{testBean.removeSupportContact}" immediate="true" 
                     process="@this" 
-                    update="testForm:testFormTabs:generalAccordion:techSupportAddressesPanel testForm:testFormTabs:generalMessages">
+                    update="testForm:testFormTabs:generalAccordion:techSupportAddressesPanel testForm:testFormTabs:generalMessages"
+                    onclick="removeSupportContactTooltip.hide();">
                       
                       <f:attribute name="supportContact" value="#{supportContact}" />
                       <h:graphicImage id="removeSupportContactImage" styleClass="links" 
                         value="#{resource['images:delete.png']}" />
-                      <p:tooltip for="removeSupportContactImage">
+                      <p:tooltip widgetVar="removeSupportContactTooltip" for="removeSupportContactImage">
                         #{msgs.REMOVE_ADDRESS}
                       </p:tooltip>
                     </p:commandLink> 
@@ -606,9 +622,8 @@
           <h:panelGroup id="sectionsPanel" layout="block">
             <h:panelGroup layout="block" styleClass="rightAlignTopAccordion">
               <p:commandButton id="reSortSections" value="#{msgs.RE_SORT}" styleClass="confirmButton"
-                image="ui-icon ui-icon-triangle-2-n-s" immediate="true" 
-                actionListener="#{testBean.showReSortSections}" 
-                update="resortSectionsDialog testForm:testFormTabs:sectionsMessages" 
+                image="ui-icon ui-icon-triangle-2-n-s" immediate="true" actionListener="#{testBean.showReSortSections}" 
+                update="resortSectionsDialog testForm:testFormTabs:sectionsAccordion testForm:testFormTabs:sectionsMessages" 
                 disabled="#{!testBean.enabledReSortSections}"  />
               <p:commandButton value="#{msgs.ADD_SECTION}" styleClass="confirmButton" 
                 style="margin-right:5px;" image="ui-icon ui-icon-plus" immediate="true" 
@@ -687,20 +702,21 @@
                       <h:panelGroup styleClass="questionsSectionButtonsGroup">
                         <p:commandButton id="reSortQuestions" value="#{msgs.RE_SORT}" styleClass="button" 
                           image="ui-icon ui-icon-triangle-2-n-s" actionListener="#{testBean.showReSortQuestions}" 
-                          immediate="true" update="resortQuestionsDialog testForm:testFormTabs:sectionsMessages" 
+                          immediate="true" update="resortQuestionsDialog testForm:testFormTabs:sectionsAccordion testForm:testFormTabs:sectionsMessages" 
                           disabled="#{!testBean.isEnabledReSortQuestions(section)}" />
                         <p:commandButton id="addQuestionsButton" value="#{msgs.ADD_QUESTIONS}" styleClass="button" 
-                          image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddQuestions}" immediate="true" 
-                          update="addQuestionsDialog testForm:testFormTabs:sectionsMessages" />
+                          image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddQuestions}" 
+                          immediate="true" 
+                          update="addQuestionsDialog testForm:testFormTabs:sectionsAccordion testForm:testFormTabs:sectionsMessages" />
                       </h:panelGroup>
                     </h:panelGrid>
                   </h:panelGroup>
                 </p:outputPanel>
                 <p:outputPanel id="questionsPanel">
                   <p:dataTable id="questionsSection" styleClass="questionsTable" rowStyleClass="dataRow" 
-                    emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder"
-                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                    paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                    emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder" 
+                    paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+                    rowsPerPageTemplate="10,25,50">
                     
                     <p:column styleClass="columnOrder" sortBy="#{questionOrder.order}">
                       <f:facet name="header"></f:facet>
@@ -710,7 +726,7 @@
                       sortFunction="#{testBean.sortQuestionTypes}">
                       
                       <f:facet name="header"></f:facet>
-                      <h:graphicImage id="questionOrderQuestionTypeImage" 
+                      <h:graphicImage id="questionOrderQuestionTypeImage" styleClass="graphics" 
                         url="/resources/images/#{questionOrder.question.type}.gif" />
                       <p:tooltip for="questionOrderQuestionTypeImage">
                         #{msgs[questionOrder.question.type]}
@@ -763,27 +779,28 @@
                       </p:spinner>
                     </p:column>
                     <p:column styleClass="columnDelete">
-                      <p:commandLink actionListener="#{testBean.removeQuestion}" immediate="true" 
+                      <p:commandLink actionListener="#{testBean.removeQuestion}" immediate="true"
+                        onclick="removeQuestionOrderTooltip.hide();" 
                         update="testForm:testFormTabs:sectionsAccordion testForm:testFormTabs:sectionsMessages">
                         
                         <f:attribute name="questionOrder" value="#{questionOrder.order}" />
                         <h:graphicImage id="removeQuestionOrderImage" styleClass="links" 
                           value="#{resource['images:delete.png']}" />
-                        <p:tooltip for="removeQuestionOrderImage">
+                        <p:tooltip widgetVar="removeQuestionOrderTooltip" for="removeQuestionOrderImage">
                           #{msgs.REMOVE_QUESTION}
                         </p:tooltip>
                       </p:commandLink> 
                     </p:column>
                     <p:column styleClass="columnOM">
                       <p:commandLink action="#{testBean.viewOM(questionOrder.question.id)}" 
-                        onstart="buildingDialog.show()" 
+                        onstart="viewOMQuestionOrderTooltip.hide();buildingDialog.show()" 
                         oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" immediate="true" 
                         update="testForm:testFormTabs:sectionsMessages testForm:testFormTabs:sectionsAccordion" 
                         rendered="#{testBean.isViewOMQuestionEnabled(questionOrder.question)}">
                         
                         <h:graphicImage id="viewOMQuestionOrderImage" styleClass="links" 
                           value="#{resource['images:om16.png']}" />
-                        <p:tooltip for="viewOMQuestionOrderImage">
+                        <p:tooltip widgetVar="viewOMQuestionOrderTooltip" for="viewOMQuestionOrderImage">
                           #{msgs.OM_PREVIEW}
                         </p:tooltip>
                       </p:commandLink>
@@ -841,10 +858,10 @@
           <p:messages id="feedbackMessages" rendered="#{testBean.activeTestTabName=='feedback'}" />
           <p:accordionPanel id="feedbackAccordion" widgetVar="feedbackAccordion" styleClass="accordion" 
             style="margin-top:5px;">
-                        
-            <p:ajax event="tabChange" process="@this" update="@none" 
-              onstart="feedbackAccordionOnTabChangeStart();" 
-              oncomplete="feedbackAccordionOnTabChangeComplete();" />
+            
+            <p:ajax event="tabChange" listener="#{testBean.changeActiveFeedbackTab}" 
+              onstart="feedbackAccordionOnTabChangeStart();" oncomplete="feedbackAccordionOnTabChangeComplete();"
+              update="testForm:testFormTabs:feedbackAccordion:feedbacksTable" />
             <p:tab title="#{msgs.SUMMARY}">
               <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
                 columnClasses="columnDisplaySummaryLabel,columnDisplaySummaryInput">
@@ -853,8 +870,7 @@
                 <p:selectBooleanCheckbox id="feedbackDisplaySummary" widgetVar="feedbackDisplaySummary" 
                   value="#{testBean.feedbackDisplaySummary}">
                   
-                  <p:ajax process="@this feedbackDisplaySummaryPanelGroup" 
-                    update="feedbackDisplaySummaryPanelGroup" 
+                  <p:ajax process="@this feedbackDisplaySummaryPanelGroup" update="feedbackDisplaySummaryPanelGroup" 
                     onstart="feedbackDisplaySummaryOnChangeStart();" 
                     oncomplete="feedbackDisplaySummaryOnChangeComplete();" />
                 </p:selectBooleanCheckbox>
@@ -938,7 +954,7 @@
               <h:panelGroup layout="block" styleClass="advancedFeedbacksRightAlignTop">
                 <p:commandButton id="reSortFeedbacks" value="#{msgs.RE_SORT}" styleClass="button" 
                   image="ui-icon ui-icon-triangle-2-n-s" actionListener="#{testBean.showReSortFeedbacks}" 
-                  immediate="true" update="resortFeedbacksDialog" 
+                  immediate="true" update="resortFeedbacksDialog testForm:testFormTabs:feedbackAccordion:feedbacksTable" 
                   disabled="#{!testBean.enabledReSortFeedbacks}" />
                 <p:commandButton id="addFeedbackButton" value="#{msgs.ADD_FEEDBACK}" styleClass="button" 
                   image="ui-icon ui-icon-plus" actionListener="#{testBean.showAddFeedback}" immediate="true" 
@@ -946,8 +962,8 @@
               </h:panelGroup>
               <p:dataTable id="feedbacksTable" styleClass="feedbacksTable" rowStyleClass="dataRow" 
                 emptyMessage="#{msgs.NO_FEEDBACKS}" value="#{testBean.feedbacks}" var="feedback" 
-                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+                rowsPerPageTemplate="10,25,50">
                 
                 <p:column styleClass="columnOrder" sortBy="#{feedback.position}">
                   <f:facet name="header"></f:facet>
@@ -965,24 +981,25 @@
                 </p:column>
                 <p:column styleClass="columnEdit">
                   <p:commandLink actionListener="#{testBean.showEditFeedback}" immediate="true" 
-                    update="addFeedbackDialog">
+                    update="addFeedbackDialog" onclick="editFeedbackTooltip.hide();">
                     
                     <f:attribute name="feedback" value="#{feedback}" />
                     <h:graphicImage id="editFeedbackImage" styleClass="links" 
                       value="#{resource['images:edit16.png']}" />
-                    <p:tooltip for="editFeedbackImage">
+                    <p:tooltip widgetVar="editFeedbackTooltip" for="editFeedbackImage">
                       #{msgs.EDIT_FEEDBACK}
                     </p:tooltip>
                   </p:commandLink>
                 </p:column>
                 <p:column styleClass="columnDelete">
                   <p:commandLink actionListener="#{testBean.removeFeedback}" immediate="true" 
-                    update="testForm:testFormTabs:feedbackAccordion:reSortFeedbacks testForm:testFormTabs:feedbackAccordion:feedbacksTable">
+                    update="testForm:testFormTabs:feedbackAccordion:reSortFeedbacks testForm:testFormTabs:feedbackAccordion:feedbacksTable"
+                    onclick="removeFeedbackTooltip.hide();">
                     
                     <f:attribute name="feedback" value="#{feedback}" />
                     <h:graphicImage id="removeFeedbackImage" styleClass="links" 
                       value="#{resource['images:delete.png']}" />
-                    <p:tooltip for="removeFeedbackImage">
+                    <p:tooltip widgetVar="removeFeedbackTooltip" for="removeFeedbackImage">
                       #{msgs.DELETE_FEEDBACK}
                     </p:tooltip>
                   </p:commandLink>
@@ -1018,6 +1035,37 @@
             columnClasses="categoryLabelColumn,categoryInputColumn,includeSubcategoriesLabelColumn,includeSubcategoriesInputColumn">
             
             #{msgs.CATEGORY}:
+            <h:panelGroup>
+              <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:380px;margin-right:5px;" 
+                panelStyle="width:550px;" value="#{testBean.filterCategoryId}" var="filterCategoryId"> 
+                
+                <p:ajax event="change" process="addQuestionsForm:questionsFilterPanel" 
+                  update="addQuestionsForm:questionsFilterPanel" />
+                <f:selectItems value="#{testBean.specialCategoriesFilters}" var="catFilter" 
+                  itemLabel="#{testBean.getSpecialCategoryFilterName(catFilter)}" 
+                  itemValue="#{catFilter.id}" />
+                <f:selectItems value="#{testBean.questionsCategories}" var="cat" 
+                  itemLabel="#{testBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+                <p:column>
+                  #{testBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+                </p:column>
+              </p:selectOneMenu>
+              <h:panelGroup style="display:inline-block;vertical-align:top;padding-top:6px;">
+                <p:commandLink id="refreshQuestionsCategoriesButton" 
+                  actionListener="#{testBean.refreshQuestionsCategories}" 
+                  update="addQuestionsForm:questionsFilterPanel addQuestionsForm:questionsMessages" 
+                  onclick="refreshQuestionsCategoriesTooltip.hide();">
+                  
+                  <h:graphicImage id="refreshQuestionsCategoriesImage" styleClass="links" 
+                    value="#{resource['images:reset.png']}" />
+                  <p:tooltip widgetVar="refreshQuestionsCategoriesTooltip" for="refreshQuestionsCategoriesImage">
+                    #{msgs.REFRESH}
+                  </p:tooltip>
+                </p:commandLink>
+              </h:panelGroup>
+            </h:panelGroup>
+            
+            <!--
             <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:400px;" panelStyle="width:550px;" 
               value="#{testBean.filterCategoryId}" var="filterCategoryId"> 
               
@@ -1032,6 +1080,8 @@
                 #{testBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
               </p:column>
             </p:selectOneMenu>
+            -->
+            
             <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" rendered="#{testBean.filterCategoryId!=0}" />
             <p:selectBooleanCheckbox id="includeSubcategories" value="#{testBean.filterIncludeSubcategories}"
               rendered="#{testBean.filterCategoryId!=0}" /> 
@@ -1062,7 +1112,7 @@
               <f:selectItems value="#{questionTypesService.questionTypes}" var="type" 
                 itemLabel="#{msgs[type]}" itemValue="#{type}" />
               <p:column styleClass="columnIcon">
-                <p:graphicImage value="/resources/images/#{t}.gif" width="16" height="16" />
+                <h:graphicImage value="/resources/images/#{t}.gif" styleClass="graphics" width="16" height="16" />
               </p:column>
               <p:column style="font-size:85% !important;">
                 #{msgs[t]}
@@ -1082,7 +1132,8 @@
             <f:facet name="sourceCaption">#{msgs.AVAILABLE_QUESTIONS_HEADER}</f:facet>
             <f:facet name="targetCaption">#{msgs.ADD_QUESTIONS_HEADER}</f:facet>
             <p:column styleClass="columnIcon"> 
-              <p:graphicImage value="/resources/images/#{question.type}.gif" width="16" height="16" />
+              <h:graphicImage value="/resources/images/#{question.type}.gif" styleClass="graphics" width="16" 
+                height="16" />
             </p:column>
             <p:column styleClass="columnLevel">
               <h:outputText id="addQuestionLevelColor" value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
@@ -1091,16 +1142,17 @@
     	        #{msgs[question.levelString]}
     	      </p:tooltip>
             </p:column>
-            <p:column>  
+            <p:column>
               #{question.name}
-            </p:column>  
+            </p:column>
           </p:pickList>
         </p:panel>
         <h:panelGroup layout="block" styleClass="centerAlignBottom">
 	      <p:commandButton ajax="false" styleClass="confirmButtons" value="${msgs.ACCEPT}" 
 	        actionListener="#{testBean.acceptAddQuestions}" oncomplete="addQuestionsDialog.hide()" />
           <p:commandButton styleClass="confirmButtons" value="#{msgs.CANCEL}" 
-            onclick="addQuestionsDialog.hide()" />
+            actionListener="#{testBean.cancelAddQuestions}" oncomplete="addQuestionsDialog.hide()" 
+            update="testForm:testFormTabs:sectionsAccordion" />
 	    </h:panelGroup>
 	  </h:form>
 	</p:dialog>
@@ -1116,7 +1168,7 @@
     </p:dialog>
     
     <p:dialog widgetVar="addUserGroupsDialog" id="addUserGroupsDialog" styleClass="dialog" width="530" 
-      height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+      height="330"  header="#{msgs.ADD_USER_GROUPS_TITLE}" modal="true" closable="true" draggable="false" 
       resizable="false" onShow="centerDialog('addUserGroupsDialog');">
       
       <h:form id="userGroupsDialogForm">
@@ -1129,7 +1181,7 @@
             image="ui-icon ui-icon-plus" actionListener="#{testBean.addUserGroup}" 
             process="@this userGroupsDialogForm:userGroup" 
             update="userGroupsDialogForm:userGroupsPickerPanel userGroupsDialogForm:userGroupsDialogMessages" 
-            onstart="addUserGroupStart()" /> 
+            onstart="addUserGroupStart()" />
         </h:panelGroup>
         <h:inputHidden id="availableUserGroupsHidden" value="#{testBean.availableUserGroupsHidden}" />            
         <h:inputHidden id="userGroupsToAddHidden" value="#{testBean.userGroupsToAddHidden}" />            
@@ -1214,7 +1266,7 @@
     </p:dialog>
     
     <p:dialog widgetVar="addAdminGroupsDialog" id="addAdminGroupsDialog" styleClass="dialog" width="530" 
-      height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+      height="330"  header="#{msgs.ADD_ADMIN_GROUPS_TITLE}" modal="true" closable="true" draggable="false" 
       resizable="false" onShow="centerDialog('addAdminGroupsDialog');">
       
       <h:form id="adminGroupsDialogForm">
@@ -1334,6 +1386,7 @@
                 onstart="changeSupportContactFilterTypeStart();" />
               <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
               <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+              <f:selectItem itemLabel="#{msgs.GROUP_FILTER}" itemValue="GROUP_FILTER" />
             </p:selectOneMenu>
             <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
               rendered="#{testBean.supportContactFilterSubtypeEnabled}" />
@@ -1398,8 +1451,8 @@
               style="margin-top:0px;margin-bottom:0px;border-width:0px;">
               
               <p:pickList id="supportContactFilterUsersList" styleClass="supportContactFilterUsersPickList" 
-                value="#{testBean.evaluatorFilterUsersDualList}" var="user" itemLabel="#{user}" itemValue="#{user}" 
-                converter="UserConverter" iconOnly="true" dynamic="true">
+                value="#{testBean.supportContactFilterUsersDualList}" var="user" itemLabel="#{user}" 
+                itemValue="#{user}" converter="UserConverter" iconOnly="true" dynamic="true">
                 
                 <f:facet name="sourceCaption">#{msgs.AVAILABLE_USERS}</f:facet>
                 <f:facet name="targetCaption">#{msgs.TECH_SUPPORT_USERS_HEADER}</f:facet>
@@ -1486,6 +1539,39 @@
               </p:selectOneMenu>
             </h:panelGrid>
           </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.supportContactFilterType=='GROUP_FILTER'}">
+            <h:panelGroup layout="block" styleClass="rightAlignTopAddressesDialog" 
+              rendered="#{testBean.allUsersAllowed}">
+              
+              <h:inputText id="supportContactGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+                value="#{testBean.supportContactGroup}" />
+              <p:commandButton id="addSupportContactGroupButton" styleClass="button" style="margin-right:20px;" 
+                value="#{msgs.ADD_USER_GROUP}" image="ui-icon ui-icon-plus" 
+                actionListener="#{testBean.addSupportContactGroup}" 
+                process="@this techSupportAddressDialogForm:supportContactGroup" 
+                update="techSupportAddressDialogForm:supportContactFilterGroupsPickerPanel techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+                onstart="addSupportContactGroupStart();" />  
+            </h:panelGroup>
+            <h:inputHidden id="availableSupportContactFilterGroupsHidden" 
+              value="#{testBean.availableSupportContactFilterGroupsHidden}" />
+            <h:inputHidden id="supportContactFilterGroupsHidden" 
+              value="#{testBean.supportContactFilterGroupsHidden}" />            
+            <p:panel id="supportContactFilterGroupsPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="supportContactFilterGroupsList" 
+                styleClass="#{testBean.allUsersAllowed ? 'supportContactFilterGroupsPickListWithAddGroupInput' : 'supportContactFilterGroupsPickList'}" 
+                value="#{testBean.supportContactFilterGroupsDualList}" var="group" itemLabel="#{group}" 
+                itemValue="#{group}" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.TECH_SUPPORT_GROUPS_HEADER}</f:facet>
+                <p:column>
+                  #{group}
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
         </p:panel>
         <p:panel id="techSupportAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
           <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
@@ -1529,6 +1615,7 @@
                 onstart="changeEvaluatorFilterTypeStart();" />
               <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
               <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+              <f:selectItem itemLabel="#{msgs.GROUP_FILTER}" itemValue="GROUP_FILTER" />
             </p:selectOneMenu>
             <h:outputText value="#{msgs.FILTER_SUBTYPE}" rendered="#{testBean.evaluatorFilterSubtypeEnabled}" />
             <p:selectOneMenu id="evaluatorFilterSubtype" styleClass="combo" style="width:280px;" 
@@ -1679,6 +1766,38 @@
               </p:selectOneMenu>
             </h:panelGrid>
           </h:panelGroup>
+          <h:panelGroup rendered="#{testBean.evaluatorFilterType=='GROUP_FILTER'}">
+            <h:panelGroup layout="block" styleClass="rightAlignTopAddressesDialog" 
+              rendered="#{testBean.allUsersAllowed}">
+              
+              <h:inputText id="evaluatorGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+                value="#{testBean.evaluatorGroup}" />
+              <p:commandButton id="addEvaluatorGroupButton" styleClass="button" style="margin-right:20px;" 
+                value="#{msgs.ADD_USER_GROUP}" image="ui-icon ui-icon-plus" 
+                actionListener="#{testBean.addEvaluatorGroup}" 
+                process="@this assessementAddressDialogForm:evaluatorGroup" 
+                update="assessementAddressDialogForm:evaluatorFilterGroupsPickerPanel assessementAddressDialogForm:assessementAddressDialogMessages" 
+                onstart="addEvaluatorGroupStart();" />  
+            </h:panelGroup>
+            <h:inputHidden id="availableEvaluatorFilterGroupsHidden" 
+              value="#{testBean.availableEvaluatorFilterGroupsHidden}" />
+            <h:inputHidden id="evaluatorFilterGroupsHidden" value="#{testBean.evaluatorFilterGroupsHidden}" />            
+            <p:panel id="evaluatorFilterGroupsPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="evaluatorFilterGroupsList" 
+                styleClass="#{testBean.allUsersAllowed ? 'evaluatorFilterGroupsPickListWithAddGroupInput' : 'evaluatorFilterGroupsPickList'}" 
+                value="#{testBean.evaluatorFilterGroupsDualList}" var="group" itemLabel="#{group}" 
+                itemValue="#{group}" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.ASSESSEMENT_GROUPS_HEADER}</f:facet>
+                <p:column>
+                  #{group}
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
         </p:panel>
         <p:panel id="assessementAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
           <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
@@ -1713,12 +1832,11 @@
             
             <f:facet name="caption">#{msgs.QUESTIONS}</f:facet>
             <p:column styleClass="columnIcon"> 
-              <p:graphicImage value="/resources/images/#{questionOrder.question.type}.gif" width="16" 
-                height="16" />
+              <h:graphicImage value="/resources/images/#{questionOrder.question.type}.gif" styleClass="graphics" 
+                width="16" height="16" />
             </p:column>
             <p:column styleClass="columnLevel">
-              <h:outputText id="reSortQuestionLevelColor" 
-                value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
+              <h:outputText id="reSortQuestionLevelColor" value="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" 
                 styleClass="#{questionOrder.question.levelString}" />
               <p:tooltip for="reSortQuestionLevelColor">
                 #{msgs[questionOrder.question.levelString]}
@@ -1733,7 +1851,8 @@
           <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
             actionListener="#{testBean.acceptReSortQuestions}" oncomplete="resortQuestionsDialog.hide();" />
           <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-            onclick="resortQuestionsDialog.hide();" />
+            actionListener="#{testBean.cancelReSortQuestions}" oncomplete="resortQuestionsDialog.hide();" 
+            update="testForm:testFormTabs:sectionsAccordion" />
         </h:panelGroup>
       </h:form>
     </p:dialog>
@@ -1769,7 +1888,8 @@
           <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"  
             actionListener="#{testBean.acceptReSortSections}" oncomplete="resortSectionsDialog.hide();" /> 
           <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-            onclick="resortSectionsDialog.hide();" />
+            actionListener="#{testBean.cancelReSortSections}" oncomplete="resortSectionsDialog.hide();" 
+            update="testForm:testFormTabs:sectionsAccordion" />
         </h:panelGroup>
       </h:form>
     </p:dialog>
@@ -1853,16 +1973,17 @@
         </p:panel>
         <h:panelGroup layout="block" styleClass="centerAlignBottom">
           <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
-            actionListener="#{testBean.acceptAddFeedback}" process="@form" 
-            update="@form testForm:testFormTabs:feedbackAccordion:feedbacksTable" />
+            actionListener="#{testBean.acceptAddFeedback}"  
+            update="feedbackDialogForm:conditionalBetweenMin feedbackDialogForm:conditionalBetweenMax testForm:testFormTabs:feedbackAccordion:reSortFeedbacks testForm:testFormTabs:feedbackAccordion:feedbacksTable" />
           <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-            onclick="addFeedbackDialog.hide();" />
+            actionListener="#{testBean.cancelAddFeedback}" oncomplete="addFeedbackDialog.hide();" 
+            update="testForm:testFormTabs:feedbackAccordion:feedbacksTable" />
         </h:panelGroup>
       </h:form>
     </p:dialog>
     
     <p:dialog widgetVar="resortFeedbacksDialog" id="resortFeedbacksDialog" styleClass="dialog" width="800" 
-      height="320" header="#{msgs.RE_SORT_FEEDBACKS}" modal="true" closable="true" draggable="false" 
+      height="320" header="#{msgs.RE_SORT_FEEDBACKS}" modal="true" closable="false" draggable="false" 
       resizable="false" onShow="centerDialog('resortFeedbacksDialog');">
       
       <h:form id="resortFeedbacksDialogForm">
@@ -1888,8 +2009,8 @@
         <h:panelGroup layout="block" styleClass="centerAlignBottom">
           <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
             actionListener="#{testBean.acceptReSortFeedbacks}" oncomplete="resortFeedbacksDialog.hide();" />
-          <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-            onclick="resortFeedbacksDialog.hide();" />
+          <p:commandButton ajax="false" value="#{msgs.CANCEL}" styleClass="confirmButtons" 
+            actionListener="#{testBean.cancelReSortFeedbacks}" oncomplete="resortFeedbacksDialog.hide();" />
         </h:panelGroup>
       </h:form>
     </p:dialog>
@@ -1930,9 +2051,10 @@
       <h:form>
         <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
           <h:panelGroup layout="block" style="text-align:right;">
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteQuestionDialog.hide();" 
-              actionListener="#{testBean.removeQuestion}" update="testForm:testFormTabs:sectionsAccordion" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteQuestionDialog.hide();" type="button" />
+            <p:commandButton value="#{msgs.YES}" actionListener="#{testBean.removeQuestion}" 
+              oncomplete="confirmDeleteQuestionDialog.hide();" update="testForm:testFormTabs:sectionsAccordion" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{testBean.cancelRemoveQuestion}" 
+              oncomplete="confirmDeleteQuestionDialog.hide();" update="testForm:testFormTabs:sectionsAccordion" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>
@@ -1971,7 +2093,8 @@
         <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
           <h:panelGroup layout="block" style="text-align:right;">
             <p:commandButton value="#{msgs.YES}" ajax="false" action="#{testBean.cancelTest}" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmCancelTestDialog.hide();" type="button" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{testBean.abortCancelTest}" 
+              oncomplete="confirmCancelTestDialog.hide();" update="testForm:testFormTabs:sectionsAccordion" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>

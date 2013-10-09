@@ -30,6 +30,7 @@
 
 .dimmensionsSpinner .ui-spinner-input {
 	width:77px;
+	margin:0px;
 }
 
 .conditionSpinner {
@@ -38,6 +39,7 @@
 
 .conditionSpinner .ui-spinner-input {
     width:27px;
+    margin:0px;
 }
 
 .answersOrderList .ui-orderlist-list {
@@ -55,6 +57,11 @@
     height:310px;
 }
 
+.resourcesOrderList .ui-orderlist-list {
+    width:260px;
+    height:310px;
+}
+
 .feedbacksOrderList .ui-orderlist-list {
     width:600px;
     height:310px;
@@ -64,10 +71,15 @@
 	width:99%;	
 }
 
-.accordion {
+.accordion, .questionResourcesAccordion  {
 	font-size:90% !important;
 	padding:0px;
 	margin:0px;
+}
+
+.questionResourcesAccordion .ui-accordion-content {
+	padding-left:15px;
+	padding-right:15px;
 }
 
 .columnCommonDataLabels {
@@ -636,7 +648,7 @@
 }
 
 .columnCondition {
-	width:180px;
+	width:160px;
 	text-align:left;
 }
 
@@ -646,7 +658,7 @@
 } 
 
 .columnContent {
-	width:200px;
+	width:160px;
 	text-align:left;
 }
 
@@ -703,6 +715,12 @@
 
 .columnAnswerFixed {
     text-align:left;
+}
+
+.columnResourceTitle {
+    /* width:190px; */
+    text-align:left;
+    font-weight:bold;
 }
 
 .columnDraggableItemTitle {

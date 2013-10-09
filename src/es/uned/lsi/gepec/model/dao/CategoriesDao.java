@@ -221,6 +221,150 @@ public class CategoriesDao
 		return category;
 	}
 	
+	/**
+	 * @param resourceId Resource identifier
+	 * @param includeUser Flag to indicate if we need to initialize user
+	 * @param includeCategoryType Flag to indicate if we need to initialize category type
+	 * @param includeVisibility Flag to indicate if we need to initialize category visibility
+	 * @return Category from a resource
+	 * @throws DaoException
+	 */
+	public Category getCategoryFromResourceId(long resourceId,boolean includeUser,boolean includeCategoryType,
+		boolean includeVisibility) throws DaoException
+	{
+		Category category=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from Category c where c.id = (select r.category.id from Resource r where r.id = :resourceId)");
+			query.setParameter("resourceId",Long.valueOf(resourceId),StandardBasicTypes.LONG);
+			category=(Category)query.uniqueResult();
+			if (category!=null)
+			{
+				Hibernate.initialize(category.getParent());
+				if (includeUser)
+				{
+					Hibernate.initialize(category.getUser());
+				}
+				if (includeCategoryType)
+				{
+					Hibernate.initialize(category.getCategoryType());
+				}
+				if (includeVisibility)
+				{
+					Hibernate.initialize(category.getVisibility());
+				}
+			}
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return category;
+	}
+	
+	/**
+	 * @param questionId Question identifier
+	 * @param includeUser Flag to indicate if we need to initialize user
+	 * @param includeCategoryType Flag to indicate if we need to initialize category type
+	 * @param includeVisibility Flag to indicate if we need to initialize category visibility
+	 * @return Category from a question
+	 * @throws DaoException
+	 */
+	public Category getCategoryFromQuestionId(long questionId,boolean includeUser,boolean includeCategoryType,
+		boolean includeVisibility) throws DaoException
+	{
+		Category category=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from Category c where c.id = (select q.category.id from Question q where q.id = :questionId)");
+			query.setParameter("questionId",Long.valueOf(questionId),StandardBasicTypes.LONG);
+			category=(Category)query.uniqueResult();
+			if (category!=null)
+			{
+				Hibernate.initialize(category.getParent());
+				if (includeUser)
+				{
+					Hibernate.initialize(category.getUser());
+				}
+				if (includeCategoryType)
+				{
+					Hibernate.initialize(category.getCategoryType());
+				}
+				if (includeVisibility)
+				{
+					Hibernate.initialize(category.getVisibility());
+				}
+			}
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return category;
+	}
+	
+	/**
+	 * @param testId Test identifier
+	 * @param includeUser Flag to indicate if we need to initialize user
+	 * @param includeCategoryType Flag to indicate if we need to initialize category type
+	 * @param includeVisibility Flag to indicate if we need to initialize category visibility
+	 * @return Category from a test
+	 * @throws DaoException
+	 */
+	public Category getCategoryFromTestId(long testId,boolean includeUser,boolean includeCategoryType,
+		boolean includeVisibility) throws DaoException
+	{
+		Category category=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from Category c where c.id = (select t.category.id from Test t where t.id = :testId)");
+			query.setParameter("testId",Long.valueOf(testId),StandardBasicTypes.LONG);
+			category=(Category)query.uniqueResult();
+			if (category!=null)
+			{
+				Hibernate.initialize(category.getParent());
+				if (includeUser)
+				{
+					Hibernate.initialize(category.getUser());
+				}
+				if (includeCategoryType)
+				{
+					Hibernate.initialize(category.getCategoryType());
+				}
+				if (includeVisibility)
+				{
+					Hibernate.initialize(category.getVisibility());
+				}
+			}
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return category;
+	}
+	
 	//TODO Is this method to get all categories without any filtering really needed?
 	/**
 	 * @param sortedByName Flag to indicate if we want the results sorted by category name
@@ -1167,6 +1311,34 @@ public class CategoriesDao
 			endOperation();
 		}
 		return questionsCount;
+	}
+	
+	/**
+	 * Checks if exists a category with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists a category with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkCategoryId(long id) throws DaoException
+	{
+		boolean categoryFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(c) from Category c Where c.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			categoryFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return categoryFound;
 	}
 	
 	//Inicia una sesión e inicia una transacción contra el dbms

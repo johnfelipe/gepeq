@@ -49,12 +49,12 @@ public class TrueFalseQuestion extends Question
 		this.correctAnswer=correctAnswer;
 	}
 	
-	public TrueFalseQuestion(boolean correctAnswer,String rightText,String wrongText)
+	public TrueFalseQuestion(boolean correctAnswer,String trueText,String falseText)
 	{
 		super();
 		this.correctAnswer=correctAnswer;
-		this.trueText=rightText;
-		this.falseText=wrongText;
+		this.trueText=trueText;
+		this.falseText=falseText;
 	}
 	
 	@Column(name = "correct_answer", nullable = false)
@@ -97,5 +97,48 @@ public class TrueFalseQuestion extends Question
 			setTrueText(((TrueFalseQuestion)otherQuestion).getTrueText());
 			setFalseText(((TrueFalseQuestion)otherQuestion).getFalseText());
 		}
+	}
+	
+	@Transient
+	@Override
+	public Question getQuestionCopy()
+	{
+		TrueFalseQuestion trueFalseQuestion=new TrueFalseQuestion(getCorrectAnswer(), getTrueText(), getFalseText());
+		trueFalseQuestion.setId(getId());
+		trueFalseQuestion.setVersion(getVersion());
+		trueFalseQuestion.setCategory(getCategory());
+		trueFalseQuestion.setResource(getResource());
+		trueFalseQuestion.setCorrectFeedbackResource(getCorrectFeedbackResource());
+		trueFalseQuestion.setIncorrectFeedbackResource(getIncorrectFeedbackResource());
+		trueFalseQuestion.setPassFeedbackResource(getPassFeedbackResource());
+		trueFalseQuestion.setFinalFeedbackResource(getFinalFeedbackResource());
+		trueFalseQuestion.setName(getName());
+		trueFalseQuestion.setQuestionText(getQuestionText());
+		trueFalseQuestion.setType(getType());
+		trueFalseQuestion.setCreatedBy(getCreatedBy());
+		trueFalseQuestion.setModifiedBy(getModifiedBy());
+		trueFalseQuestion.setTimecreated(getTimecreated());
+		trueFalseQuestion.setTimemodified(getTimemodified());
+		trueFalseQuestion.setTimebuild(getTimebuild());
+		trueFalseQuestion.setTimedeploy(getTimedeploy());
+		trueFalseQuestion.setTimepublished(getTimepublished());
+		trueFalseQuestion.setCorrectFeedback(getCorrectFeedback());
+		trueFalseQuestion.setIncorrectFeedback(getIncorrectFeedback());
+		trueFalseQuestion.setStillFeedback(getStillFeedback());
+		trueFalseQuestion.setPassFeedback(getPassFeedback());
+		trueFalseQuestion.setAnswerFeedback(getAnswerFeedback());
+		trueFalseQuestion.setLevel(getLevel());
+		trueFalseQuestion.setResourceWidth(getResourceWidth());
+		trueFalseQuestion.setResourceHeight(getResourceHeight());
+		trueFalseQuestion.setCorrectFeedbackResourceWidth(getCorrectFeedbackResourceWidth());
+		trueFalseQuestion.setCorrectFeedbackResourceHeight(getCorrectFeedbackResourceHeight());
+		trueFalseQuestion.setIncorrectFeedbackResourceWidth(getIncorrectFeedbackResourceWidth());
+		trueFalseQuestion.setIncorrectFeedbackResourceHeight(getIncorrectFeedbackResourceHeight());
+		trueFalseQuestion.setPassFeedbackResourceWidth(getPassFeedbackResourceWidth());
+		trueFalseQuestion.setPassFeedbackResourceHeight(getPassFeedbackResourceHeight());
+		trueFalseQuestion.setFinalFeedbackResourceWidth(getFinalFeedbackResourceWidth());
+		trueFalseQuestion.setFinalFeedbackResourceHeight(getFinalFeedbackResourceHeight());
+		trueFalseQuestion.setDisplayEquations(isDisplayEquations());
+		return trueFalseQuestion;
 	}
 }

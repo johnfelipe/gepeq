@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,6 +28,7 @@ import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.TestFeedbacksDao;
 import es.uned.lsi.gepec.model.entities.Test;
 import es.uned.lsi.gepec.model.entities.TestFeedback;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -64,8 +66,25 @@ public class TestFeedbacksService implements Serializable
 		TestFeedback testFeedback=null;
 		try
 		{
+			// Get test feedback from DB
 			TEST_FEEDBACKS_DAO.setOperation(operation);
-			testFeedback=TEST_FEEDBACKS_DAO.getTestFeedback(id,true,true);
+			TestFeedback testFeedbackFromDB=TEST_FEEDBACKS_DAO.getTestFeedback(id,true,true);
+			if (testFeedbackFromDB!=null)
+			{
+				testFeedback=testFeedbackFromDB.getTestFeedbackCopy();
+				if (testFeedbackFromDB.getTest()!=null)
+				{
+					testFeedback.setTest(testFeedbackFromDB.getTest().getTestCopy());
+				}
+				if (testFeedbackFromDB.getSection()!=null)
+				{
+					testFeedback.setSection(testFeedbackFromDB.getSection().getSectionCopy());
+				}
+				if (testFeedbackFromDB.getScoreUnit()!=null)
+				{
+					testFeedback.setScoreUnit(testFeedbackFromDB.getScoreUnit().getScoreUnitCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -92,14 +111,48 @@ public class TestFeedbacksService implements Serializable
 	 */
 	public void updateTestFeedback(Operation operation,TestFeedback testFeedback) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get test feedback from DB
 			TEST_FEEDBACKS_DAO.setOperation(operation);
-			TEST_FEEDBACKS_DAO.updateTestFeedback(testFeedback);
+			TestFeedback testFeedbackFromDB=TEST_FEEDBACKS_DAO.getTestFeedback(testFeedback.getId(),false,false);
+			
+			// Set fields with the updated values
+			testFeedbackFromDB.setFromOtherTestFeedback(testFeedback);
+			
+			// Update test feedback
+			TEST_FEEDBACKS_DAO.setOperation(operation);
+			TEST_FEEDBACKS_DAO.updateTestFeedback(testFeedbackFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -123,6 +176,7 @@ public class TestFeedbacksService implements Serializable
 	{
 		try
 		{
+			// Add a new test feedback
 			TEST_FEEDBACKS_DAO.setOperation(operation);
 			TEST_FEEDBACKS_DAO.saveTestFeedback(testFeedback);
 		}
@@ -150,14 +204,45 @@ public class TestFeedbacksService implements Serializable
 	 */
 	public void deleteTestFeedback(Operation operation,TestFeedback testFeedback) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get test feedback from DB
 			TEST_FEEDBACKS_DAO.setOperation(operation);
-			TEST_FEEDBACKS_DAO.deleteTestFeedback(testFeedback);
+			TestFeedback testFeedbackFromDB=TEST_FEEDBACKS_DAO.getTestFeedback(testFeedback.getId(),false,false);
+			
+			// Delete test feedback
+			TEST_FEEDBACKS_DAO.setOperation(operation);
+			TEST_FEEDBACKS_DAO.deleteTestFeedback(testFeedbackFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -203,8 +288,30 @@ public class TestFeedbacksService implements Serializable
 		List<TestFeedback> testFeedbacks=null;
 		try
 		{
+			// We get test feedbacks from DB
 			TEST_FEEDBACKS_DAO.setOperation(operation);
-			testFeedbacks=TEST_FEEDBACKS_DAO.getTestFeedbacks(testId,true,true);
+			List<TestFeedback> testFeedbacksFromDB=TEST_FEEDBACKS_DAO.getTestFeedbacks(testId,true,true);
+			
+			// We return new referenced test feedbacks within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			testFeedbacks=new ArrayList<TestFeedback>(testFeedbacksFromDB.size());
+			for (TestFeedback testFeedbackFromDB:testFeedbacksFromDB)
+			{
+				TestFeedback testFeedback=testFeedbackFromDB.getTestFeedbackCopy();
+				if (testFeedbackFromDB.getTest()!=null)
+				{
+					testFeedback.setTest(testFeedbackFromDB.getTest().getTestCopy());
+				}
+				if (testFeedbackFromDB.getSection()!=null)
+				{
+					testFeedback.setSection(testFeedbackFromDB.getSection().getSectionCopy());
+				}
+				if (testFeedbackFromDB.getScoreUnit()!=null)
+				{
+					testFeedback.setScoreUnit(testFeedbackFromDB.getScoreUnit().getScoreUnitCopy());
+				}
+				testFeedbacks.add(testFeedback);
+			}
 		}
 		catch (DaoException de)
 		{

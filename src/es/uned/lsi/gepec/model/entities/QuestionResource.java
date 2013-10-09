@@ -85,7 +85,7 @@ public class QuestionResource implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_question", nullable = false)
+	@JoinColumn(name = "id_question")
 	public Question getQuestion() {
 		return this.question;
 	}
@@ -95,7 +95,7 @@ public class QuestionResource implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_resource", nullable = false)
+	@JoinColumn(name = "id_resource")
 	public Resource getResource() {
 		return this.resource;
 	}
@@ -157,6 +157,15 @@ public class QuestionResource implements java.io.Serializable {
 			setWidth(otherQuestionResource.getWidth());
 			setHeight(otherQuestionResource.getHeight());
 		}
+	}
+	
+	/**
+	 * @return A copy of this resource of a question.
+	 */
+	@Transient
+	public QuestionResource getQuestionResourceCopy()
+	{
+		return new QuestionResource(getId(),getQuestion(),getResource(),getPosition(),getName(),getWidth(),getHeight());
 	}
 	
 	@Override

@@ -20,11 +20,11 @@
           <p:ajax process="@this" update="questionForm:correctAnswer" />
         </p:inputText>
         <p:commandLink actionListener="#{questionBean.reset}" 
-          update="questionForm:trueText questionForm:correctAnswer">
+          update="questionForm:trueText questionForm:correctAnswer" onclick="resetTrueTextTooltip.hide();">
           
           <f:attribute name="property" value="trueText" />
           <h:graphicImage id="resetTrueTextImage" styleClass="links" value="#{resource['images:reset.png']}" />
-          <p:tooltip for="resetTrueTextImage">
+          <p:tooltip widgetVar="resetTrueTextTooltip" for="resetTrueTextImage">
             #{msgs.RESET}
           </p:tooltip>
         </p:commandLink> 
@@ -33,11 +33,11 @@
           <p:ajax process="@this" update="questionForm:correctAnswer" />
         </p:inputText>
         <p:commandLink actionListener="#{questionBean.reset}" 
-          update="questionForm:falseText questionForm:correctAnswer">
+          update="questionForm:falseText questionForm:correctAnswer" onclick="resetFalseTextTooltip.hide();">
           
           <f:attribute name="property" value="falseText" />
           <h:graphicImage id="resetFalseTextImage" styleClass="links" value="#{resource['images:reset.png']}" />
-          <p:tooltip for="resetFalseTextImage">
+          <p:tooltip widgetVar="resetFalseTextTooltip" for="resetFalseTextImage">
             #{msgs.RESET}
           </p:tooltip>
         </p:commandLink> 

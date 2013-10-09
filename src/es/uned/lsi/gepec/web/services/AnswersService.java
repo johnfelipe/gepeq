@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,7 +28,9 @@ import javax.faces.bean.ManagedProperty;
 import es.uned.lsi.gepec.model.dao.AnswersDao;
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.entities.Answer;
+import es.uned.lsi.gepec.model.entities.DragDropAnswer;
 import es.uned.lsi.gepec.model.entities.Question;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -73,8 +76,26 @@ public class AnswersService implements Serializable
 		Answer answer=null;
 		try
 		{
+			// Get answer from DB
 			ANSWERS_DAO.setOperation(operation);
-			answer=ANSWERS_DAO.getAnswer(id);
+			Answer answerFromDB=ANSWERS_DAO.getAnswer(id);
+			if (answerFromDB!=null)
+			{
+				answer=answerFromDB.getAnswerCopy();
+				if (answerFromDB.getQuestion()!=null)
+				{
+					answer.setQuestion(answerFromDB.getQuestion().getQuestionCopy());
+				}
+				if (answerFromDB.getResource()!=null)
+				{
+					answer.setResource(answerFromDB.getResource().getResourceCopy());
+				}
+				if (answerFromDB instanceof DragDropAnswer && ((DragDropAnswer)answerFromDB).getRightAnswer()!=null)
+				{
+					((DragDropAnswer)answer).setRightAnswer(
+						((DragDropAnswer)answerFromDB).getRightAnswer().getAnswerCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -101,14 +122,48 @@ public class AnswersService implements Serializable
 	 */
 	public void updateAnswer(Operation operation,Answer answer) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get answer from DB
 			ANSWERS_DAO.setOperation(operation);
-			ANSWERS_DAO.updateAnswer(answer);
+			Answer answerFromDB=ANSWERS_DAO.getAnswer(answer.getId());
+			
+			// Set fields with the updated values
+			answerFromDB.setFromOtherAnswer(answer);
+			
+			// Update answer
+			ANSWERS_DAO.setOperation(operation);
+			ANSWERS_DAO.updateAnswer(answerFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -132,6 +187,7 @@ public class AnswersService implements Serializable
 	{
 		try
 		{
+			// Add a new answer
 			ANSWERS_DAO.setOperation(operation);
 			ANSWERS_DAO.saveAnswer(answer);
 		}
@@ -159,14 +215,45 @@ public class AnswersService implements Serializable
 	 */
 	public void deleteAnswer(Operation operation,Answer answer) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get answer from DB
 			ANSWERS_DAO.setOperation(operation);
-			ANSWERS_DAO.deleteAnswer(answer);
+			Answer answerFromDB=ANSWERS_DAO.getAnswer(answer.getId());
+			
+			// Delete answer
+			ANSWERS_DAO.setOperation(operation);
+			ANSWERS_DAO.deleteAnswer(answerFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -212,8 +299,49 @@ public class AnswersService implements Serializable
 		List<Answer> answers=null;
 		try
 		{
+			// We get answers from DB
 			ANSWERS_DAO.setOperation(operation);
-			answers=ANSWERS_DAO.getAnswers(questionId);
+			List<Answer> answersFromDB=ANSWERS_DAO.getAnswers(questionId);
+			
+			// We return new referenced answers within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			boolean foundNonEmptyDragDropAnswers=false;
+			answers=new ArrayList<Answer>(answersFromDB.size());
+			for (Answer answerFromDB:answersFromDB)
+			{
+				Answer answer=answerFromDB.getAnswerCopy();
+				if (answerFromDB.getQuestion()!=null)
+				{
+					answer.setQuestion(answerFromDB.getQuestion().getQuestionCopy());
+				}
+				if (answerFromDB.getResource()!=null)
+				{
+					answer.setResource(answerFromDB.getResource().getResourceCopy());
+				}
+				if (answerFromDB instanceof DragDropAnswer && ((DragDropAnswer)answerFromDB).getRightAnswer()!=null)
+				{
+					foundNonEmptyDragDropAnswers=true;
+					Answer rightAnswerFilter=new DragDropAnswer();
+					rightAnswerFilter.setId(((DragDropAnswer)answerFromDB).getRightAnswer().getId());
+					((DragDropAnswer)answer).setRightAnswer(rightAnswerFilter);
+				}
+				answers.add(answer);
+			}
+			if (foundNonEmptyDragDropAnswers)
+			{
+				for (Answer answer:answers)
+				{
+					if (answer instanceof DragDropAnswer)
+					{
+						DragDropAnswer dragDropAnswer=(DragDropAnswer)answer;
+						if (dragDropAnswer.getRightAnswer()!=null)
+						{
+							dragDropAnswer.setRightAnswer(
+								answers.get(answers.indexOf(dragDropAnswer.getRightAnswer())));
+						}
+					}
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -237,10 +365,10 @@ public class AnswersService implements Serializable
 			Object o=c.newInstance();
 			answer=(Answer)o;
 		}
-		catch (Exception ex)
+		catch (Exception e)
 		{
 			throwServiceException("ANSWER_NEW_INSTANCE_ERROR",
-				"A critical error has been ocurred when trying to instantiate the answer.",ex);
+				"A critical error has been ocurred when trying to instantiate the answer.",e);
 		}
 		return answer;
 	}

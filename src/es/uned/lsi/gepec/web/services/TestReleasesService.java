@@ -677,6 +677,10 @@ public class TestReleasesService implements Serializable
 													filterType="USER_FILTER";
 													filterSubtype="RANGE_SURNAME";
 												}
+												else if ("single-group".equals(supportContactMetadata))
+												{
+													filterType="GROUP_FILTER";
+												}
 												break;
 											case TEST_RELEASE_ADDRESS_METADATA_FILTER_VALUE:
 												if (filterType!=null)
@@ -804,6 +808,10 @@ public class TestReleasesService implements Serializable
 												{
 													filterType="USER_FILTER";
 													filterSubtype="RANGE_SURNAME";
+												}
+												else if ("single-group".equals(evaluatorMetadata))
+												{
+													filterType="GROUP_FILTER";
 												}
 												break;
 											case TEST_RELEASE_ADDRESS_METADATA_FILTER_VALUE:

@@ -3,6 +3,11 @@
     font-size:90% !important;
 }
 
+.ui-datagrid-column {
+	padding-left:0px;
+	padding-right:0px;
+}
+
 .resourcesPanel {
 	font-size:80%;
 }
@@ -129,6 +134,7 @@
 .resourcePreviewSpan {
     width:150px;
     height:100px;
+    display:inline-block;
 }
 
 .resourcePreviewContent {

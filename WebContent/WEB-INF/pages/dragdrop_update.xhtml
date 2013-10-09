@@ -103,7 +103,8 @@
                 <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
                   rendered="#{draggableItem.resource!=null}">
                   
-                  <p:graphicImage value="#{draggableItem.resource.fileName}" width="35" height="20" />
+                  <h:graphicImage value="#{draggableItem.resource.fileName}" styleClass="graphics" width="35" 
+                    height="20" />
                   <h:outputText style="margin-right:5px;" value="#{draggableItem.resource.name}" />
                   <p:commandButton id="selectImageDraggableItemButton" value="#{msgs.SELECT_IMAGE}" 
                     styleClass="button" actionListener="#{questionBean.showSelectImage}" immediate="true" 
@@ -149,7 +150,7 @@
                 disabled="#{!questionBean.enabledReSortDroppableAnswers}" />
               <p:commandButton value="#{msgs.ADD_ANSWER}" image="ui-icon ui-icon-plus" styleClass="rightButton" 
                 actionListener="#{questionBean.addDroppableAnswer}" immediate="true" 
-                update="questionForm:tabview:reSortDroppableAnswers questionForm:tabview:answersAccordion questionForm:tabview:answersMessages" />
+                update="questionForm:tabview:reSortDraggableItems questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion questionForm:tabview:answersMessages" />
             </h:panelGroup>
           </h:panelGrid>
         </h:panelGroup>
@@ -185,7 +186,7 @@
                 <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
                   rendered="#{answer.resource!=null}">
                   
-                  <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" />
+                  <h:graphicImage value="#{answer.resource.fileName}" styleClass="graphics" width="35" height="20" />
                   <h:outputText style="margin-right:5px;" value="#{answer.resource.name}" />
                   <p:commandButton id="selectImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
                     actionListener="#{questionBean.showSelectImage}" immediate="true" 

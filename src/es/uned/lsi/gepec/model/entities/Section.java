@@ -59,6 +59,18 @@ public class Section implements java.io.Serializable {
 	public Section() {
 	}
 
+	public Section(long id, Test test, int order, int randomQuantity, 
+			boolean shuffle, boolean random, String name, int weight) {
+		this.id = id;
+		this.test = test;
+		this.order = order;
+		this.randomQuantity = randomQuantity;
+		this.shuffle = shuffle;
+		this.name = name;
+		this.weight = weight;
+	}
+
+
 	@Id
 	@GeneratedValue(generator="sections_id_seq", strategy=GenerationType.AUTO)
 	@Column(name = "id", unique = true, nullable = false)
@@ -207,6 +219,16 @@ public class Section implements java.io.Serializable {
 			setTitle(otherSection.getTitle());
 			setWeight(otherSection.getWeight());
 		}
+	}
+	
+	/**
+	 * @return A copy of this section.
+	 */
+	@Transient
+	public Section getSectionCopy()
+	{
+		return new Section(
+			getId(),getTest(),getOrder(),getRandomQuantity(),isShuffle(),isRandom(),getName(),getWeight());
 	}
 	
 	@Override

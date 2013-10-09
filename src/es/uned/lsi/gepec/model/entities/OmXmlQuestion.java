@@ -66,4 +66,47 @@ public class OmXmlQuestion extends Question {
 			setXmlContent(((OmXmlQuestion)otherQuestion).getXmlContent());
 		}
 	}
+	
+	@Transient
+	@Override
+	public Question getQuestionCopy()
+	{
+		OmXmlQuestion omXmlQuestion=new OmXmlQuestion(getXmlContent());
+		omXmlQuestion.setId(getId());
+		omXmlQuestion.setVersion(getVersion());
+		omXmlQuestion.setCategory(getCategory());
+		omXmlQuestion.setResource(getResource());
+		omXmlQuestion.setCorrectFeedbackResource(getCorrectFeedbackResource());
+		omXmlQuestion.setIncorrectFeedbackResource(getIncorrectFeedbackResource());
+		omXmlQuestion.setPassFeedbackResource(getPassFeedbackResource());
+		omXmlQuestion.setFinalFeedbackResource(getFinalFeedbackResource());
+		omXmlQuestion.setName(getName());
+		omXmlQuestion.setQuestionText(getQuestionText());
+		omXmlQuestion.setType(getType());
+		omXmlQuestion.setCreatedBy(getCreatedBy());
+		omXmlQuestion.setModifiedBy(getModifiedBy());
+		omXmlQuestion.setTimecreated(getTimecreated());
+		omXmlQuestion.setTimemodified(getTimemodified());
+		omXmlQuestion.setTimebuild(getTimebuild());
+		omXmlQuestion.setTimedeploy(getTimedeploy());
+		omXmlQuestion.setTimepublished(getTimepublished());
+		omXmlQuestion.setCorrectFeedback(getCorrectFeedback());
+		omXmlQuestion.setIncorrectFeedback(getIncorrectFeedback());
+		omXmlQuestion.setStillFeedback(getStillFeedback());
+		omXmlQuestion.setPassFeedback(getPassFeedback());
+		omXmlQuestion.setAnswerFeedback(getAnswerFeedback());
+		omXmlQuestion.setLevel(getLevel());
+		omXmlQuestion.setResourceWidth(getResourceWidth());
+		omXmlQuestion.setResourceHeight(getResourceHeight());
+		omXmlQuestion.setCorrectFeedbackResourceWidth(getCorrectFeedbackResourceWidth());
+		omXmlQuestion.setCorrectFeedbackResourceHeight(getCorrectFeedbackResourceHeight());
+		omXmlQuestion.setIncorrectFeedbackResourceWidth(getIncorrectFeedbackResourceWidth());
+		omXmlQuestion.setIncorrectFeedbackResourceHeight(getIncorrectFeedbackResourceHeight());
+		omXmlQuestion.setPassFeedbackResourceWidth(getPassFeedbackResourceWidth());
+		omXmlQuestion.setPassFeedbackResourceHeight(getPassFeedbackResourceHeight());
+		omXmlQuestion.setFinalFeedbackResourceWidth(getFinalFeedbackResourceWidth());
+		omXmlQuestion.setFinalFeedbackResourceHeight(getFinalFeedbackResourceHeight());
+		omXmlQuestion.setDisplayEquations(isDisplayEquations());
+		return omXmlQuestion;
+	}
 }

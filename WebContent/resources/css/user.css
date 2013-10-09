@@ -27,6 +27,7 @@
 .ui-spinner-input {
     width:77px;
     font-size:85% !important;
+    margin:0px;
 }
 
 .ui-selectonemenu-item {
@@ -124,13 +125,33 @@
     margin-bottom:-5px;
 }
 
+.button {
+	font-size:85% !important;
+}
+
 .confirmButtons {
     margin:10px;
     font-size:85% !important;
 }
 
-.button {
-    font-size:85% !important;
+.commonDataNewUserButtonsRightAlign {
+    text-align:right;  
+    width:100%; 
+	margin-top:-10px;
+	margin-bottom:-10px;
+} 
+
+.commonDataNewOmUserButtonsRightAlign {
+    text-align:right;  
+    width:100%; 
+    margin-bottom:-10px;
+} 
+
+.commonDataUpdateUserButtonsRightAlign {
+    text-align:right;  
+    width:100%; 
+    margin-top:5px;
+    margin-bottom:-10px;
 }
 
 .addUserGroupButton {
@@ -182,13 +203,8 @@
     margin:5px;
 }
 
-th .columnUserGroup {
-	width:680px;
-	text-align:center;
-}
-
-.dataRow td .columnUserGroup {
-    text-align:left;
+.columnUserGroup {
+	width:660px;
 }
 
 .columnPermission {

@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,6 +28,7 @@ import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.QuestionResourcesDao;
 import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.QuestionResource;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -64,8 +66,21 @@ public class QuestionResourcesService implements Serializable
 		QuestionResource questionResource=null;
 		try
 		{
+			// Get resource of question from DB
 			QUESTION_RESOURCES_DAO.setOperation(operation);
-			questionResource=QUESTION_RESOURCES_DAO.getQuestionResource(id);
+			QuestionResource questionResourceFromDB=QUESTION_RESOURCES_DAO.getQuestionResource(id);
+			if (questionResourceFromDB!=null)
+			{
+				questionResource=questionResourceFromDB.getQuestionResourceCopy();
+				if (questionResourceFromDB.getQuestion()!=null)
+				{
+					questionResource.setQuestion(questionResourceFromDB.getQuestion().getQuestionCopy());
+				}
+				if (questionResourceFromDB.getResource()!=null)
+				{
+					questionResource.setResource(questionResourceFromDB.getResource().getResourceCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -90,17 +105,51 @@ public class QuestionResourcesService implements Serializable
 	 * @param questionResource Resource of question to update
 	 * @throws ServiceException
 	 */
-	public void updateQuestionResource(Operation operation,QuestionResource questionResource) 
-		throws ServiceException
+	public void updateQuestionResource(Operation operation,QuestionResource questionResource) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get resource of question from DB
 			QUESTION_RESOURCES_DAO.setOperation(operation);
-			QUESTION_RESOURCES_DAO.updateQuestionResource(questionResource);
+			QuestionResource questionResourceFromDB=
+				QUESTION_RESOURCES_DAO.getQuestionResource(questionResource.getId());
+			
+			// Set fields with the updated values
+			questionResourceFromDB.setFromOtherQuestionResource(questionResource);
+			
+			// Update resource of question
+			QUESTION_RESOURCES_DAO.setOperation(operation);
+			QUESTION_RESOURCES_DAO.updateQuestionResource(questionResourceFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -124,6 +173,7 @@ public class QuestionResourcesService implements Serializable
 	{
 		try
 		{
+			// Add a new resource of question
 			QUESTION_RESOURCES_DAO.setOperation(operation);
 			QUESTION_RESOURCES_DAO.saveQuestionResource(questionResource);
 		}
@@ -149,17 +199,48 @@ public class QuestionResourcesService implements Serializable
 	 * @param questionResource Resource of question to delete
 	 * @throws ServiceException
 	 */
-	public void deleteQuestionResource(Operation operation,QuestionResource questionResource)
-		throws ServiceException
+	public void deleteQuestionResource(Operation operation,QuestionResource questionResource) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get resource of question from DB
 			QUESTION_RESOURCES_DAO.setOperation(operation);
-			QUESTION_RESOURCES_DAO.deleteQuestionResource(questionResource);
+			QuestionResource questionResourceFromDB=
+				QUESTION_RESOURCES_DAO.getQuestionResource(questionResource.getId());
+			
+			// Delete resource of question
+			QUESTION_RESOURCES_DAO.setOperation(operation);
+			QUESTION_RESOURCES_DAO.deleteQuestionResource(questionResourceFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -206,8 +287,26 @@ public class QuestionResourcesService implements Serializable
 		List<QuestionResource> questionResources=null;
 		try
 		{
+			// We get resources of a question from DB
 			QUESTION_RESOURCES_DAO.setOperation(operation);
-			questionResources=QUESTION_RESOURCES_DAO.getQuestionResources(questionId);
+			List<QuestionResource> questionResourcesFromDB=QUESTION_RESOURCES_DAO.getQuestionResources(questionId);
+			
+			// We return new referenced resources of a question within a new list to avoid shared collection 
+			// references and object references to unsaved transient instances
+			questionResources=new ArrayList<QuestionResource>(questionResourcesFromDB.size()); 
+			for (QuestionResource questionResourceFromDB:questionResourcesFromDB)
+			{
+				QuestionResource questionResource=questionResourceFromDB.getQuestionResourceCopy();
+				if (questionResourceFromDB.getQuestion()!=null)
+				{
+					questionResource.setQuestion(questionResourceFromDB.getQuestion().getQuestionCopy());
+				}
+				if (questionResourceFromDB.getResource()!=null)
+				{
+					questionResource.setResource(questionResourceFromDB.getResource().getResourceCopy());
+				}
+				questionResources.add(questionResource);
+			}
 		}
 		catch (DaoException de)
 		{

@@ -17,6 +17,7 @@
  */
 package es.uned.lsi.gepec.web;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -32,6 +33,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import javax.faces.FacesException;
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ManagedProperty;
@@ -40,6 +42,7 @@ import javax.faces.component.UIComponent;
 import javax.faces.component.UIData;
 import javax.faces.component.UIInput;
 import javax.faces.component.UIViewRoot;
+import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.event.ActionEvent;
 import javax.faces.event.AjaxBehaviorEvent;
@@ -80,6 +83,7 @@ import es.uned.lsi.gepec.om.OmHelper;
 import es.uned.lsi.gepec.om.QuestionGenerator;
 import es.uned.lsi.gepec.om.TestGenerator;
 import es.uned.lsi.gepec.util.EmailValidator;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.StringUtils;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.backbeans.EvaluatorBean;
@@ -132,12 +136,15 @@ public class TestBean implements Serializable
 		private long id;
 		private String name;
 		private List<String> requiredPermissions;
+		private List<String> requiredAuthorPermissions;
 		
-		private SpecialCategoryFilter(long id,String name,List<String> requiredPermissions)
+		private SpecialCategoryFilter(long id,String name,List<String> requiredPermissions,
+			List<String> requiredAuthorPermissions)
 		{
 			this.id=id;
 			this.name=name;
 			this.requiredPermissions=requiredPermissions;
+			this.requiredAuthorPermissions=requiredAuthorPermissions;
 		}
 		
 		@Override
@@ -173,31 +180,128 @@ public class TestBean implements Serializable
 	
 	private final static int BASE_MARKS_PER_QUESTION=3;
 	
+	private final static long OLD_FEEDBACK_DIALOG_VALUES_DELAY=300;
+	
+	private final static SpecialCategoryFilter ALL_EVEN_PRIVATE_CATEGORIES;
+	static
+	{
+		List<String> allEvenPrivateCategoriesPermissions=new ArrayList<String>();
+		allEvenPrivateCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+		allEvenPrivateCategoriesPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+		allEvenPrivateCategoriesPermissions.add(
+			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
+		List<String> allEvenPrivateCategoriesAuthorPermissions=new ArrayList<String>();
+		allEvenPrivateCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+		allEvenPrivateCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		ALL_EVEN_PRIVATE_CATEGORIES=new SpecialCategoryFilter(-1L,"ALL_EVEN_PRIVATE_CATEGORIES",
+			allEvenPrivateCategoriesPermissions,allEvenPrivateCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES;
+	static
+	{
+		List<String> allMyCategoriesPermissions=new ArrayList<String>();
+		allMyCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+		List<String> allMyCategoriesAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+		allMyCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		ALL_MY_CATEGORIES=new SpecialCategoryFilter(
+			-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions,allMyCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_FOR_TEST_AUTHOR;
+	static
+	{
+		List<String> allMyCategoriesForTestAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesForTestAuthorPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+		List<String> allMyCategoriesForTestAuthorAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesForTestAuthorAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+		ALL_MY_CATEGORIES_FOR_TEST_AUTHOR=new SpecialCategoryFilter(-2L,"ALL_MY_CATEGORIES",
+			allMyCategoriesForTestAuthorPermissions,allMyCategoriesForTestAuthorAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_EXCEPT_GLOBALS;
+	static
+	{
+		List<String> allMyCategoriesExceptGlobalsAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesExceptGlobalsAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_MY_CATEGORIES_EXCEPT_GLOBALS=new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",
+			new ArrayList<String>(),allMyCategoriesExceptGlobalsAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR=
+		new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>(),
+		new ArrayList<String>());
+	
+	private final static SpecialCategoryFilter ALL_TEST_AUTHOR_CATEGORIES;
+	static
+	{
+		List<String> allTestAuthorCategoriesPermissions=new ArrayList<String>();
+		allTestAuthorCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+		allTestAuthorCategoriesPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+		List<String> allTestAuthorCategoriesAuthorPermissions=new ArrayList<String>();
+		allTestAuthorCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+		ALL_TEST_AUTHOR_CATEGORIES=new SpecialCategoryFilter(
+			-4L,"ALL_CATEGORIES_OF",allTestAuthorCategoriesPermissions,allTestAuthorCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS;
+	static
+	{
+		List<String> allTestAuthorCategoriesExceptGlobalsPermissions=new ArrayList<String>();
+		allTestAuthorCategoriesExceptGlobalsPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+		ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS=new SpecialCategoryFilter(-5L,
+			"ALL_CATEGORIES_OF_EXCEPT_GLOBALS",allTestAuthorCategoriesExceptGlobalsPermissions,
+			new ArrayList<String>());
+	}
+	
 	private final static SpecialCategoryFilter ALL_GLOBAL_CATEGORIES;
 	static
 	{
 		List<String> allGlobalCategoriesPermissions=new ArrayList<String>();
-		allGlobalCategoriesPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-		ALL_GLOBAL_CATEGORIES=
-			new SpecialCategoryFilter(-4L,"ALL_GLOBAL_CATEGORIES",allGlobalCategoriesPermissions);
+		allGlobalCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+		List<String> allGlobalCategoriesAuthorPermissions=new ArrayList<String>();
+		allGlobalCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+		ALL_GLOBAL_CATEGORIES=new SpecialCategoryFilter(
+			-6L,"ALL_GLOBAL_CATEGORIES",allGlobalCategoriesPermissions,allGlobalCategoriesAuthorPermissions);
 	}
+	
 	private final static SpecialCategoryFilter ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS; 
 	static
 	{
 		List<String> allPublicCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-		allPublicCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-		ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(
-			-5L,"ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS",allPublicCategoriesOfOtherUsersPermissions);
+		allPublicCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+		List<String> allPublicCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allPublicCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-7L,"ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS",
+			allPublicCategoriesOfOtherUsersPermissions,allPublicCategoriesOfOtherUsersAuthorPermissions);
 	}
+	
+	private final static SpecialCategoryFilter ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS;
+	static
+	{
+		List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
+		allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+		allPrivateCategoriesOfOtherUsersPermissions.add(
+			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
+		List<String> allPrivateCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allPrivateCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-8L,
+			"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions,
+			allPrivateCategoriesOfOtherUsersAuthorPermissions);
+	}
+	
 	private final static SpecialCategoryFilter ALL_CATEGORIES_OF_OTHER_USERS;
 	static
 	{
 		List<String> allCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-		allCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		allCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
 		allCategoriesOfOtherUsersPermissions.add(
 			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-		ALL_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(
-			-7L,"ALL_CATEGORIES_OF_OTHER_USERS",allCategoriesOfOtherUsersPermissions);
+		List<String> allCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+		ALL_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-9L,"ALL_CATEGORIES_OF_OTHER_USERS",
+			allCategoriesOfOtherUsersPermissions,allCategoriesOfOtherUsersAuthorPermissions);
 	}
 	
 	@ManagedProperty(value="#{localizationService}")
@@ -286,6 +390,7 @@ public class TestBean implements Serializable
 	private List<EvaluatorBean> evaluators;
 	
 	/** UI Helper Properties */
+	private long initialCategoryId;
 	private boolean restrictDates;
 	private boolean restrictFeedbackDate;
 	private String startDateHidden;
@@ -297,10 +402,6 @@ public class TestBean implements Serializable
 	private SupportContactBean currentSuportContact;
 	private EvaluatorBean currentEvaluator;
 	private SpecialCategoryFilter allCategories;
-	private SpecialCategoryFilter allEvenPrivateCategories; 
-	private SpecialCategoryFilter allTestAuthorCategories;
-	private SpecialCategoryFilter allTestAuthorCategoriesExceptGlobals;
-	private SpecialCategoryFilter allPrivateCategories;
 	private Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap;
 	private long filterCategoryId;
 	private boolean filterIncludeSubcategories;
@@ -310,6 +411,7 @@ public class TestBean implements Serializable
 	private DualListModel<Question> questionsDualList;
 	private List<User> filteredUsersForAddingUsers;
 	private List<User> filteredUsersForAddingAdmins;
+	private Map<String,List<User>> groupUsersMap;
 	private List<User> filteredUsersForAddingSupportContactFilterUsers;
 	private List<User> filteredUsersForAddingEvaluatorFilterUsers;
 	private List<UserType> userTypes;
@@ -339,6 +441,12 @@ public class TestBean implements Serializable
 	private List<User> testSupportContactFilterUsers;
 	private String supportContactFilterUsersIdsHidden;
 	private DualListModel<User> supportContactFilterUsersDualList;
+	private String supportContactGroup;
+	private List<String> availableSupportContactFilterGroups;
+	private List<String> testSupportContactFilterGroups;
+	private String availableSupportContactFilterGroupsHidden;
+	private String supportContactFilterGroupsHidden;
+	private DualListModel<String> supportContactFilterGroupsDualList;
 	
 	private String filterSupportContactRangeNameLowerLimit;
 	private String filterSupportContactRangeNameUpperLimit;
@@ -353,6 +461,12 @@ public class TestBean implements Serializable
 	private List<User> testEvaluatorFilterUsers;
 	private String evaluatorFilterUsersIdsHidden;
 	private DualListModel<User> evaluatorFilterUsersDualList;
+	private String evaluatorGroup;
+	private List<String> availableEvaluatorFilterGroups;
+	private List<String> testEvaluatorFilterGroups;
+	private String availableEvaluatorFilterGroupsHidden;
+	private String evaluatorFilterGroupsHidden;
+	private DualListModel<String> evaluatorFilterGroupsDualList;
 	
 	private String filterEvaluatorRangeNameLowerLimit;
 	private String filterEvaluatorRangeNameUpperLimit;
@@ -372,7 +486,7 @@ public class TestBean implements Serializable
 	private int feedbackTabviewTab; 
 	
 	private String activeTestTabName;
-	private int activeTestIndex;
+	private int activeTestTabIndex;
 	
 	private String nextTestTabNameOnChangePropertyConfirm;
 	private int nextTestIndexOnChangePropertyConfirm;
@@ -403,6 +517,13 @@ public class TestBean implements Serializable
 	private int questionToRemoveSectionOrder;
 	private int questionToRemoveOrder;
 	
+	// Feedbacks
+	private int activeFeedbackTabIndex;
+	int oldConditionalCmp;
+	int oldConditionalBetweenMin;
+	int oldConditionalBetweenMax;
+	long oldAddFeedbackDialogTimestamp;
+	
 	// Available categories
 	private List<Category> testsCategories;
 	private List<Category> specialCategoriesFilters;					// Special categories filters list
@@ -420,19 +541,25 @@ public class TestBean implements Serializable
 	// Values for property 'redoQuestion'
 	private List<RedoQuestionValue> redoQuestions;
 	
+	private Boolean filterGlobalTestsEnabled;
+	private Boolean filterOtherUsersTestsEnabled;
 	private Boolean globalOtherUserCategoryAllowed;
+	private Boolean addEnabled;
+	private Boolean editEnabled;
+	private Boolean editOtherUsersTestsEnabled;
+	private Boolean editAdminsTestsEnabled;
+	private Boolean editSuperadminsTestsEnabled;
 	private Boolean viewTestsFromOtherUsersPrivateCategoriesEnabled;
 	private Boolean viewTestsFromAdminsPrivateCategoriesEnabled;
 	private Boolean viewTestsFromSuperadminsPrivateCategoriesEnabled;
 	
+	private Boolean filterGlobalQuestionsEnabled;
+	private Boolean filterOtherUsersQuestionsEnabled;
 	private Boolean useGlobalQuestions;
 	private Boolean useOtherUsersQuestions;
 	private Boolean viewQuestionsFromOtherUsersPrivateCategoriesEnabled;
 	private Boolean viewQuestionsFromAdminsPrivateCategoriesEnabled;
 	private Boolean viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
-	private Boolean testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled;
-	private Boolean testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled;
-	private Boolean testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled;
 	
 	private Boolean viewOMEnabled;
 	
@@ -450,6 +577,7 @@ public class TestBean implements Serializable
 		instantiationTime=new Date().getTime();
 		
 		// First we initialize some helper properties
+		initialCategoryId=0L;
 		filterCategoryId=Long.MIN_VALUE;
 		filterIncludeSubcategories=false;
 		filterQuestionType="";
@@ -457,6 +585,9 @@ public class TestBean implements Serializable
 		questionsDualList=null;
 		filteredUsersForAddingUsers=null;
 		filteredUsersForAddingAdmins=null;
+		groupUsersMap=null;
+		filteredUsersForAddingSupportContactFilterUsers=null;
+		filteredUsersForAddingEvaluatorFilterUsers=null;
 		userTypes=null;
 		filterUsersUserTypeId=0L;
 		filterUsersIncludeOmUsers=true;
@@ -478,13 +609,18 @@ public class TestBean implements Serializable
 		adminGroupsDualList=null;
 		
 		activeTestTabName=GENERAL_WIZARD_TAB;
-		activeTestIndex=GENERAL_TABVIEW_TAB;
+		activeTestTabIndex=GENERAL_TABVIEW_TAB;
 		nextTestTabNameOnChangePropertyConfirm=null;
 		nextTestIndexOnChangePropertyConfirm=-1;
 		oldScoreType=null;
 		activeGeneralTabIndex=0;
 		activeSectionIndex=0;
 		activeSectionName="";
+		activeFeedbackTabIndex=SUMMARY_TAB_FEEDBACK_ACCORDION;
+		oldConditionalCmp=-1;
+		oldConditionalBetweenMin=-1;
+		oldConditionalBetweenMax=-1;
+		oldAddFeedbackDialogTimestamp=-1L;
 		supportContact=null;
 		supportContactDialogDisplayed=false;
 		evaluator=null;
@@ -500,18 +636,25 @@ public class TestBean implements Serializable
 		scoreTypes=null;
 		navLocations=null;
 		redoQuestions=null;
+		filterGlobalTestsEnabled=null;
+		filterOtherUsersTestsEnabled=null;
 		globalOtherUserCategoryAllowed=null;
+		globalOtherUserCategoryAllowed=null;
+		addEnabled=null;
+		editEnabled=null;
+		editOtherUsersTestsEnabled=null;
+		editAdminsTestsEnabled=null;
+		editSuperadminsTestsEnabled=null;
 		viewTestsFromOtherUsersPrivateCategoriesEnabled=null;
 		viewTestsFromAdminsPrivateCategoriesEnabled=null;
 		viewTestsFromSuperadminsPrivateCategoriesEnabled=null;
+		filterGlobalQuestionsEnabled=null;
+		filterOtherUsersQuestionsEnabled=null;
 		useGlobalQuestions=null;
 		useOtherUsersQuestions=null;
 		viewQuestionsFromOtherUsersPrivateCategoriesEnabled=null;
 		viewQuestionsFromAdminsPrivateCategoriesEnabled=null;
 		viewQuestionsFromSuperadminsPrivateCategoriesEnabled=null;
-		testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled=null;
-		testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled=null;
-		testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled=null;
 		viewOMEnabled=null;
 		viewOMQuestionsEnabled=new HashMap<Long,Boolean>();
 		admins=new HashMap<Long,Boolean>();
@@ -524,6 +667,12 @@ public class TestBean implements Serializable
 		testSupportContactFilterUsers=new ArrayList<User>();
 		supportContactFilterUsersIdsHidden="";
 		supportContactFilterUsersDualList=null;
+		supportContactGroup=null;
+		availableSupportContactFilterGroups=null;
+		testSupportContactFilterGroups=new ArrayList<String>();
+		availableSupportContactFilterGroupsHidden="";
+		supportContactFilterGroupsHidden="";
+		supportContactFilterGroupsDualList=null;
 		evaluatorFilterType="NO_FILTER";
 		evaluatorFilterSubtype=null;
 		evaluatorFilterSubtypes=null;
@@ -532,6 +681,12 @@ public class TestBean implements Serializable
 		testEvaluatorFilterUsers=new ArrayList<User>();
 		evaluatorFilterUsersIdsHidden="";
 		evaluatorFilterUsersDualList=null;
+		evaluatorGroup=null;
+		availableEvaluatorFilterGroups=null;
+		testEvaluatorFilterGroups=new ArrayList<String>();
+		availableEvaluatorFilterGroupsHidden="";
+		evaluatorFilterGroupsHidden="";
+		evaluatorFilterGroupsDualList=null;
 		letters=null;
 		questionLevels=null;
 		
@@ -641,12 +796,21 @@ public class TestBean implements Serializable
     
     public Operation getCurrentUserOperation(Operation operation)
     {
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
     
     public long getTestId()
     {
-    	return getTestId(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+    	return testId;
     }
     
     public void setTestId(long testId)
@@ -654,18 +818,13 @@ public class TestBean implements Serializable
     	this.testId=testId;
     }
     
-    private long getTestId(Operation operation)
-    {
-    	if (!testInitialized)
-    	{
-    		initializeTest(getCurrentUserOperation(operation));
-    	}
-    	return testId;
-    }
-    
 	public String getName()
 	{
-		return getName(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+		return name;
 	}
 	
 	public void setName(String name)
@@ -673,18 +832,13 @@ public class TestBean implements Serializable
 		this.name=name;
 	}
 	
-	private String getName(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(getCurrentUserOperation(operation));
-    	}
-		return name;
-	}
-	
 	public User getAuthor()
 	{
-		return getAuthor(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return author;
 	}
 	
 	public void setAuthor(User author)
@@ -692,18 +846,13 @@ public class TestBean implements Serializable
 		this.author=author;
 	}
 	
-	private User getAuthor(Operation operation)
+	public Date getTimeCreated()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return author;
-	}
-	
-	public Date getTimeCreated()
-	{
-		return getTimeCreated(null);
+		return timeCreated;
 	}
 	
 	public void setTimeCreated(Date timeCreated)
@@ -711,18 +860,13 @@ public class TestBean implements Serializable
 		this.timeCreated=timeCreated;
 	}
 	
-	private Date getTimeCreated(Operation operation)
+	public Date getTimeTestDeploy()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return timeCreated;
-	}
-	
-	public Date getTimeTestDeploy()
-	{
-		return getTimeTestDeploy(null);
+		return timeTestDeploy;
 	}
 	
 	public void setTimeTestDeploy(Date timeTestDeploy)
@@ -730,18 +874,13 @@ public class TestBean implements Serializable
 		this.timeTestDeploy=timeTestDeploy;
 	}
 	
-	private Date getTimeTestDeploy(Operation operation)
+	public Date getTimeDeployDeploy()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return timeTestDeploy;
-	}
-	
-	public Date getTimeDeployDeploy()
-	{
-		return getTimeDeployDeploy(null);
+		return timeDeployDeploy;
 	}
 	
 	public void setTimeDeployDeploy(Date timeDeployDeploy)
@@ -749,18 +888,13 @@ public class TestBean implements Serializable
 		this.timeDeployDeploy=timeDeployDeploy;
 	}
 	
-	private Date getTimeDeployDeploy(Operation operation)
+	public Category getCategory()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return timeDeployDeploy;
-	}
-	
-	public Category getCategory()
-	{
-		return getCategory(null);
+		return category;
 	}
 	
 	public void setCategory(Category category)
@@ -768,18 +902,10 @@ public class TestBean implements Serializable
 		this.category=category;
 	}
 	
-	private Category getCategory(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return category;
-	}
-	
 	public long getCategoryId()
 	{
-		return getCategoryId(null);
+		Category category=getCategory();
+		return category==null?0L:category.getId();
 	}
 	
 	public void setCategoryId(long categoryId)
@@ -787,20 +913,19 @@ public class TestBean implements Serializable
 		setCategoryId(null,categoryId);
 	}
 	
-	private long getCategoryId(Operation operation)
-	{
-		Category category=getCategory(getCurrentUserOperation(operation));
-		return category==null?0L:category.getId();
-	}
-	
 	private void setCategoryId(Operation operation,long categoryId)
 	{
-		setCategory(categoryId>0L?categoriesService.getCategory(getCurrentUserOperation(operation),categoryId):null);
+		setCategory(
+			categoryId>0L?categoriesService.getCategory(getCurrentUserOperation(operation),categoryId):null);
 	}
 	
 	public String getDescription()
 	{
-		return getDescription(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+		return description;
 	}
 	
 	public void setDescription(String description)
@@ -808,18 +933,13 @@ public class TestBean implements Serializable
 		this.description=description;
 	}
 	
-	private String getDescription(Operation operation)
+	public String getTitle()
 	{
     	if (!testInitialized)
     	{
-    		initializeTest(getCurrentUserOperation(operation));
+    		initializeTest();
     	}
-		return description;
-	}
-	
-	public String getTitle()
-	{
-		return getTitle(null);
+		return title;
 	}
 	
 	public void setTitle(String title)
@@ -827,18 +947,13 @@ public class TestBean implements Serializable
 		this.title=title;
 	}
 	
-	private String getTitle(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(getCurrentUserOperation(operation));
-    	}
-		return title;
-	}
-	
 	public Assessement getAssessement()
 	{
-		return getAssessement(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return assessement;
 	}
 	
 	public void setAssessement(Assessement assessement)
@@ -846,18 +961,10 @@ public class TestBean implements Serializable
 		this.assessement=assessement;
 	}
 	
-	private Assessement getAssessement(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return assessement;
-	}
-	
 	public long getAssessementId()
 	{
-		return getAssessementId(null);
+		Assessement assessement=getAssessement();
+		return assessement==null?0L:assessement.getId();
 	}
 	
 	public void setAssessementId(long assessementId)
@@ -865,33 +972,19 @@ public class TestBean implements Serializable
 		setAssessementId(null,assessementId);
 	}
 	
-	private long getAssessementId(Operation operation)
-	{
-		Assessement assessement=getAssessement(getCurrentUserOperation(operation));
-		return assessement==null?0L:assessement.getId();
-	}
-	
 	private void setAssessementId(Operation operation,long assessementId)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		Assessement assessement=getAssessement(operation);
+		Assessement assessement=getAssessement();
 		if (assessement==null || assessement.getId()!=assessementId)
 		{
-			setAssessement(assessementsService.getAssessement(operation,assessementId));
+			setAssessement(assessementsService.getAssessement(getCurrentUserOperation(operation),assessementId));
 		}
 	}
 	
 	public String getAssessementTip()
 	{
-		return getAssessementTip(null);
-	}
-	
-	private String getAssessementTip(Operation operation)
-	{
 		String assessementTip=null;
-		Assessement assessement=getAssessement(getCurrentUserOperation(operation));
+		Assessement assessement=getAssessement();
 		if (assessement!=null)
 		{
 			StringBuffer assessementTipLabel=new StringBuffer(assessement.getType());
@@ -903,32 +996,22 @@ public class TestBean implements Serializable
 	
 	public ScoreType getScoreType()
 	{
-		return getScoreType(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return scoreType;
 	}
 	
 	public void setScoreType(ScoreType scoreType)
 	{
-		setScoreType(null,scoreType);
-	}
-	
-	public void setScoreType(Operation operation,ScoreType scoreType)
-	{
-		ScoreType thisScoreType=getScoreType(getCurrentUserOperation(operation));
+		ScoreType thisScoreType=getScoreType();
 		// Needed this check because sometimes setter is called several times with the same value
 		if ((scoreType==null && thisScoreType==null) || (scoreType!=null && !scoreType.equals(thisScoreType)))
 		{
 			oldScoreType=thisScoreType;
 		}
 		this.scoreType=scoreType;
-	}
-	
-	public ScoreType getScoreType(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return scoreType;
 	}
 	
 	public void rollbackScoreType()
@@ -938,7 +1021,8 @@ public class TestBean implements Serializable
 	
 	public long getScoreTypeId()
 	{
-		return getScoreTypeId(null);
+		ScoreType scoreType=getScoreType();
+		return scoreType==null?0L:scoreType.getId();
 	}
 	
 	public void setScoreTypeId(long scoreTypeId)
@@ -946,33 +1030,22 @@ public class TestBean implements Serializable
 		setScoreTypeId(null,scoreTypeId);
 	}
 	
-	private long getScoreTypeId(Operation operation)
-	{
-		ScoreType scoreType=getScoreType(getCurrentUserOperation(operation));
-		return scoreType==null?0L:scoreType.getId();
-	}
-	
 	private void setScoreTypeId(Operation operation,long scoreTypeId)
 	{
 		// Get current user Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		ScoreType scoreType=getScoreType(operation);
+		ScoreType scoreType=getScoreType();
 		if (scoreType==null || scoreType.getId()!=scoreTypeId)
 		{
-			setScoreType(operation,scoreTypesService.getScoreType(operation,scoreTypeId));
+			setScoreType(scoreTypesService.getScoreType(operation,scoreTypeId));
 		}
 	}
 	
 	public String getScoreTypeTip()
 	{
-		return getScoreTypeTip(null);
-	}
-	
-	private String getScoreTypeTip(Operation operation)
-	{
 		String scoreTypeTip=null;
-		ScoreType scoreType=getScoreType(getCurrentUserOperation(operation));
+		ScoreType scoreType=getScoreType();
 		if (scoreType!=null)
 		{
 			StringBuffer scoreTypeTipLabel=new StringBuffer(scoreType.getType());
@@ -982,10 +1055,13 @@ public class TestBean implements Serializable
 		return scoreTypeTip==null?"":scoreTypeTip;
 	}
 	
-	
 	public boolean isAllUsersAllowed()
 	{
-		return isAllUsersAllowed(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return allUsersAllowed;
 	}
 	
 	public void setAllUsersAllowed(boolean allUsersAllowed)
@@ -996,18 +1072,13 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private boolean isAllUsersAllowed(Operation operation)
+	public boolean isAllowAdminReports()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return allUsersAllowed;
-	}
-	
-	public boolean isAllowAdminReports()
-	{
-		return isAllowAdminReports(null);
+		return allowAdminReports;
 	}
 	
 	public void setAllowAdminReports(boolean allowAdminReports)
@@ -1015,30 +1086,11 @@ public class TestBean implements Serializable
 		this.allowAdminReports=allowAdminReports;
 	}
 	
-	private boolean isAllowAdminReports(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return allowAdminReports;
-	}
-	
 	public Date getStartDate()
 	{
-		return getStartDate(null);
-	}
-	
-	public void setStartDate(Date startDate)
-	{
-		this.startDate=startDate;
-	}
-	
-	public Date getStartDate(Operation operation)
-	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
 		if (getStartDateHidden()!=null && !getStartDateHidden().equals(""))
 		{
@@ -1053,6 +1105,11 @@ public class TestBean implements Serializable
 			setStartDateHidden("");
 		}
 		return startDate;
+	}
+	
+	public void setStartDate(Date startDate)
+	{
+		this.startDate=startDate;
 	}
 	
 	public void changeStartDate(DateSelectEvent event)
@@ -1071,19 +1128,9 @@ public class TestBean implements Serializable
 	
 	public Date getCloseDate()
 	{
-		return getCloseDate(null);
-	}
-	
-	public void setCloseDate(Date closeDate)
-	{
-		this.closeDate=closeDate;
-	}
-	
-	private Date getCloseDate(Operation operation)
-	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
 		if (getCloseDateHidden()!=null && !getCloseDateHidden().equals(""))
 		{
@@ -1098,6 +1145,11 @@ public class TestBean implements Serializable
 			setCloseDateHidden("");
 		}
 		return closeDate;
+	}
+	
+	public void setCloseDate(Date closeDate)
+	{
+		this.closeDate=closeDate;
 	}
 	
 	public void changeCloseDate(DateSelectEvent event)
@@ -1116,19 +1168,9 @@ public class TestBean implements Serializable
 	
 	public Date getWarningDate()
 	{
-		return getWarningDate(null);
-	}
-	
-	public void setWarningDate(Date warningDate)
-	{
-		this.warningDate=warningDate;
-	}
-	
-	private Date getWarningDate(Operation operation)
-	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
 		if (getWarningDateHidden()!=null && !getWarningDateHidden().equals(""))
 		{
@@ -1143,6 +1185,11 @@ public class TestBean implements Serializable
 			setWarningDateHidden("");
 		}
 		return warningDate;
+	}
+	
+	public void setWarningDate(Date warningDate)
+	{
+		this.warningDate=warningDate;
 	}
 	
 	public void changeWarningDate(DateSelectEvent event)
@@ -1161,19 +1208,9 @@ public class TestBean implements Serializable
 	
 	public Date getFeedbackDate()
 	{
-		return getFeedbackDate(null);
-	}
-	
-	public void setFeedbackDate(Date feedbackDate)
-	{
-		this.feedbackDate=feedbackDate;
-	}
-	
-	private Date getFeedbackDate(Operation operation)
-	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
 		if (getFeedbackDateHidden()!=null && !getFeedbackDateHidden().equals(""))
 		{
@@ -1188,6 +1225,11 @@ public class TestBean implements Serializable
 			setFeedbackDateHidden("");
 		}
 		return feedbackDate;
+	}
+	
+	public void setFeedbackDate(Date feedbackDate)
+	{
+		this.feedbackDate=feedbackDate;
 	}
 	
 	public void changeFeedbackDate(DateSelectEvent event)
@@ -1206,7 +1248,11 @@ public class TestBean implements Serializable
 	
 	public boolean isRestrictDates()
 	{
-		return isRestrictDates(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return restrictDates;
 	}
 	
 	public void setRestrictDates(boolean restrictDates)
@@ -1217,18 +1263,13 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private boolean isRestrictDates(Operation operation)
+	public boolean isRestrictFeedbackDate()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return restrictDates;
-	}
-	
-	public boolean isRestrictFeedbackDate()
-	{
-		return isRestrictFeedbackDate(null);
+		return restrictFeedbackDate;
 	}
 	
 	public void setRestrictFeedbackDate(boolean restrictFeedbackDate)
@@ -1237,15 +1278,6 @@ public class TestBean implements Serializable
 		{
 			this.restrictFeedbackDate=restrictFeedbackDate;
 		}
-	}
-	
-	private boolean isRestrictFeedbackDate(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return restrictFeedbackDate;
 	}
 	
 	public String getStartDateHidden()
@@ -1290,7 +1322,11 @@ public class TestBean implements Serializable
 	
 	public boolean isFreeSummary()
 	{
-		return isFreeSummary(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return freeSummary;
 	}
 	
 	public void setFreeSummary(boolean freeSummary)
@@ -1298,18 +1334,13 @@ public class TestBean implements Serializable
 		this.freeSummary=freeSummary;
 	}
 	
-	private boolean isFreeSummary(Operation operation)
+	public boolean isFreeStop()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return freeSummary;
-	}
-	
-	public boolean isFreeStop()
-	{
-		return isFreeStop(null);
+		return freeStop;
 	}
 	
 	public void setFreeStop(boolean freeStop)
@@ -1318,18 +1349,13 @@ public class TestBean implements Serializable
 		
 	}
 	
-	public boolean isFreeStop(Operation operation)
+	public boolean isSummaryQuestions()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return freeStop;
-	}
-	
-	public boolean isSummaryQuestions()
-	{
-		return isSummaryQuestions(null);
+		return summaryQuestions;
 	}
 	
 	public void setSummaryQuestions(boolean summaryQuestions)
@@ -1338,18 +1364,13 @@ public class TestBean implements Serializable
 		
 	}
 	
-	private boolean isSummaryQuestions(Operation operation)
+	public boolean isSummaryScores()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return summaryQuestions;
-	}
-	
-	public boolean isSummaryScores()
-	{
-		return isSummaryScores(null);
+		return summaryScores;
 	}
 	
 	public void setSummaryScores(boolean summaryScores)
@@ -1358,18 +1379,13 @@ public class TestBean implements Serializable
 		
 	}
 	
-	private boolean isSummaryScores(Operation operation)
+	public boolean isSummaryAttempts()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return summaryScores;
-	}
-	
-	public boolean isSummaryAttempts()
-	{
-		return isSummaryAttempts(null);
+		return summaryAttempts;
 	}
 	
 	public void setSummaryAttempts(boolean summaryAttempts)
@@ -1378,18 +1394,13 @@ public class TestBean implements Serializable
 		
 	}
 	
-	private boolean isSummaryAttempts(Operation operation)
+	public boolean isNavigation()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return summaryAttempts;
-	}
-	
-	public boolean isNavigation()
-	{
-		return isNavigation(null);
+		return navigation;
 	}
 	
 	public void setNavigation(boolean navigation)
@@ -1407,18 +1418,13 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private boolean isNavigation(Operation operation)
+	public NavLocation getNavLocation()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return navigation;
-	}
-	
-	public NavLocation getNavLocation()
-	{
-		return getNavLocation(null);
+		return navLocation;
 	}
 	
 	public void setNavLocation(NavLocation navLocation)
@@ -1426,29 +1432,15 @@ public class TestBean implements Serializable
 		this.navLocation=navLocation;
 	}
 	
-	private NavLocation getNavLocation(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return navLocation;
-	}
-	
 	public long getNavLocationId()
 	{
-		return getNavLocationId(null);
+		NavLocation navLocation=getNavLocation();
+		return navLocation==null?0L:navLocation.getId();
 	}
 	
 	public void setNavLocationId(long navLocationId)
 	{
 		setNavLocationId(null,navLocationId);
-	}
-	
-	private long getNavLocationId(Operation operation)
-	{
-		NavLocation navLocation=getNavLocation(getCurrentUserOperation(operation));
-		return navLocation==null?0L:navLocation.getId();
 	}
 	
 	private void setNavLocationId(Operation operation,long navLocationId)
@@ -1458,7 +1450,11 @@ public class TestBean implements Serializable
 	
 	public RedoQuestionValue getRedoQuestion()
 	{
-		return getRedoQuestion(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return redoQuestion;
 	}
 	
 	public void setRedoQuestion(RedoQuestionValue redoQuestion)
@@ -1466,18 +1462,10 @@ public class TestBean implements Serializable
 		this.redoQuestion=redoQuestion;
 	}
 	
-	private RedoQuestionValue getRedoQuestion(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return redoQuestion;
-	}
-	
 	public long getRedoQuestionId()
 	{
-		return getRedoQuestionId(null);
+		RedoQuestionValue redoQuestion=getRedoQuestion();
+		return redoQuestion==null?0L:redoQuestion.getId();
 	}
 	
 	public void setRedoQuestionId(long redoQuestionId)
@@ -1485,20 +1473,19 @@ public class TestBean implements Serializable
 		setRedoQuestionId(null,redoQuestionId);
 	}
 	
-	private long getRedoQuestionId(Operation operation)
-	{
-		RedoQuestionValue redoQuestion=getRedoQuestion(getCurrentUserOperation(operation));
-		return redoQuestion==null?0L:redoQuestion.getId();
-	}
-	
 	private void setRedoQuestionId(Operation operation,long redoQuestionId)
 	{
-		setRedoQuestion(redoQuestionValuesService.getRedoQuestion(getCurrentUserOperation(operation),redoQuestionId));
+		setRedoQuestion(
+			redoQuestionValuesService.getRedoQuestion(getCurrentUserOperation(operation),redoQuestionId));
 	}
 	
 	public boolean isRedoTest()
 	{
-		return isRedoTest(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return redoTest;
 	}
 	
 	public void setRedoTest(boolean redoTest)
@@ -1507,18 +1494,13 @@ public class TestBean implements Serializable
 		
 	}
 	
-	private boolean isRedoTest(Operation operation)
+	public String getPresentationTitle()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return redoTest;
-	}
-	
-	public String getPresentationTitle()
-	{
-		return getPresentationTitle(null);
+		return presentationTitle;
 	}
 	
 	public void setPresentationTitle(String presentationTitle)
@@ -1526,18 +1508,13 @@ public class TestBean implements Serializable
 		this.presentationTitle=presentationTitle;
 	}
 	
-	private String getPresentationTitle(Operation operation)
+	public String getPresentation()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return presentationTitle;
-	}
-	
-	public String getPresentation()
-	{
-		return getPresentation(null);
+		return presentation;
 	}
 	
 	public void setPresentation(String presentation)
@@ -1545,18 +1522,13 @@ public class TestBean implements Serializable
 		this.presentation=presentation;
 	}
 	
-	private String getPresentation(Operation operation)
+	public String getPreliminarySummaryTitle()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return presentation;
-	}
-	
-	public String getPreliminarySummaryTitle()
-	{
-		return getPreliminarySummaryTitle(null);
+		return preliminarySummaryTitle;
 	}
 	
 	public void setPreliminarySummaryTitle(String preliminarySummaryTitle)
@@ -1564,18 +1536,13 @@ public class TestBean implements Serializable
 		this.preliminarySummaryTitle=preliminarySummaryTitle;
 	}
 	
-	private String getPreliminarySummaryTitle(Operation operation)
+	public String getPreliminarySummaryButton()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return preliminarySummaryTitle;
-	}
-	
-	public String getPreliminarySummaryButton()
-	{
-		return getPreliminarySummaryButton(null);
+		return preliminarySummaryButton;
 	}
 	
 	public void setPreliminarySummaryButton(String preliminarySummaryButton)
@@ -1583,18 +1550,13 @@ public class TestBean implements Serializable
 		this.preliminarySummaryButton=preliminarySummaryButton;
 	}
 	
-	private String getPreliminarySummaryButton(Operation operation)
+	public String getPreliminarySummary()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return preliminarySummaryButton;
-	}
-	
-	public String getPreliminarySummary()
-	{
-		return getPreliminarySummary(null);
+		return preliminarySummary;
 	}
 	
 	public void setPreliminarySummary(String preliminarySummary)
@@ -1602,18 +1564,13 @@ public class TestBean implements Serializable
 		this.preliminarySummary=preliminarySummary;
 	}
 	
-	private String getPreliminarySummary(Operation operation)
+	public boolean isFeedbackDisplaySummary()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return preliminarySummary;
-	}
-	
-	public boolean isFeedbackDisplaySummary()
-	{
-		return isFeedbackDisplaySummary(null);
+		return feedbackDisplaySummary;
 	}
 	
 	public void setFeedbackDisplaySummary(boolean feedbackDisplaySummary)
@@ -1624,18 +1581,13 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private boolean isFeedbackDisplaySummary(Operation operation)
+	public boolean isFeedbackDisplaySummaryMarks()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplaySummary;
-	}
-	
-	public boolean isFeedbackDisplaySummaryMarks()
-	{
-		return isFeedbackDisplaySummaryMarks(null);
+		return feedbackDisplaySummaryMarks;
 	}
 	
 	public void setFeedbackDisplaySummaryMarks(boolean feedbackDisplaySummaryMarks)
@@ -1643,18 +1595,13 @@ public class TestBean implements Serializable
 		this.feedbackDisplaySummaryMarks=feedbackDisplaySummaryMarks;
 	}
 	
-	private boolean isFeedbackDisplaySummaryMarks(Operation operation)
+	public boolean isFeedbackDisplaySummaryAttempts()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplaySummaryMarks;
-	}
-	
-	public boolean isFeedbackDisplaySummaryAttempts()
-	{
-		return isFeedbackDisplaySummaryAttempts(null);
+		return feedbackDisplaySummaryAttempts;
 	}
 	
 	public void setFeedbackDisplaySummaryAttempts(boolean feedbackDisplaySummaryAttempts)
@@ -1662,18 +1609,13 @@ public class TestBean implements Serializable
 		this.feedbackDisplaySummaryAttempts=feedbackDisplaySummaryAttempts;
 	}
 	
-	private boolean isFeedbackDisplaySummaryAttempts(Operation operation)
+	public String getFeedbackSummaryPrevious()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplaySummaryAttempts;
-	}
-	
-	public String getFeedbackSummaryPrevious()
-	{
-		return getFeedbackSummaryPrevious(null);
+		return feedbackSummaryPrevious;
 	}
 	
 	public void setFeedbackSummaryPrevious(String feedbackSummaryPrevious)
@@ -1681,18 +1623,13 @@ public class TestBean implements Serializable
 		this.feedbackSummaryPrevious=feedbackSummaryPrevious;
 	}
 	
-	private String getFeedbackSummaryPrevious(Operation operation)
+	public boolean isFeedbackDisplayScores()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackSummaryPrevious;
-	}
-	
-	public boolean isFeedbackDisplayScores()
-	{
-		return isFeedbackDisplayScores(null);
+		return feedbackDisplayScores;
 	}
 	
 	public void setFeedbackDisplayScores(boolean feedbackDisplayScores)
@@ -1703,18 +1640,13 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private boolean isFeedbackDisplayScores(Operation operation)
+	public boolean isFeedbackDisplayScoresMarks()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplayScores;
-	}
-	
-	public boolean isFeedbackDisplayScoresMarks()
-	{
-		return isFeedbackDisplayScoresMarks(null);
+		return feedbackDisplayScoresMarks;
 	}
 	
 	public void setFeedbackDisplayScoresMarks(boolean feedbackDisplayScoresMarks)
@@ -1722,18 +1654,13 @@ public class TestBean implements Serializable
 		this.feedbackDisplayScoresMarks=feedbackDisplayScoresMarks;
 	}
 	
-	private boolean isFeedbackDisplayScoresMarks(Operation operation)
+	public boolean isFeedbackDisplayScoresPercentages()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplayScoresMarks;
-	}
-	
-	public boolean isFeedbackDisplayScoresPercentages()
-	{
-		return isFeedbackDisplayScoresPercentages(null);
+		return feedbackDisplayScoresPercentages;
 	}
 	
 	public void setFeedbackDisplayScoresPercentages(boolean feedbackDisplayScoresPercentages)
@@ -1741,18 +1668,13 @@ public class TestBean implements Serializable
 		this.feedbackDisplayScoresPercentages=feedbackDisplayScoresPercentages;
 	}
 	
-	private boolean isFeedbackDisplayScoresPercentages(Operation operation)
+	public String getFeedbackScoresPrevious()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackDisplayScoresPercentages;
-	}
-	
-	public String getFeedbackScoresPrevious()
-	{
-		return getFeedbackScoresPrevious(null);
+		return feedbackScoresPrevious;
 	}
 	
 	public void setFeedbackScoresPrevious(String feedbackScoresPrevious)
@@ -1760,18 +1682,13 @@ public class TestBean implements Serializable
 		this.feedbackScoresPrevious=feedbackScoresPrevious;
 	}
 	
-	private String getFeedbackScoresPrevious(Operation operation)
+	public String getFeedbackAdvancedPrevious()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackScoresPrevious;
-	}
-	
-	public String getFeedbackAdvancedPrevious()
-	{
-		return getFeedbackAdvancedPrevious(null);
+		return feedbackAdvancedPrevious;
 	}
 	
 	public void setFeedbackAdvancedPrevious(String feedbackAdvancedPrevious)
@@ -1779,18 +1696,13 @@ public class TestBean implements Serializable
 		this.feedbackAdvancedPrevious=feedbackAdvancedPrevious;
 	}
 	
-	private String getFeedbackAdvancedPrevious(Operation operation)
+	public String getFeedbackAdvancedNext()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return feedbackAdvancedPrevious;
-	}
-	
-	public String getFeedbackAdvancedNext()
-	{
-		return getFeedbackAdvancedNext(null);
+		return feedbackAdvancedNext;
 	}
 	
 	public void setFeedbackAdvancedNext(String feedbackAdvancedNext)
@@ -1798,18 +1710,13 @@ public class TestBean implements Serializable
 		this.feedbackAdvancedNext=feedbackAdvancedNext;
 	}
 	
-	private String getFeedbackAdvancedNext(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return feedbackAdvancedNext;
-	}
-	
 	public List<SectionBean> getSections()
 	{
-    	return getSections(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+    	return sections;
     }
     
     public void setSections(List<SectionBean> sections)
@@ -1817,28 +1724,18 @@ public class TestBean implements Serializable
     	this.sections=sections;
     }
     
-	public List<SectionBean> getSections(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(getCurrentUserOperation(operation));
-    	}
-    	return sections;
-    }
-    
     public int getSectionsSize()
     {
-    	return getSectionsSize(null);
-    }
-    
-    private int getSectionsSize(Operation operation)
-    {
-    	return getSections(getCurrentUserOperation(operation)).size();
+    	return getSections().size();
     }
     
 	public List<TestFeedbackBean> getFeedbacks()
 	{
-		return getFeedbacks(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+		return feedbacks;
 	}
 	
 	public void setFeedbacks(List<TestFeedbackBean> feedbacks)
@@ -1846,18 +1743,13 @@ public class TestBean implements Serializable
 		this.feedbacks=feedbacks;
 	}
 	
-	public List<TestFeedbackBean> getFeedbacks(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(getCurrentUserOperation(operation));
-    	}
-		return feedbacks;
-	}
-	
 	public List<SupportContactBean> getSupportContacts()
 	{
-		return getSupportContacts(null);
+		if (!testInitialized)
+		{
+			initializeTest();
+		}
+		return supportContacts;
 	}
 	
 	public void setSupportContacts(List<SupportContactBean> supportContacts)
@@ -1865,32 +1757,18 @@ public class TestBean implements Serializable
 		this.supportContacts=supportContacts;
 	}
 	
-	private List<SupportContactBean> getSupportContacts(Operation operation)
+	public List<EvaluatorBean> getEvaluators()
 	{
 		if (!testInitialized)
 		{
-			initializeTest(getCurrentUserOperation(operation));
+			initializeTest();
 		}
-		return supportContacts;
-	}
-	
-	public List<EvaluatorBean> getEvaluators()
-	{
-		return getEvaluators(null);
+		return evaluators;
 	}
 	
 	public void setEvaluators(List<EvaluatorBean> evaluators)
 	{
 		this.evaluators=evaluators;
-	}
-	
-	private List<EvaluatorBean> getEvaluators(Operation operation)
-	{
-		if (!testInitialized)
-		{
-			initializeTest(getCurrentUserOperation(operation));
-		}
-		return evaluators;
 	}
 	
 	/**
@@ -1909,7 +1787,7 @@ public class TestBean implements Serializable
 	 * @param subtype Address type's subtype
 	 * @return Address type
 	 */
-	public AddressType getAddressType(Operation operation,String type,String subtype)
+	private AddressType getAddressType(Operation operation,String type,String subtype)
 	{
 		return addressTypesService.getAddressType(getCurrentUserOperation(operation),type,subtype);
 	}
@@ -1959,19 +1837,39 @@ public class TestBean implements Serializable
 		boolean found=false;
 		List<Category> specialCategoriesFilters=getSpecialCategoriesFilters(getCurrentUserOperation(operation));
 		Category allTestAuthorCategoriesFilter=new Category();
-		allTestAuthorCategoriesFilter.setId(allTestAuthorCategories.id);
+		allTestAuthorCategoriesFilter.setId(ALL_TEST_AUTHOR_CATEGORIES.id);
 		if (specialCategoriesFilters.contains(allTestAuthorCategoriesFilter))
 		{
-			filterCategoryId=allTestAuthorCategories.id;
+			setFilterCategoryId(ALL_TEST_AUTHOR_CATEGORIES.id);
 			found=true;
 		}
 		if (!found)
 		{
 			Category allTestAuthorCategoriesExceptGlobalsFilter=new Category();
-			allTestAuthorCategoriesExceptGlobalsFilter.setId(allTestAuthorCategoriesExceptGlobals.id);
+			allTestAuthorCategoriesExceptGlobalsFilter.setId(ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id);
 			if (specialCategoriesFilters.contains(allTestAuthorCategoriesExceptGlobalsFilter))
 			{
-				filterCategoryId=allTestAuthorCategoriesExceptGlobals.id;
+				setFilterCategoryId(ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id);
+				found=true;
+			}
+		}
+		if (!found)
+		{
+			Category allMyCategoriesFilter=new Category();
+			allMyCategoriesFilter.setId(ALL_MY_CATEGORIES.id);
+			if (specialCategoriesFilters.contains(allMyCategoriesFilter))
+			{
+				setFilterCategoryId(ALL_MY_CATEGORIES.id);
+				found=true;
+			}
+		}
+		if (!found)
+		{
+			Category allMyCategoriesExceptGlobalsFilter=new Category();
+			allMyCategoriesExceptGlobalsFilter.setId(ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id);
+			if (specialCategoriesFilters.contains(allMyCategoriesExceptGlobalsFilter))
+			{
+				setFilterCategoryId(ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id);
 				found=true;
 			}
 		}
@@ -1981,7 +1879,7 @@ public class TestBean implements Serializable
 			allGlobalCategoriesFilter.setId(ALL_GLOBAL_CATEGORIES.id);
 			if (specialCategoriesFilters.contains(allGlobalCategoriesFilter))
 			{
-				filterCategoryId=ALL_GLOBAL_CATEGORIES.id;
+				setFilterCategoryId(ALL_GLOBAL_CATEGORIES.id);
 				found=true;
 			}
 		}
@@ -1991,13 +1889,13 @@ public class TestBean implements Serializable
 			allCategoriesFilter.setId(allCategories.id);
 			if (specialCategoriesFilters.contains(allCategoriesFilter))
 			{
-				filterCategoryId=allCategories.id;
+				setFilterCategoryId(allCategories.id);
 				found=true;
 			}
 		}
 		if (!found && !specialCategoriesFilters.isEmpty())
 		{
-			filterCategoryId=specialCategoriesFilters.get(0).getId();
+			setFilterCategoryId(specialCategoriesFilters.get(0).getId());
 		}
 	}
 	
@@ -2074,18 +1972,15 @@ public class TestBean implements Serializable
      */
 	public void addSection(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get section to process if any
-    	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
-    	SectionBean section=getSectionFromSectionsAccordion(operation,sectionsAccordion);
+    	AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
+    	SectionBean section=getSectionFromSectionsAccordion(sectionsAccordion);
 		
     	String property=getPropertyChecked();
     	if (property==null)
     	{
     		// We need to process some input fields
-    		processSectionsInputFields(operation,event.getComponent(),section);
+    		processSectionsInputFields(event.getComponent(),section);
     		
     		// Set back accordion row index -1
     		sectionsAccordion.setRowIndex(-1);
@@ -2094,31 +1989,37 @@ public class TestBean implements Serializable
     		if (checkSectionName(section.getName()))
     		{
         		//Add a new section
-        		int numberSections=getSectionsSize(operation)+1;
+        		int numberSections=getSectionsSize()+1;
             	section=new SectionBean(this,numberSections);
-            	sections.add(section);
+            	getSections().add(section);
         		
             	// Change active tab of sections accordion to display the new section
         		activeSectionIndex=numberSections-1;
         		activeSectionName=section.getName();
-        		refreshActiveSection(operation,sectionsAccordion);
+        		refreshActiveSection(sectionsAccordion);
         		
         		// We need to update sections text fields
-        		updateSectionsTextFields(operation,event.getComponent(),numberSections);
+        		updateSectionsTextFields(event.getComponent(),numberSections);
     		}
     		else
     		{
-    			// Restore old section name
-    			section.setName(activeSectionName);
-    			
     			// Scroll page to top position
     			scrollToTop();
+    			
+    			// We need to update questions of current section
+    			updateSectionQuestions(getActiveSection(event.getComponent()));
+    			
+        		// We need to update sections text fields
+        		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+        		
+    			// Restore old section name
+    			section.setName(activeSectionName);
     		}
     	}
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process weight
-    		processSectionWeight(operation,event.getComponent(),section);
+    		processSectionWeight(event.getComponent(),section);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -2126,7 +2027,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(operation,event.getComponent(),section);
+    		processSectionRandomQuantity(event.getComponent(),section);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -2134,7 +2035,7 @@ public class TestBean implements Serializable
     	else if ("questionOrderWeight".equals(property))
     	{
     		// We need to process question orders weights
-    		processQuestionOrderWeights(operation,event.getComponent(),section);
+    		processQuestionOrderWeights(event.getComponent(),section);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -2143,22 +2044,18 @@ public class TestBean implements Serializable
     
 	/**
 	 * Checks if deleting a section will affect to the feedbacks already defined.
-	 * @param operation Operation
 	 * @param sectionOrder Position of section to delete
 	 * @return true if deleting a section won't affect to the feedbacks already defined, false otherwise
 	 */
-	private boolean checkFeedbacksForDeleteSection(Operation operation,int sectionOrder)
+	private boolean checkFeedbacksForDeleteSection(int sectionOrder)
 	{
 		boolean ok=true;
 		int newTotalMarks=0;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		ScoreType scoreType=getScoreType(operation);
+		ScoreType scoreType=getScoreType();
 		if ("SCORE_TYPE_QUESTIONS".equals(scoreType.getType()))
 		{
-			for (SectionBean section:getSections(operation))
+			for (SectionBean section:getSections())
 			{
 				if (section.getOrder()!=sectionOrder)
 				{
@@ -2180,7 +2077,7 @@ public class TestBean implements Serializable
 		{
 			int maxBaseSectionScore=0;
 			int totalSectionsWeight=0;
-			for (SectionBean section:getSections(operation))
+			for (SectionBean section:getSections())
 			{
 				if (section.getOrder()!=sectionOrder)
 				{
@@ -2208,7 +2105,7 @@ public class TestBean implements Serializable
 			}
 			newTotalMarks=totalSectionsWeight*maxBaseSectionScore;
 		}
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			SectionBean section=feedback.getCondition().getSection();
 			if (section==null)
@@ -2240,15 +2137,11 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Updates feebacks related to the deleted section if needed.
-	 * @param operation Operation
 	 * @param sectionOrder Position of deleted section
 	 */
-	private void updateFeedbacksForDeleteSection(Operation operation,int sectionOrder)
+	private void updateFeedbacksForDeleteSection(int sectionOrder)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			TestFeedbackConditionBean condition=feedback.getCondition();
 			if (condition.getSection()!=null && condition.getSection().getOrder()==sectionOrder)
@@ -2258,24 +2151,36 @@ public class TestBean implements Serializable
 			if (condition.getSection()==null && 
 				condition.getUnit().equals(TestFeedbackConditionBean.MARKS_UNIT))
 			{
+				int maxValue=condition.getMaxConditionalValue();
 				if (NumberComparator.compareU(condition.getComparator(),NumberComparator.BETWEEN))
 				{
-					int maxConditionalValue=condition.getMaxConditionalValue(operation);
-					if (condition.getConditionalBetweenMax()>maxConditionalValue)
+					if (condition.getConditionalBetweenMax()>maxValue)
 					{
-						condition.setConditionalBetweenMax(maxConditionalValue);
-						if (condition.getConditionalBetweenMin()>condition.getConditionalBetweenMax())
+						condition.setConditionalBetweenMax(maxValue);
+						if (condition.getConditionalBetweenMin()>maxValue)
 						{
-							condition.setConditionalBetweenMin(maxConditionalValue);
+							condition.setConditionalBetweenMin(maxValue);
 						}
 					}
 				}
 				else
 				{
-					int maxValueConditionalCmp=condition.getMaxValueConditionalCmp(operation);
-					if (condition.getConditionalCmp()>maxValueConditionalCmp)
+					if (NumberComparator.compareU(condition.getComparator(),NumberComparator.GREATER))
 					{
-						condition.setConditionalCmp(maxValueConditionalCmp);
+						if (maxValue>0)
+						{
+							maxValue--;
+						}
+						else
+						{
+							// We set the new comparator twice so oldComparator will be changed too
+							condition.setComparator(NumberComparator.GREATER_EQUAL);
+							condition.setComparator(NumberComparator.GREATER_EQUAL);
+						}
+					}
+					if (condition.getConditionalCmp()>maxValue)
+					{
+						condition.setConditionalCmp(maxValue);
 					}
 				}
 			}
@@ -2293,18 +2198,17 @@ public class TestBean implements Serializable
     	String property=getPropertyChecked();
     	if (property==null)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		boolean forceRemoveSection=true;
     		if (event.getComponent().getAttributes().get("order")!=null)
     		{
     			sectionToRemoveOrder=((Integer)event.getComponent().getAttributes().get("order")).intValue();
     			forceRemoveSection=false;
     		}
-    		boolean checkFeedbacks=checkFeedbacksForDeleteSection(operation,sectionToRemoveOrder);
+    		boolean checkFeedbacks=checkFeedbacksForDeleteSection(sectionToRemoveOrder);
         	if (forceRemoveSection || checkFeedbacks)
         	{
+        		List<SectionBean> sections=getSections();
+        		
                	// Remove section from test
             	sections.remove(sectionToRemoveOrder-1);
         		for (int index=sectionToRemoveOrder-1;index<sections.size();index++)
@@ -2313,30 +2217,30 @@ public class TestBean implements Serializable
         		}
         		
         		// Get sections accordion
-        		AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
+        		AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
         		
         		// If it is needeed change active tab of sections accordion
         		int numSections=sections.size();
         		if (sectionToRemoveOrder>numSections)
         		{
         			activeSectionIndex=numSections-1;
-        			refreshActiveSection(operation,sectionsAccordion);
+        			refreshActiveSection(sectionsAccordion);
         		}
-        		activeSectionName=getSection(operation,activeSectionIndex+1).getName();
+        		activeSectionName=getSection(activeSectionIndex+1).getName();
         		
         		// Set the new current section to be able to update text fields
-        		setCurrentSection(getSectionFromSectionsAccordion(operation,sectionsAccordion));
+        		setCurrentSection(getSectionFromSectionsAccordion(sectionsAccordion));
         		
     			// If it is needed update feedbacks
     			if (!checkFeedbacks)
     			{
-    				updateFeedbacksForDeleteSection(operation,sectionToRemoveOrder);
+    				updateFeedbacksForDeleteSection(sectionToRemoveOrder);
     			}
         		
         		if (getCurrentSection()!=null)
         		{
             		// We need to update sections text fields
-            		updateSectionsTextFields(operation,event.getComponent(),numSections);
+            		updateSectionsTextFields(event.getComponent(),numSections);
         		}
         	}
     		else
@@ -2348,7 +2252,7 @@ public class TestBean implements Serializable
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -2356,7 +2260,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -2368,7 +2272,7 @@ public class TestBean implements Serializable
 	 */
     public boolean isEnabledRemoveSection()
     {
-    	return sections.size()>1;
+    	return getSections().size()>1;
     }
     
 	/**
@@ -2392,8 +2296,9 @@ public class TestBean implements Serializable
 			
 			specialCategoriesFilters=new ArrayList<Category>();
 			
-			User testAuthor=getAuthor(operation);
+			User testAuthor=getAuthor();
 			Map<String,Boolean> cachedPermissions=new HashMap<String,Boolean>();
+			Map<String,Boolean> cachedAuthorPermissions=new HashMap<String,Boolean>();
 			for (SpecialCategoryFilter specialCategoryFilter:specialCategoryFiltersMap.values())
 			{
 				boolean granted=true;
@@ -2405,7 +2310,7 @@ public class TestBean implements Serializable
 					}
 					else
 					{
-						granted=permissionsService.isGranted(operation,testAuthor,requiredPermission);
+						granted=userSessionService.isGranted(operation,requiredPermission);
 						cachedPermissions.put(requiredPermission,Boolean.valueOf(granted));
 					}
 					if (!granted)
@@ -2415,10 +2320,29 @@ public class TestBean implements Serializable
 				}
 				if (granted)
 				{
-					Category specialCategory=new Category();
-					specialCategory.setId(specialCategoryFilter.id);
-					specialCategory.setName(specialCategoryFilter.name);
-					specialCategoriesFilters.add(specialCategory);
+					for (String requiredAuthorPermission:specialCategoryFilter.requiredAuthorPermissions)
+					{
+						if (cachedAuthorPermissions.containsKey(requiredAuthorPermission))
+						{
+							granted=cachedAuthorPermissions.get(requiredAuthorPermission).booleanValue();
+						}
+						else
+						{
+							granted=permissionsService.isGranted(operation,testAuthor,requiredAuthorPermission);
+							cachedAuthorPermissions.put(requiredAuthorPermission,Boolean.valueOf(granted));
+						}
+						if (!granted)
+						{
+							break;
+						}
+					}
+					if (granted)
+					{
+						Category specialCategory=new Category();
+						specialCategory.setId(specialCategoryFilter.id);
+						specialCategory.setName(specialCategoryFilter.name);
+						specialCategoriesFilters.add(specialCategory);
+					}
 				}
 			}
 		}
@@ -2431,21 +2355,10 @@ public class TestBean implements Serializable
 	 */
 	public String getSpecialCategoryFilterName(Category specialCategoryFilter)
 	{
-		return getSpecialCategoryFilterName(null,specialCategoryFilter);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param specialCategoryFilter Special category that represents an special category filter
-	 * @return Localized special category filter's name (including question's author nick if needed)
-	 */
-	private String getSpecialCategoryFilterName(Operation operation,Category specialCategoryFilter)
-	{
 		String specialCategoryFilterName=localizationService.getLocalizedMessage(specialCategoryFilter.getName());
 		if (specialCategoryFilterName.contains("?"))
 		{
-			specialCategoryFilterName=
-				specialCategoryFilterName.replace("?",getAuthor(getCurrentUserOperation(operation)).getNick());
+			specialCategoryFilterName=specialCategoryFilterName.replace("?",getAuthor().getNick());
 		}
 		return specialCategoryFilterName;
 	}
@@ -2497,35 +2410,25 @@ public class TestBean implements Serializable
     		// Get current user session Hibernate operation
     		operation=getCurrentUserOperation(operation);
     		
-    		User testAuthor=getAuthor(operation);
-    		Category category=getCategory(operation);
+    		User testAuthor=getAuthor();
     		
         	testsCategories=categoriesService.getCategoriesSortedByHierarchy(operation,testAuthor,
         		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_TESTS"),true,true,
         		CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES);
     		
-			// We need to check if test's author is allowed to assign a global category of other user
-			// to his/her owned tests
-        	if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue())
+			// Remove from list categories not allowed
+        	List<Category> testsCategoriesToRemove=new ArrayList<Category>();
+        	for (Category testCategory:testsCategories)
         	{
-				// As question's author is not allowed to assign a global category of other user
-				// to his/her owned questions we remove them from results 
-        		// (except current test category)
-        		removeGlobalOtherUserCategories(testsCategories,testAuthor,category);
+        		if (!checkCategory(operation,testCategory))
+        		{
+        			testsCategoriesToRemove.add(testCategory);
+        		}
         	}
-        	
-			// We need to check if current user is allowed to see private categories of test's author
-    		if (testAuthor.getId()!=userSessionService.getCurrentUserId() && 
-    			(!getViewTestsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() ||
-    			(!getViewTestsFromAdminsPrivateCategoriesEnabled(operation).booleanValue() && 
-    			getTestAuthorAdmin(operation).booleanValue()) || 
-    			(!getViewTestsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue() && 
-    			getTestAuthorSuperadmin(operation).booleanValue())))
-    		{
-				// As current user is not allowed to see private categories of test's author
-				// we remove them from results (except current test category)
-    			removePrivateCategories(operation,testsCategories,testAuthor,category);
-    		}
+        	for (Category testCategoryToRemove:testsCategoriesToRemove)
+        	{
+        		testsCategories.remove(testCategoryToRemove);
+        	}
     	}
     	return testsCategories;
 	}
@@ -2549,65 +2452,65 @@ public class TestBean implements Serializable
     		// Get current user session Hibernate operation
     		operation=getCurrentUserOperation(operation);
     		
-    		User testAuthor=getAuthor(operation);
+       		// Get filter value for viewing questions from global categories
+    		boolean includeGlobalCategories=getFilterGlobalQuestionsEnabled(operation).booleanValue();
     		
-        	// Get filter value for viewing questions from categories of other users based on permissions
-        	// of current user
-        	int includeOtherUsersCategories=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
-        	if (getUseOtherUsersQuestions(operation).booleanValue())
-        	{
-        		if (getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-        			getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue())
-       			{
-       				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES;
-       			}
-       			else
-       			{
-       				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES;
-       			}
-       		}
+       		// Get filter value for viewing questions from categories of other users based on permissions
+       		// of current user
+    		int includeOtherUsersCategories=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
+    		if (getFilterOtherUsersQuestionsEnabled(operation).booleanValue())
+    		{
+    			if (getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue())
+    			{
+    				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES;
+    			}
+    			else
+    			{
+    				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES;
+    			}
+    		}
     		
-        	// In case that current user is allowed to view private categories of other users 
-        	// we also need to check if he/she has permission to view private categories of administrators
-        	// and/or users with permission to improve permissions over their owned ones (superadmins)
-        	boolean includeAdminsPrivateCategories=false;
-        	boolean includeSuperadminsPrivateCategories=false;
-        	if (includeOtherUsersCategories==CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES)
-        	{
-        		includeAdminsPrivateCategories=
-        			getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue();
+       		// In case that current user is allowed to view questions from private categories of other users 
+       		// we also need to check if he/she has permission to view questions from private categories 
+       		// of administrators and/or users with permission to improve permissions over their owned ones 
+       		// (superadmins)
+       		boolean includeAdminsPrivateCategories=false;
+       		boolean includeSuperadminsPrivateCategories=false;
+       		if (includeOtherUsersCategories==CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES)
+       		{
+       			includeAdminsPrivateCategories=
+       				getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue();
        			includeSuperadminsPrivateCategories=
-       				getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue();
+       				getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue();
        		}
        		
-        	questionsCategories=categoriesService.getCategoriesSortedByHierarchy(operation,testAuthor,
-        		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_QUESTIONS"),true,
-        		getUseGlobalQuestions(operation).booleanValue(),includeOtherUsersCategories,
-    			includeAdminsPrivateCategories,includeSuperadminsPrivateCategories);
-   			
-			// We need to check if test's author is allowed to assign a question from a 
-    		// global category of other user to his/her owned tests
-        	if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue())
+       		// Get visible categories for images taking account all user permissions
+       		questionsCategories=categoriesService.getCategoriesSortedByHierarchy(operation,
+       			userSessionService.getCurrentUser(operation),
+       			categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),true,
+       			includeGlobalCategories,includeOtherUsersCategories,includeAdminsPrivateCategories,
+       			includeSuperadminsPrivateCategories);
+       		
+			// Remove from list categories not allowed
+        	List<Category> questionsCategoriesToRemove=new ArrayList<Category>();
+        	for (Category questionCategory:questionsCategories)
         	{
-				// As test's author is not allowed to assign a question from a global category 
-        		// of other user to his/her owned questions we remove them from results 
-        		removeGlobalOtherUserCategories(questionsCategories,testAuthor,null);
+        		if (!checkQuestionsFilterPermission(operation,questionCategory))
+        		{
+        			questionsCategoriesToRemove.add(questionCategory);
+        		}
         	}
-    		
-			// We need to check if current user is allowed to see private categories of test's author
-        	if (testAuthor.getId()==userSessionService.getCurrentUserId() && 
-        		(!getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() || 
-        		(getTestAuthorAdmin(operation).booleanValue() && 
-        		!getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) || 
-        		(getTestAuthorSuperadmin(operation).booleanValue() && 
-        		!getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue())))
+        	for (Category questionCategoryToRemove:questionsCategoriesToRemove)
         	{
-				// As current user is not allowed to see questions from private categories of 
-				// test's author we remove them from results
-				removePrivateCategories(operation,questionsCategories,testAuthor,null);
+        		questionsCategories.remove(questionCategoryToRemove);
         	}
     	}
-    	return questionsCategories==null?new ArrayList<Category>():questionsCategories;
+    	return questionsCategories;
+    }
+    
+    private void setQuestionsCategories(List<Category> questionsCategories)
+    {
+    	this.questionsCategories=questionsCategories;
     }
     
     /**
@@ -2760,16 +2663,7 @@ public class TestBean implements Serializable
      */
     public boolean isSectionsWeightsDisplayed()
     {
-    	return isSectionsWeightsDisplayed(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if input boxes for sections weights are displayed, false otherwise
-     */
-    public boolean isSectionsWeightsDisplayed(Operation operation)
-    {
-    	ScoreType scoreType=getScoreType(operation);
+    	ScoreType scoreType=getScoreType();
     	return scoreType!=null && "SCORE_TYPE_SECTIONS".equals(scoreType.getType());
     }
     
@@ -2915,11 +2809,19 @@ public class TestBean implements Serializable
     	operation=getCurrentUserOperation(operation);
     	
     	// Check test name
-    	String testName=getName(operation);
+    	String testName=getName();
     	ok=checkTestName(testName);
     	
-        // Check categories
-    	if (checkCategory(operation))
+        // Check category
+    	if (!categoriesService.checkCategoryId(operation,getCategoryId()))
+    	{
+    		addErrorMessage("TEST_CATEGORY_STEP_NOT_FOUND");
+    		ok=false;
+    		
+    		// Refresh tests categories from DB
+    		resetTestsCategories(operation);
+    	}
+    	else if (checkCategory(operation))
     	{
     		if (!checkAvailableTestName(operation))
     		{
@@ -2929,52 +2831,91 @@ public class TestBean implements Serializable
     	}
     	else
         {
-        	addErrorMessage("TEST_CATEGORY_ASSIGN_ERROR");
+        	addErrorMessage("TEST_CATEGORY_NOT_GRANTED_ERROR");
         	ok=false;
         	
-        	// Reload test categories from DB
-        	setTestsCategories(null);
+    		// Refresh tests categories from DB
+    		resetTestsCategories(operation);
         }
     	
     	return ok;
     }
     
+	/**
+	 * @param operation Operation
+	 * @return true if category selected is usable by current user, false otherwise
+	 */
     private boolean checkCategory(Operation operation)
     {
-    	boolean ok=true;
-    	try
+		return checkCategory(getCurrentUserOperation(operation),getCategory());
+    }
+    
+	/**
+	 * @param operation Operation
+	 * @param category Category
+	 * @return true if a category is usable by current user, false otherwise
+	 */
+    private boolean checkCategory(Operation operation,Category category)
+    {
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(operation);
+    	
+    	// Check category type
+    	boolean ok=category!=null && categoryTypesService.isDerivedFrom(operation,
+    		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_TESTS"),
+    		categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+		
+    	// Check visibility
+    	if (ok)
     	{
-   			// Get current user session Hibernate operation
-   			operation=getCurrentUserOperation(operation);
-    		
-    		User testAuthor=getAuthor(operation);
-    		Category category=getCategory(operation);
-    		
-    		if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue() && 
-    			!category.getUser().equals(testAuthor) && category.getVisibility().isGlobal())
+    		ok=false;
+    		User testAuthor=getAuthor();
+    		Visibility categoryVisibility=
+    			visibilitiesService.getVisibilityFromCategoryId(operation,category.getId());
+    		if (categoryVisibility.isGlobal())
     		{
-    			ok=false;
+    			ok=getFilterGlobalTestsEnabled(operation).booleanValue() && 
+    				((initialCategoryId>0L && category.getId()==initialCategoryId) || 
+    				testAuthor.equals(category.getUser()) || 
+    				getGlobalOtherUserCategoryAllowed(operation).booleanValue());
     		}
-    		else if (testAuthor.getId()==userSessionService.getCurrentUserId() && 
-    			category.getUser().equals(testAuthor))
+    		else if (testAuthor.equals(category.getUser()))
     		{
-				Visibility testCategoryVisibility=category.getVisibility();
-    			if (!testCategoryVisibility.isGlobal() && testCategoryVisibility.getLevel()>=
-    				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    			if (testAuthor.getId()==userSessionService.getCurrentUserId())
     			{
-    				ok=getViewTestsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-    					(!getTestAuthorAdmin(operation).booleanValue() || 
-    					getViewTestsFromAdminsPrivateCategoriesEnabled(operation).booleanValue())&&
-    					(!getTestAuthorSuperadmin(operation).booleanValue() || 
-    					getViewTestsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+    				ok=true;
+    			}
+    			else if (getFilterOtherUsersTestsEnabled(operation).booleanValue())
+    			{
+    				if (categoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+    					operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    				{
+    					ok=getViewTestsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() && 
+    						(!getTestAuthorAdmin(operation).booleanValue() || 
+    						getViewTestsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
+    						(!getTestAuthorSuperadmin(operation).booleanValue() || 
+    						getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+    				}
+    				else
+    				{
+    					ok=true;
+    				}
     			}
     		}
     	}
-    	catch (ServiceException se)
-    	{
-    		ok=false;
-		}
     	return ok;
+    }
+    
+	/**
+	 * @param operation Operation
+	 * @return true if current category of the test we are editing is usable by current user, false otherwise
+	 */
+    private boolean checkCurrentCategory(Operation operation)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(operation,categoriesService.getCategoryFromTestId(operation,getTestId()));
     }
     
     /**
@@ -2988,30 +2929,27 @@ public class TestBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		String testName=getName(operation);
-		long categoryId=getCategoryId(operation);
+		String testName=getName();
+		long categoryId=getCategoryId();
 		if (testName!=null)
 		{
-			ok=testsService.isTestNameAvailable(operation,testName,categoryId,getTestId(operation));
+			ok=testsService.isTestNameAvailable(operation,testName,categoryId,getTestId());
 		}
 		return ok;
 	}
     
-    private boolean checkCalendarInputFields(Operation operation)
+    private boolean checkCalendarInputFields()
     {
     	boolean ok=true;
     	
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-   		if (isRestrictDates(operation))
+   		if (isRestrictDates())
    		{
    			String startDateHidden=getStartDateHidden();
    			String closeDateHidden=getCloseDateHidden();
    			String warningDateHidden=getWarningDateHidden();
-   			Date startDate=getStartDate(operation);
-   			Date closeDate=getCloseDate(operation);
-   			Date warningDate=getWarningDate(operation);
+   			Date startDate=getStartDate();
+   			Date closeDate=getCloseDate();
+   			Date warningDate=getWarningDate();
    			if (startDate!=null && closeDate!=null && !closeDate.after(startDate))
    			{
   					addErrorMessage("TEST_CLOSE_DATE_NOT_AFTER_START_DATE");
@@ -3030,10 +2968,10 @@ public class TestBean implements Serializable
        				ok=false;
    				}
    			}
-   			if (isRestrictFeedbackDate(operation))
+   			if (isRestrictFeedbackDate())
    			{
    				String feedbackDateHidden=getFeedbackDateHidden();
-   				Date feedbackDate=getFeedbackDate(operation);
+   				Date feedbackDate=getFeedbackDate();
    				if (feedbackDate!=null)
    				{
    					if (startDate!=null && feedbackDate.before(startDate))
@@ -3190,6 +3128,111 @@ public class TestBean implements Serializable
     	return checkSectionName(sectionName,true);
     }
 	
+	/**
+	 * Refresh available categories of the combo box.
+	 * @param event Action event
+	 */
+	public void refreshTestCategories(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setGlobalOtherUserCategoryAllowed(null);
+		resetTestAuthorAdmin();
+		resetTestAuthorSuperadmin();
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+		{
+			// Refresh tests categories from DB
+			resetTestsCategories(operation);
+		}
+		else
+		{
+			// Reload tests categories from DB
+			setTestsCategories(null);
+		}
+	}
+	
+	private void resetTestsCategories(Operation operation)
+	{
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		// Reload tests categories from DB
+		setTestsCategories(null);
+		
+		// Check that initial category already exists and it is valid
+		long resetCategoryId=0L;
+		if (initialCategoryId>0L)
+		{
+			if (!categoriesService.checkCategoryId(operation,initialCategoryId))
+			{
+				initialCategoryId=0L;
+			}
+			else if (checkCategory(operation,categoriesService.getCategory(operation,initialCategoryId)))
+			{
+				resetCategoryId=initialCategoryId;
+			}
+		}
+		
+		// Reset selected category
+		if (resetCategoryId==0L)
+		{
+			List<Category> testsCategories=getTestsCategories(operation);
+			if (!testsCategories.isEmpty())
+			{
+				resetCategoryId=testsCategories.get(0).getId();
+			}
+		}
+		setCategoryId(operation,resetCategoryId);
+	}
+    
+	/**
+	 * Refresh available categories of the combo box within the 'Add questions' dialog.
+	 * @param event Action event
+	 */
+	public void refreshQuestionsCategories(ActionEvent event)
+	{
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setUseGlobalQuestions(null);
+		setUseOtherUsersQuestions(null);
+	    setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+	    setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+	    setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+	    resetAdmins();
+	    resetSuperadmins();
+	    
+	    Category filterCategory=null;
+	    long filterCategoryId=getFilterCategoryId(operation);
+	    if (filterCategoryId>0L)
+	    {
+	    	if (categoriesService.checkCategoryId(operation,filterCategoryId))
+	    	{
+	    		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+	    	}
+	    }
+	    else
+	    {
+	    	filterCategory=new Category();
+	    	filterCategory.setId(filterCategoryId);
+	    }
+	    if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+	    {
+	    	setFilterCategoryId(Long.MIN_VALUE);
+	    }
+	    
+		// Reload questions categories from DB
+		setQuestionsCategories(null);
+	}
+	
     /**
      * Flow listener to handle a step change within wizard component. 
      * @param event Flow event
@@ -3200,22 +3243,26 @@ public class TestBean implements Serializable
     	boolean ok=true;
     	String oldStep=event.getOldStep();
     	String nextStep=event.getNewStep();
+    	
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+    	
     	if (GENERAL_WIZARD_TAB.equals(oldStep))
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
+    		setFilterGlobalTestsEnabled(null);
+    		setFilterOtherUsersTestsEnabled(null);
     		setGlobalOtherUserCategoryAllowed(null);
-    		resetTestAuthorAdmin(operation);
-    		resetTestAuthorSuperadmin(operation);
+    		resetTestAuthorAdmin();
+    		resetTestAuthorSuperadmin();
     		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
     		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
     		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    		
     		if (!checkCommonDataInputFields(operation))
     		{
     			ok=false;
     		}
-    		if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields(operation))
+    		if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields())
     		{
     			ok=false;
     		}
@@ -3225,7 +3272,7 @@ public class TestBean implements Serializable
     		if (SECTIONS_WIZARD_TAB.equals(nextStep))
     		{
     			// Get current section
-    			SectionBean currentSection=getSection(getCurrentUserOperation(null),activeSectionIndex+1);
+    			SectionBean currentSection=getSection(activeSectionIndex+1);
     			
     			if (currentSection!=null)
     			{
@@ -3236,13 +3283,11 @@ public class TestBean implements Serializable
     	}
     	else if (SECTIONS_WIZARD_TAB.equals(oldStep))
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		boolean errors=false;
-			boolean displayErrors=(isNavigation()?PRELIMINARY_SUMMARY_WIZARD_TAB:FEEDBACK_WIZARD_TAB).equals(nextStep);
+			boolean displayErrors=
+				(isNavigation()?PRELIMINARY_SUMMARY_WIZARD_TAB:FEEDBACK_WIZARD_TAB).equals(nextStep);
         	boolean needConfirm=false;
-        	sectionChecked=getSection(operation,activeSectionIndex+1);
+        	sectionChecked=getSection(activeSectionIndex+1);
         	if (sectionChecked!=null)
         	{
         		// Check that current section name entered by user is valid
@@ -3256,7 +3301,7 @@ public class TestBean implements Serializable
         			if (displayErrors)
         			{
         				// Restore old answer tab without changing its name
-        				updateSectionsTextFields(operation,event.getComponent(),getSectionsSize(operation));
+        				updateSectionsTextFields(event.getComponent(),getSectionsSize());
         				sectionChecked.setName(activeSectionName);
         			}
         		}
@@ -3267,7 +3312,7 @@ public class TestBean implements Serializable
    					questionOrderChecked.getWeight()<=getMaxWeight()));
    				if (checkFeedbacks)
    				{
-   					checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+   					checkFeedbacks=checkFeedbacksForChangeProperty();
    					needConfirm=!checkFeedbacks;
    				}
    				else
@@ -3293,14 +3338,14 @@ public class TestBean implements Serializable
     					}
     					
        					// We need to update section weight
-       					updateSectionWeight(operation,event.getComponent(),sectionChecked);
+       					updateSectionWeight(event.getComponent(),sectionChecked);
    					}
    					else if (sectionChecked.getWeight()>getMaxWeight())
    					{
    						sectionChecked.setWeight(getMaxWeight());
    						
     					// We need to update section weight
-       					updateSectionWeight(operation,event.getComponent(),sectionChecked);
+       					updateSectionWeight(event.getComponent(),sectionChecked);
     				}
     				sectionChecked.acceptWeight();
     				if (sectionChecked.getRandomQuantity()<0)
@@ -3315,7 +3360,7 @@ public class TestBean implements Serializable
     					}
     					
     					// We need to update random quantity
-    					updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+    					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
     				}
     				else if (sectionChecked.getRandomQuantity()==0 && sectionChecked.getQuestionOrdersSize()>0)
     				{
@@ -3329,14 +3374,14 @@ public class TestBean implements Serializable
     					}
     					
     					// We need to update random quantity
-    					updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+    					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
     				}
     				else if (sectionChecked.getRandomQuantity()>sectionChecked.getQuestionOrdersSize())
     				{
     					sectionChecked.setRandomQuantity(sectionChecked.getQuestionOrdersSize());
     					
     					// We need to update random quantity
-   						updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+   						updateSectionRandomQuantity(event.getComponent(),sectionChecked);
    					}
    					sectionChecked.acceptRandomQuantity();
    					if (questionOrderChecked!=null)
@@ -3353,14 +3398,14 @@ public class TestBean implements Serializable
    							}
    							
     						// We need to update questions weights
-    						updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+    						updateQuestionOrderWeights(event.getComponent(),sectionChecked);
    						}
    						else if (questionOrderChecked.getWeight()>getMaxWeight())
    						{
    							questionOrderChecked.setWeight(getMaxWeight());
    							
     						// We need to update questions weights
-   							updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+   							updateQuestionOrderWeights(event.getComponent(),sectionChecked);
    						}
        					questionOrderChecked=null;
    					}
@@ -3375,40 +3420,74 @@ public class TestBean implements Serializable
     		nextStep=oldStep;
     		
     		// Reset user permissions
+    		setFilterGlobalTestsEnabled(null);
+    		setFilterOtherUsersTestsEnabled(null);
+    		setGlobalOtherUserCategoryAllowed(null);
+    		resetTestAuthorAdmin();
+    		resetTestAuthorSuperadmin();
+    		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+    		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+    		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    		setAddEnabled(null);
+    		setEditEnabled(null);
+    		setEditOtherUsersTestsEnabled(null);
+    		setEditAdminsTestsEnabled(null);
+    		setEditSuperadminsTestsEnabled(null);
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
     		setUseGlobalQuestions(null);
     		setUseOtherUsersQuestions(null);
     		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
     		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
     		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
     		resetAdmins();
     		resetSuperadmins();
     		
 			// Scroll page to top position
 			scrollToTop();
     	}
-    	if (GENERAL_WIZARD_TAB.equals(nextStep))
+    	if (ok)
     	{
-    		setTestsCategories(null);
+        	if (GENERAL_WIZARD_TAB.equals(nextStep))
+        	{
+    			setFilterGlobalTestsEnabled(null);
+    			setFilterOtherUsersTestsEnabled(null);
+    			setGlobalOtherUserCategoryAllowed(null);
+    			resetTestAuthorAdmin();
+    			resetTestAuthorSuperadmin();
+    			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+    			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+    			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    			if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+    			{
+    				// Refresh tests categories from DB
+    				resetTestsCategories(operation);
+    			}
+    			else
+    			{
+    				// Reload tests categories from DB
+    				setTestsCategories(null);
+    			}
+        	}
     	}
     	setEnabledCheckboxesSetters(!CONFIRMATION_WIZARD_TAB.equals(nextStep));    	
     	activeTestTabName=nextStep;
+    	
+    	updateQuestions();
+    	if (SECTIONS_WIZARD_TAB.equals(nextStep))
+    	{
+    		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    	}
+    	
     	return nextStep;
     }
     
     public String getActiveTestTabName()
     {
-    	return getActiveTestTabName(null);
-    }
-    
-    private String getActiveTestTabName(Operation operation)
-    {
     	String activeTestTabName=null;
-    	if (getTestId(getCurrentUserOperation(operation))>0L)
+    	if (getTestId()>0L)
     	{
-			switch (activeTestIndex)
+			switch (activeTestTabIndex)
 			{
 				case GENERAL_TABVIEW_TAB:
 					activeTestTabName=GENERAL_WIZARD_TAB;
@@ -3420,11 +3499,11 @@ public class TestBean implements Serializable
 					activeTestTabName=SECTIONS_WIZARD_TAB;
 					break;
 				default:
-					if (activeTestIndex==preliminarySummaryTabviewTab)
+					if (activeTestTabIndex==preliminarySummaryTabviewTab)
 					{
 						activeTestTabName=PRELIMINARY_SUMMARY_WIZARD_TAB;
 					}
-					else if (activeTestIndex==feedbackTabviewTab)
+					else if (activeTestTabIndex==feedbackTabviewTab)
 					{
 						activeTestTabName=FEEDBACK_WIZARD_TAB;
 					}
@@ -3437,6 +3516,32 @@ public class TestBean implements Serializable
     	return activeTestTabName;
     }
     
+    public int getTestTabIndex(String testTabName)
+    {
+    	int testTabIndex=-1;
+    	if (GENERAL_WIZARD_TAB.equals(testTabName))
+    	{
+    		testTabIndex=GENERAL_TABVIEW_TAB;
+    	}
+    	else if (PRESENTATION_WIZARD_TAB.equals(testTabName))
+    	{
+    		testTabIndex=PRESENTATION_TABVIEW_TAB;
+    	}
+    	else if (SECTIONS_WIZARD_TAB.equals(testTabName))
+    	{
+    		testTabIndex=SECTIONS_TABVIEW_TAB;
+    	}
+    	else if (PRELIMINARY_SUMMARY_WIZARD_TAB.equals(testTabName))
+    	{
+    		testTabIndex=preliminarySummaryTabviewTab;
+    	}
+    	else if (FEEDBACK_WIZARD_TAB.equals(testTabName))
+    	{
+    		testTabIndex=feedbackTabviewTab;
+    	}
+    	return testTabIndex;
+    }
+    
 	/**
 	 * Tab change listener for displaying other tab of a test.
 	 * @param event Tab change event
@@ -3444,22 +3549,25 @@ public class TestBean implements Serializable
     public void changeActiveTestTab(TabChangeEvent event)
     {
 		boolean ok=true;
+		
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
     	TabView testFormTabs=(TabView)event.getComponent();
-        if (activeTestIndex==GENERAL_TABVIEW_TAB)
+        if (activeTestTabIndex==GENERAL_TABVIEW_TAB)
         {
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-        	
         	// We need to process some input fields
         	processCommonDataInputFields(operation,testFormTabs);
         	if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION)
         	{
-        		processCalendarTabCommonDataInputFields(operation,testFormTabs);
+        		processCalendarTabCommonDataInputFields(testFormTabs);
         	}
         	
+        	setFilterGlobalTestsEnabled(null);
+        	setFilterOtherUsersTestsEnabled(null);
         	setGlobalOtherUserCategoryAllowed(null);
-        	resetTestAuthorAdmin(operation);
-        	resetTestAuthorSuperadmin(operation);
+        	resetTestAuthorAdmin();
+        	resetTestAuthorSuperadmin();
        		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
        		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
        		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
@@ -3467,46 +3575,31 @@ public class TestBean implements Serializable
        		{
        			ok=false;
        		}
-       		if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields(operation))
+       		if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields())
        		{
        			ok=false;
        		}
            	if (ok)
            	{
-            	activeTestIndex=testFormTabs.getActiveIndex();
+            	activeTestTabIndex=testFormTabs.getActiveIndex();
            	}
            	else
            	{
-           		testFormTabs.setActiveIndex(activeTestIndex);
-           		
-               	// Reset user permissions
-           		setUseGlobalQuestions(null);
-           		setUseOtherUsersQuestions(null);
-           		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-           		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-           		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-           		setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-           		setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-           		setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-               	resetAdmins();
-               	resetSuperadmins();
+           		testFormTabs.setActiveIndex(activeTestTabIndex);
            	}
        	}
-      	else if (activeTestIndex==PRESENTATION_TABVIEW_TAB)
+      	else if (activeTestTabIndex==PRESENTATION_TABVIEW_TAB)
        	{
        		processPresentationEditorField(testFormTabs);
-       		activeTestIndex=testFormTabs.getActiveIndex();
+       		activeTestTabIndex=testFormTabs.getActiveIndex();
        	}
-       	else if (activeTestIndex==SECTIONS_TABVIEW_TAB)
+       	else if (activeTestTabIndex==SECTIONS_TABVIEW_TAB)
        	{
-       		// Get current user session Hibernate operation
-       		Operation operation=getCurrentUserOperation(null);
-       		
        		boolean needConfirm=false;
-       		sectionChecked=getSection(operation,activeSectionIndex+1);
+       		sectionChecked=getSection(activeSectionIndex+1);
        		
        		// We need to process some input fields
-       		processSectionsInputFields(operation,testFormTabs,sectionChecked);
+       		processSectionsInputFields(testFormTabs,sectionChecked);
        		
        		if (sectionChecked!=null)
        		{
@@ -3529,7 +3622,7 @@ public class TestBean implements Serializable
        				questionOrderChecked.getWeight()<=getMaxWeight()));
        			if (checkFeedbacks)
        			{
-       				checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+       				checkFeedbacks=checkFeedbacksForChangeProperty();
        				needConfirm=!checkFeedbacks;
        			}
        			else
@@ -3539,7 +3632,7 @@ public class TestBean implements Serializable
        			if (needConfirm)
        			{
        				nextTestIndexOnChangePropertyConfirm=testFormTabs.getActiveIndex();
-       				testFormTabs.setActiveIndex(activeTestIndex);
+       				testFormTabs.setActiveIndex(activeTestTabIndex);
        			}
        			else
        			{
@@ -3555,14 +3648,14 @@ public class TestBean implements Serializable
        					}
        					
        					// We need to update section weight
-      					updateSectionWeight(operation,event.getComponent(),sectionChecked);
+      					updateSectionWeight(event.getComponent(),sectionChecked);
        				}
        				else if (sectionChecked.getWeight()>getMaxWeight())
        				{
        					sectionChecked.setWeight(getMaxWeight());
        					
        					// We need to update section weights
-       					updateSectionWeight(operation,event.getComponent(),sectionChecked);
+       					updateSectionWeight(event.getComponent(),sectionChecked);
        				}
        				sectionChecked.acceptWeight();
        				if (sectionChecked.getRandomQuantity()<0)
@@ -3577,7 +3670,7 @@ public class TestBean implements Serializable
        					}
        					
        					// We need to update random quantity
-       					updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+       					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
        				}
        				else if (sectionChecked.getRandomQuantity()==0 && sectionChecked.getQuestionOrdersSize()>0)
       				{
@@ -3591,14 +3684,14 @@ public class TestBean implements Serializable
        					}
        					
        					// We need to update random quantity
-       					updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+       					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
        				}
        				else if (sectionChecked.getRandomQuantity()>sectionChecked.getQuestionOrdersSize())
        				{
        					sectionChecked.setRandomQuantity(sectionChecked.getQuestionOrdersSize());
        					
        					// We need to update random quantity
-       					updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+       					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
        				}
        				sectionChecked.acceptRandomQuantity();
        				if (questionOrderChecked!=null)
@@ -3615,14 +3708,14 @@ public class TestBean implements Serializable
        						}
        						
        						// We need to update questions weights
-       						updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+       						updateQuestionOrderWeights(event.getComponent(),sectionChecked);
        					}
        					else if (questionOrderChecked.getWeight()>getMaxWeight())
        					{
        						questionOrderChecked.setWeight(getMaxWeight());
        						
        						// We need to update questions weights
-       						updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+       						updateQuestionOrderWeights(event.getComponent(),sectionChecked);
        					}
        					for (QuestionOrderBean questionOrder:sectionChecked.getQuestionOrders())
        					{
@@ -3636,35 +3729,89 @@ public class TestBean implements Serializable
        		
        		if (ok)
        		{
-       			activeTestIndex=testFormTabs.getActiveIndex();
+       			activeTestTabIndex=testFormTabs.getActiveIndex();
        		}
        		else
        		{
-       			testFormTabs.setActiveIndex(activeTestIndex);
+       			testFormTabs.setActiveIndex(activeTestTabIndex);
        			
        			// Scroll page to top position
        			scrollToTop();
        		}
        	}
-       	else if (isNavigation() && activeTestIndex==PRELIMINARY_SUMMARY_OR_FEEDBACK_TABVIEW_TAB)
+       	else if (isNavigation() && activeTestTabIndex==PRELIMINARY_SUMMARY_OR_FEEDBACK_TABVIEW_TAB)
        	{
        		processPreliminarySummaryEditorField(testFormTabs);
-       		activeTestIndex=testFormTabs.getActiveIndex();
+       		activeTestTabIndex=testFormTabs.getActiveIndex();
        	}
-       	else if (activeTestIndex>=PRELIMINARY_SUMMARY_OR_FEEDBACK_TABVIEW_TAB)
+       	else if (activeTestTabIndex>=PRELIMINARY_SUMMARY_OR_FEEDBACK_TABVIEW_TAB)
        	{
-       		processFeedbackEditorInputFields(getCurrentUserOperation(null),testFormTabs);
-       		activeTestIndex=testFormTabs.getActiveIndex();
+       		processFeedbackEditorInputFields(testFormTabs);
+       		activeTestTabIndex=testFormTabs.getActiveIndex();
        	}
        	else
        	{
-       		activeTestIndex=testFormTabs.getActiveIndex();
+       		activeTestTabIndex=testFormTabs.getActiveIndex();
        	}
-        if (!ok)
+    	if (ok)
+    	{
+    		if (activeTestTabIndex==GENERAL_TABVIEW_TAB)
+    		{
+    			
+        		setFilterGlobalTestsEnabled(null);
+        		setFilterOtherUsersTestsEnabled(null);
+        		setGlobalOtherUserCategoryAllowed(null);
+                resetTestAuthorAdmin();
+                resetTestAuthorSuperadmin();
+                setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+                setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+                setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+        		if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+        		{
+        			// Refresh tests categories from DB
+        			resetTestsCategories(operation);
+        		}
+        		else
+        		{
+        			// Reload tests categories from DB
+        			setTestsCategories(null);
+        		}
+    		}
+    	}
+    	else
         {
+           	// Reset user permissions
+        	setFilterGlobalTestsEnabled(null);
+        	setFilterOtherUsersTestsEnabled(null);
+        	setGlobalOtherUserCategoryAllowed(null);
+        	resetTestAuthorAdmin();
+        	resetTestAuthorSuperadmin();
+       		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+       		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+       		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+       		setAddEnabled(null);
+       		setEditEnabled(null);
+       		setEditOtherUsersTestsEnabled(null);
+       		setEditAdminsTestsEnabled(null);
+       		setEditSuperadminsTestsEnabled(null);
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
+       		setUseGlobalQuestions(null);
+       		setUseOtherUsersQuestions(null);
+       		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+       		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+       		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+           	resetAdmins();
+           	resetSuperadmins();
+    		
         	// Scroll page to top position
         	scrollToTop();
         }
+    	updateQuestions();
+    	if (activeTestTabIndex==SECTIONS_TABVIEW_TAB)
+    	{
+    		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    	}
     }
     
 	/**
@@ -3700,7 +3847,7 @@ public class TestBean implements Serializable
     	AccordionPanel generalAccordion=(AccordionPanel)event.getComponent();
     	if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION)
     	{
-    		if (!checkCalendarInputFields(operation))
+    		if (!checkCalendarInputFields())
     		{
     			ok=false;
     		}
@@ -3719,7 +3866,7 @@ public class TestBean implements Serializable
     	else
     	{
     		// Restore old general accordion tab
-    		refreshActiveGeneralTab(operation,generalAccordion);
+    		refreshActiveGeneralTab(generalAccordion);
     	
     		// Scroll page to top position
     		scrollToTop();
@@ -3746,21 +3893,18 @@ public class TestBean implements Serializable
 	 */
 	public void changeActiveSection(TabChangeEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
     	AccordionPanel sectionsAccordion=(AccordionPanel)event.getComponent();
    		boolean ok=true;
    		boolean needConfirm=false;
    		int oldSectionsAccordionRowIndex=sectionsAccordion.getRowIndex();
-   		sectionChecked=getSectionFromSectionsAccordion(operation,sectionsAccordion);
+   		sectionChecked=getSectionFromSectionsAccordion(sectionsAccordion);
    		if (sectionChecked!=null)
    		{
        		// We need to process some input fields
-       		processSectionsInputFields(operation,event.getComponent(),sectionChecked);
+       		processSectionsInputFields(event.getComponent(),sectionChecked);
        		
 			// We need to update all section weights
-			updateSectionWeights(operation,sectionsAccordion,sectionChecked);
+			updateSectionWeights(sectionsAccordion,sectionChecked);
        		
    			// Check that current section name entered by user is valid
    			if (checkSectionName(sectionChecked.getName()))
@@ -3772,7 +3916,7 @@ public class TestBean implements Serializable
    					questionOrderChecked.getWeight()<=getMaxWeight()));
    				if (checkFeedbacks)
    				{
-   					checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+   					checkFeedbacks=checkFeedbacksForChangeProperty();
    					needConfirm=!checkFeedbacks;
    				}
    				else
@@ -3793,14 +3937,14 @@ public class TestBean implements Serializable
        					}
        					
        					// We need to update section weight
-       					updateSectionWeight(operation,sectionsAccordion,sectionChecked);
+       					updateSectionWeight(sectionsAccordion,sectionChecked);
        				}
        				else if (sectionChecked.getWeight()>getMaxWeight())
        				{
        					sectionChecked.setWeight(getMaxWeight());
        					
        					// We need to update section weight
-       					updateSectionWeight(operation,sectionsAccordion,sectionChecked);
+       					updateSectionWeight(sectionsAccordion,sectionChecked);
        				}
        				sectionChecked.acceptWeight();
    					if (sectionChecked.getRandomQuantity()<0)
@@ -3815,7 +3959,7 @@ public class TestBean implements Serializable
    						}
    						
    						// We need to update random quantity
-   						updateSectionRandomQuantity(operation,sectionsAccordion,sectionChecked);
+   						updateSectionRandomQuantity(sectionsAccordion,sectionChecked);
    					}
    					else if (sectionChecked.getRandomQuantity()==0 && sectionChecked.getQuestionOrdersSize()>0)
    					{
@@ -3829,14 +3973,14 @@ public class TestBean implements Serializable
    						}
    						
    						// We need to update random quantity
-   						updateSectionRandomQuantity(operation,sectionsAccordion,sectionChecked);
+   						updateSectionRandomQuantity(sectionsAccordion,sectionChecked);
    					}
    					else if (sectionChecked.getRandomQuantity()>sectionChecked.getQuestionOrdersSize())
    					{
    						sectionChecked.setRandomQuantity(sectionChecked.getQuestionOrdersSize());
    						
    						// We need to update random quantity
-   						updateSectionRandomQuantity(operation,sectionsAccordion,sectionChecked);
+   						updateSectionRandomQuantity(sectionsAccordion,sectionChecked);
    					}
    					sectionChecked.acceptRandomQuantity();
    					if (questionOrderChecked!=null)
@@ -3853,14 +3997,14 @@ public class TestBean implements Serializable
    							}
    							
    							// We need to update questions weights
-   							updateQuestionOrderWeights(operation,sectionsAccordion,sectionChecked);
+   							updateQuestionOrderWeights(sectionsAccordion,sectionChecked);
    						}
    						else if (questionOrderChecked.getWeight()<=getMinWeight())
    						{
    							questionOrderChecked.setWeight(getMinWeight());
    							
    							// We need to update questions weights
-   							updateQuestionOrderWeights(operation,sectionsAccordion,sectionChecked);
+   							updateQuestionOrderWeights(sectionsAccordion,sectionChecked);
    						}
    						for (QuestionOrderBean questionOrder:sectionChecked.getQuestionOrders())
    						{
@@ -3876,9 +4020,9 @@ public class TestBean implements Serializable
    				ok=false;
    				
    				// Restore old section tab without changing its name
-   				updateSectionsTextFields(operation,sectionsAccordion,getSectionsSize(operation));
+   				updateSectionsTextFields(sectionsAccordion,getSectionsSize());
    				sectionChecked.setName(activeSectionName);
-   				refreshActiveSection(operation,sectionsAccordion);
+   				refreshActiveSection(sectionsAccordion);
    				
    				// Scroll page to top position
    				scrollToTop();
@@ -3898,29 +4042,60 @@ public class TestBean implements Serializable
    				}
    				activeSectionIndex=sectionChecked.getOrder()-1;
    				activeSectionName=sectionChecked.getName();
-   				refreshActiveSection(operation,sectionsAccordion);
+   				refreshActiveSection(sectionsAccordion);
+   				
    	    		sectionsAccordion.setRowIndex(oldSectionsAccordionRowIndex);
+   	    		
+    			// We need to update questions of this section
+    			updateSectionQuestions(sectionChecked);
+   	    		
+        		// We need to update sections text fields
+        		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    			
        			RequestContext rq=RequestContext.getCurrentInstance();
        			rq.execute("confirmChangePropertyDialog.show()");
    			}
    			else
    			{
+   				SectionBean activeSection=null;
    				try
    				{
    					activeSectionIndex=Integer.parseInt(sectionsAccordion.getActiveIndex());
-   					activeSectionName=getSectionFromSectionsAccordion(operation,sectionsAccordion).getName();
+   					activeSection=getSectionFromSectionsAccordion(sectionsAccordion);
+   					if (activeSection!=null)
+   					{
+   						activeSectionName=activeSection.getName();
+   					}
+   					else
+   					{
+   						activeSectionName="";
+   					}
    				}
    				catch (NumberFormatException nfe)
-    				{
+   				{
    					activeSectionIndex=-1;
    					activeSectionName="";
    				}
        			sectionsAccordion.setRowIndex(oldSectionsAccordionRowIndex);
+       			if (activeSection!=null)
+       			{
+       				// We need to update questions of the new active section
+       				updateSectionQuestions(activeSection);
+       				
+            		// We need to update sections text fields
+            		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+       			}
    			}
    		}
    		else
    		{
    			sectionsAccordion.setRowIndex(oldSectionsAccordionRowIndex);
+   			
+   			// We need to update questions of this section
+   			updateSectionQuestions(getActiveSection(event.getComponent()));
+   			
+    		// We need to update sections text fields
+    		updateSectionsTextFields(event.getComponent(),getSectionsSize());
    		}
 	}
     
@@ -3957,6 +4132,196 @@ public class TestBean implements Serializable
 	}
 	
 	/**
+	 * Ajax listener.<br/><br/>
+	 * I have defined a tab change listener for accordion of the feedback tab of the test and that accordion 
+	 * is inside the test's tabview.<br/><br/>
+	 * Curiosly when I change the test's tab, Primefaces fires the listener defined for the accordion but 
+	 * calls it with an AjaxBehaviourEvent argument.<br/><br/>
+	 * As this listener is called unintentionally we have defined it only to avoid an error message and 
+	 * it does nothing.
+	 * @param event Ajax event
+	 */
+	public void changeActiveFeedbackTab(AjaxBehaviorEvent event)
+	{
+	}
+	
+	/**
+	 * Tab change listener for displaying other tab within accordion of the feedback tab of the test.
+	 * @param event Tab change event
+	 */
+	public void changeActiveFeedbackTab(TabChangeEvent event)
+	{
+    	AccordionPanel feedbackAccordion=(AccordionPanel)event.getComponent();
+		try
+		{
+			activeFeedbackTabIndex=Integer.parseInt(feedbackAccordion.getActiveIndex());
+		}
+		catch (NumberFormatException nfe)
+		{
+			activeFeedbackTabIndex=-1;
+		}
+		if (activeFeedbackTabIndex==ADVANCED_FEEDBACK_TAB_FEEDBACK_ACCORDION)
+		{
+			updateQuestionsForFeedbacks();
+		}
+	}
+	
+	private void updateQuestions()
+	{
+		updateQuestions(null,false);
+	}
+	
+	private void updateQuestions(boolean updateAllTabs)
+	{
+		updateQuestions(null,updateAllTabs);
+	}
+	
+	private void updateQuestions(Operation operation,boolean updateAllTabs)
+	{
+		if (updateAllTabs)
+		{
+			for (SectionBean section:getSections())
+			{
+				operation=updateSectionQuestions(operation,section);
+			}
+		}
+		else
+		{
+			String activeTestTabName=getActiveTestTabName();
+			if (SECTIONS_WIZARD_TAB.equals(activeTestTabName))
+			{
+				FacesContext context=FacesContext.getCurrentInstance();
+				updateSectionQuestions(operation,getActiveSection(context.getViewRoot()));
+			}
+			else if (FEEDBACK_WIZARD_TAB.equals(activeTestTabName))
+			{
+				if (activeFeedbackTabIndex==ADVANCED_FEEDBACK_TAB_FEEDBACK_ACCORDION)
+				{
+					updateQuestionsForFeedbacks(operation);
+				}
+			}
+		}
+	}
+	
+	private Operation updateSectionQuestions(SectionBean section)
+	{
+		return updateSectionQuestions(null,section);
+	}
+	
+	private Operation updateSectionQuestions(Operation operation,SectionBean section)
+	{
+		List<QuestionOrderBean> questionOrders=section.getQuestionOrders();
+		if (!questionOrders.isEmpty())
+		{
+			FacesContext context=FacesContext.getCurrentInstance();
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			List<QuestionOrderBean> questionOrdersToRemove=new ArrayList<QuestionOrderBean>();
+			for (QuestionOrderBean questionOrder:section.getQuestionOrders())
+			{
+				if (!updateQuestion(operation,section,questionOrder))
+				{
+					questionOrdersToRemove.add(questionOrder);
+				}
+			}
+			for (QuestionOrderBean questionOrderToRemove:questionOrdersToRemove)
+			{
+				int questionToRemoveSectionOrder=section.getOrder();
+				int questionToRemoveOrder=questionOrderToRemove.getOrder();
+        		boolean checkFeedbacks=
+        			checkFeedbacksForDeleteQuestion(questionToRemoveSectionOrder,questionToRemoveOrder);
+           		section.removeQuestionOrder(questionToRemoveOrder);
+           		
+            	// Update random quantity if needed
+            	if (section.getRandomQuantity()>section.getQuestionOrdersSize())
+            	{
+            		section.setRandomQuantity(section.getQuestionOrdersSize());
+            		section.acceptRandomQuantity();
+            		
+        			// We need to update random quantity
+        			updateSectionRandomQuantity(context.getViewRoot(),section);
+            	}
+            	
+    			// If it is needed update feedbacks
+    			if (!checkFeedbacks)
+    			{
+    				updateFeedbacksForDeleteQuestion(questionToRemoveSectionOrder,questionToRemoveOrder);
+    			}
+			}
+		}
+		return operation;
+		
+	}
+	
+	private Operation updateQuestionsForFeedbacks()
+	{
+		return updateQuestionsForFeedbacks(null);
+	}
+	
+	private Operation updateQuestionsForFeedbacks(Operation operation)
+	{
+		List<SectionBean> sectionsToUpdate=new ArrayList<SectionBean>();
+		for (TestFeedbackBean feedback:getFeedbacks())
+		{
+			if (TestFeedbackConditionBean.MARKS_UNIT.equals(feedback.getCondition().getUnit()))
+			{
+				SectionBean section=feedback.getCondition().getSection();
+				if (section==null)
+				{
+					sectionsToUpdate.clear();
+					for (SectionBean s:getSections())
+					{
+						sectionsToUpdate.add(s);
+					}
+					break;
+				}
+				else
+				{
+					if (!sectionsToUpdate.contains(section))
+					{
+						sectionsToUpdate.add(section);
+					}
+				}
+			}
+		}
+		for (SectionBean sectionToUpdate:sectionsToUpdate)
+		{
+			operation=updateSectionQuestions(operation,sectionToUpdate);
+		}
+		return operation;
+	}
+	
+	private boolean updateQuestion(Operation operation,SectionBean section,QuestionOrderBean questionOrder)
+	{
+		boolean ok=true;
+		
+		long questionId=questionOrder.getQuestionId();
+		if (questionsService.checkQuestionId(operation,questionId))
+		{
+			Question questionFromDB=questionsService.getQuestion(getCurrentUserOperation(operation),questionId);
+			if (questionFromDB==null)
+			{
+				ok=false;
+			}
+			else
+			{
+				questionOrder.getQuestion().setFromOtherQuestion(questionFromDB.getQuestionCopy());
+			}
+		}
+		else
+		{
+			ok=false;
+		}
+		return ok;
+	}
+	
+	/**
 	 * Display a dialog to add questions to a section. 
      * @param event Action event
 	 */
@@ -3965,15 +4330,58 @@ public class TestBean implements Serializable
     	String property=getPropertyChecked();
     	if (property==null)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
+   	    	// Get current user session Hibernate operation
+   			Operation operation=getCurrentUserOperation(null);
+   			
+   			setFilterGlobalQuestionsEnabled(null);
+   			setFilterOtherUsersQuestionsEnabled(null);
+   			setUseGlobalQuestions(null);
+   			setUseOtherUsersQuestions(null);
+   			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+   			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+   			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+   			resetAdmins();
+   			resetSuperadmins();
+   			
+   			Category filterCategory=null;
+   			long filterCategoryId=getFilterCategoryId(operation);
+   			if (filterCategoryId>0L)
+   			{
+   				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+   				{
+   					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+   				}
+   			}
+   			else
+   			{
+   				filterCategory=new Category();
+   				filterCategory.setId(filterCategoryId);
+   			}
+   			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+   			{
+   				setFilterCategoryId(Long.MIN_VALUE);
+   			}
+   			
+   			// Reload questions and questions categories
+   			questions=null;
+   			specialCategoriesFilters=null;
+   			setQuestionsCategories(null);
+   			
+   			getQuestions(operation);
+   			
+   			// Get current user session Hibernate operation
+   			operation=getCurrentUserOperation(null);
+   			
+   			getQuestionsCategories(operation);
+   			getFilterCategoryId(operation);
+   			setFilteredQuestionsDualList(null);
     		
     		// Get section to process if any
-        	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
-    		setCurrentSection(getSectionFromSectionsAccordion(operation,sectionsAccordion));
+        	AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
+    		setCurrentSection(getSectionFromSectionsAccordion(sectionsAccordion));
     		
     		// We need to process some input fields
-    		processSectionsInputFields(operation,event.getComponent(),getCurrentSection());
+    		processSectionsInputFields(event.getComponent(),getCurrentSection());
     		
 			// Check that current section name entered by user is valid
     		if (checkSectionName(getCurrentSection().getName()))
@@ -3986,6 +4394,15 @@ public class TestBean implements Serializable
     		}
     		else
     		{
+   				// Scroll page to top position
+   				scrollToTop();
+    			
+   				// We need to update questions of current section
+   				updateSectionQuestions(getCurrentSection());
+   				
+        		// We need to update sections text fields
+        		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+   				
 				// Restore old section name
     			getCurrentSection().setName(activeSectionName);
     		}
@@ -3993,7 +4410,7 @@ public class TestBean implements Serializable
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process weight
-    		processSectionWeight(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionWeight(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -4001,7 +4418,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -4009,7 +4426,7 @@ public class TestBean implements Serializable
     	else if ("questionOrderWeight".equals(property))
     	{
     		// We need to process question orders weights
-    		processQuestionOrderWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processQuestionOrderWeights(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -4025,9 +4442,6 @@ public class TestBean implements Serializable
     	SectionBean currentSection=getCurrentSection();
     	if (currentSection!=null)
     	{
-        	// Get current user session Hibernate operation
-        	Operation operation=getCurrentUserOperation(null);
-    		
         	if (questionsDualList!=null)
         	{
         		int order=currentSection.getQuestionOrdersSize()+1;
@@ -4036,7 +4450,7 @@ public class TestBean implements Serializable
         			currentSection.addQuestionOrder(order,question.getId());
         			order++;
         		}
-        		questionsDualList=null;
+        		setFilteredQuestionsDualList(null);
         		
         		// Update random quantity if needed
         		if (currentSection.getRandomQuantity()==0 && currentSection.getQuestionOrdersSize()>0)
@@ -4045,112 +4459,31 @@ public class TestBean implements Serializable
         			currentSection.acceptRandomQuantity();
         			
     				// We need to update random quantity
-    				updateSectionRandomQuantity(operation,event.getComponent(),currentSection);
+    				updateSectionRandomQuantity(event.getComponent(),currentSection);
         		}
         	}
         	
+        	// We need to update questions of current section
+    		updateSectionQuestions(currentSection);
+        	
     		// We need to update sections text fields
-    		updateSectionsTextFields(operation,event.getComponent(),getSectionsSize(operation));
+    		updateSectionsTextFields(event.getComponent(),getSectionsSize());
     	}
     }
     
-	/**
-	 * @param operation Operation
-	 * @param questionCategory Question category
-	 * @return true if user has permissions to display questions with the indicated category (not a filter), 
-	 * false otherwise
-	 */
-	private boolean checkQuestionCategoryFilterPermission(Operation operation,Category questionCategory)
-	{
-		boolean ok=true;
-		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		if (questionCategory.getVisibility().isGlobal())
-		{
-			// This is a global category, so we check that test's author has permissions to use
-			// questions from global categories in their tests
-			if (getUseGlobalQuestions(operation).booleanValue())
-			{
-				// Moreover we need to check that the category is owned by test's author or 
-				// that test's author has permission to filter by categories of other users 
-				User testAuthor=getAuthor(operation);
-				User categoryUser=questionCategory.getUser();
-				ok=testAuthor.equals(categoryUser) || getUseOtherUsersQuestions(operation).booleanValue();
-			}
-			else
-			{
-				ok=false;
-			}
-		}
-		else
-		{
-			// First we have to see if the category is owned by test's author,
-			// if that is not the case we will need to perform aditional checks  
-			long currentUserId=userSessionService.getCurrentUserId();
-			long testAuthorId=getAuthor(operation).getId();
-			User categoryUser=questionCategory.getUser();
-			if (categoryUser.getId()!=testAuthorId)
-			{
-				// We need to check that test author has permission to assign questions 
-				// from categories of other users to his/her tests
-				if (getUseOtherUsersQuestions(operation).booleanValue())
-				{
-					// We have to see if this is a public or a private category
-					// Public categories doesn't need more checks
-					// But private categories need aditional permissions
-					Visibility privateVisibility=
-						visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-					if (questionCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
-					{
-						// Next we need to check that test's author has permission to view 
-						// questions from private categories of other users, and aditionally we need 
-						// to check that test's author has permission to view questions from 
-						// private categories of administrators if the owner of the category 
-						// is an administrator and to check that test's author has permission 
-						// to view questions from private categories of users with permission 
-						// to improve permissions over its owned ones if the owner of the category 
-						// has that permission (superadmin)
-						ok=getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() 
-							&& (!isAdmin(operation,categoryUser) || 
-							getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) 
-							&& (!isSuperadmin(operation,categoryUser) || 
-							getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).
-							booleanValue());
-					}
-				}
-				else
-				{
-					ok=false;
-				}
-			}
-			if (ok && testAuthorId!=currentUserId && categoryUser.getId()!=currentUserId)
-			{
-				// We have to see if this a public or a private category
-				// Public categories doesn't need more checks
-				// But private categories need aditional permissions
-				Visibility privateVisibility=
-					visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-				if (questionCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
-				{
-					// Finally we need to check that current user has permission to view questions 
-					// from privates categories of other users, and aditionally we need to check 
-					// that current user has permission to view questions from private categories 
-					// of administrators if the owner of the category is an administrator 
-					// and to check that current user has permission to view questions 
-					// from private categories of users with permission to improve permissions 
-					// over its owned ones if the owner of the category has that permission (superadmin)
-					ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-						(!isAdmin(operation,categoryUser) || 
-						getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
-						(!isSuperadmin(operation,categoryUser) || 
-						getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
-				}
-			}
-		}
-		return ok;
-	}
+    /**
+	 * Action listener for updating questions information if we cancel the changes within the dialog for 
+	 * adding questions to a section. 
+     * @param event Action event
+     */
+    public void cancelAddQuestions(ActionEvent event)
+    {
+    	// We need to update questions of current section
+		updateSectionQuestions(getCurrentSection());
+    	
+		// We need to update sections text fields
+		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    }
     
 	/**
 	 * @param operation Operation
@@ -4165,18 +4498,29 @@ public class TestBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	long filterCategoryId=getFilterCategoryId(operation);
+    	long filterCategoryId=filterCategory==null?getFilterCategoryId(operation):filterCategory.getId();
 		if (specialCategoryFiltersMap.containsKey(Long.valueOf(filterCategoryId)))
 		{
 			// Check permissions needed for selected special category filter
-			User testAuthor=getAuthor(operation);
 			SpecialCategoryFilter filter=specialCategoryFiltersMap.get(Long.valueOf(filterCategoryId));
 			for (String requiredPermission:filter.requiredPermissions)
 			{
-				if (permissionsService.isDenied(operation,testAuthor,requiredPermission))
+				if (userSessionService.isDenied(operation,requiredPermission))
 				{
 					ok=false;
 					break;
+				}
+			}
+			if (ok)
+			{
+				User testAuthor=getAuthor();
+				for (String requiredAuthorPermission:filter.requiredAuthorPermissions)
+				{
+					if (permissionsService.isDenied(operation,testAuthor,requiredAuthorPermission))
+					{
+						ok=false;
+						break;
+					}
 				}
 			}
 		}
@@ -4188,32 +4532,88 @@ public class TestBean implements Serializable
 				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
 			}
 			
-			// Check permissions needed for selected question category
-			ok=checkQuestionCategoryFilterPermission(operation,filterCategory);
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterCategoryId);
+			if (filterCategoryVisibility.isGlobal())
+			{
+				// This is a global category, so we check that current user has permission to filter
+				// questions by global categories and that the test's author has permission to assign
+				// questions of global categories to his/her tests
+				ok=getFilterGlobalQuestionsEnabled(operation).booleanValue() && 
+					getUseGlobalQuestions(operation).booleanValue();
+			}
+			else
+			{
+				// First we have to see if the category is owned by current user, 
+				// if that is not the case we will need to perform aditional checks
+				long currentUserId=userSessionService.getCurrentUserId();
+				User testAuthor=getAuthor();
+				User categoryUser=filterCategory.getUser();
+				if (categoryUser.getId()!=currentUserId)
+				{
+					// We need to check that current user has permission to filter questions by categories 
+					// of other users and that the category is owned question's author or he/she has
+					// permission to assign questions from categories of other users to his/her tests
+					if (getFilterOtherUsersQuestionsEnabled(operation).booleanValue() && 
+						(testAuthor.equals(categoryUser) || 
+						getUseOtherUsersQuestions(operation).booleanValue()))
+					{
+						// We have to see if this a public or a private category
+						// Public categories doesn't need more checks
+						// But private categories need aditional permissions
+						Visibility privateVisibility=
+							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
+						{
+							// Finally we need to check that current user has permission to view questions 
+							// from private categories of other users, and aditionally we need to check 
+							// that current user has permission to view questions from private categories 
+							// of administrators if the owner of the category is an administrator and 
+							// to check that current user has permission to view questions from private categories 
+							// of users with permission to improve permissions over its owned ones if the owner 
+							// of the category has that permission (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
+							ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() && 
+								(!isAdmin || 
+								getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
+								(!isSuperadmin || 
+								getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+						}
+					}
+					else
+					{
+						ok=false;
+					}
+				}
+				else
+				{
+					// We already know that category is owned by current user but we also need to check that 
+					// test's author is also the current user or he/she has permission to assign questions 
+					// of global categories to his/her tests
+					ok=testAuthor.getId()==currentUserId || getUseOtherUsersQuestions(operation).booleanValue();
+				}
+			}
 		}
 		return ok;
 	}
     
 	/**
 	 * Checks if deleting a question will affect to the feedbacks already defined.
-	 * @param operation Operation
 	 * @param sectionOrder Position of section of the question to delete
 	 * @param questionOrder Position of question to delete within section
 	 * @return true if deleting a section won't affect to the feedbacks already defined, false otherwise
 	 */
-	private boolean checkFeedbacksForDeleteQuestion(Operation operation,int sectionOrder,int questionOrder)
+	private boolean checkFeedbacksForDeleteQuestion(int sectionOrder,int questionOrder)
 	{
 		boolean ok=true;
 		int newTotalMarks=0;
 		int newSectionMarks=0;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		ScoreType scoreType=getScoreType(operation);
+		ScoreType scoreType=getScoreType();
 		if ("SCORE_TYPE_QUESTIONS".equals(scoreType.getType()))
 		{
-			for (SectionBean section:getSections(operation))
+			for (SectionBean section:getSections())
 			{
 				if (section.getOrder()==sectionOrder)
 				{
@@ -4259,7 +4659,7 @@ public class TestBean implements Serializable
 		{
 			int maxBaseSectionScore=0;
 			int totalSectionsWeight=0;
-			for (SectionBean section:getSections(operation))
+			for (SectionBean section:getSections())
 			{
 				int maxSectionScore=0;
 				if (section.getOrder()==sectionOrder)
@@ -4309,7 +4709,7 @@ public class TestBean implements Serializable
 			newTotalMarks=totalSectionsWeight*maxBaseSectionScore;
 		}
 		
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			SectionBean section=feedback.getCondition().getSection();
 			if (section==null)
@@ -4354,39 +4754,50 @@ public class TestBean implements Serializable
     
 	/**
 	 * Updates feebacks related to the deleted question if needed.
-	 * @param operation Operation
 	 * @param sectionOrder Position of section of the deleted question
 	 * @param questionOrder Position of deleted question within section
 	 */
-	private void updateFeedbacksForDeleteQuestion(Operation operation,int sectionOrder,int questionOrder)
+	private void updateFeedbacksForDeleteQuestion(int sectionOrder,int questionOrder)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			TestFeedbackConditionBean condition=feedback.getCondition();
-			if ((condition.getSection()==null || condition.getSection().getOrder()==sectionOrder)&& 
+			if ((condition.getSection()==null || condition.getSection().getOrder()==sectionOrder) && 
 				condition.getUnit().equals(TestFeedbackConditionBean.MARKS_UNIT))
 			{
+				int maxValue=condition.getMaxConditionalValue();
 				if (NumberComparator.compareU(condition.getComparator(),NumberComparator.BETWEEN))
 				{
-					int maxConditionalValue=condition.getMaxConditionalValue(operation);
-					if (condition.getConditionalBetweenMax()>maxConditionalValue)
+					if (condition.getConditionalBetweenMax()>maxValue)
 					{
-						condition.setConditionalBetweenMax(maxConditionalValue);
-						if (condition.getConditionalBetweenMin()>condition.getConditionalBetweenMax())
+						condition.setConditionalBetweenMax(maxValue);
+						if (condition.getConditionalBetweenMin()>maxValue)
 						{
-							condition.setConditionalBetweenMin(maxConditionalValue);
+							condition.setConditionalBetweenMin(maxValue);
 						}
 					}
 				}
 				else
 				{
-					int maxValueConditionalCmp=condition.getMaxConditionalValue(operation);
-					if (condition.getConditionalCmp()>maxValueConditionalCmp)
+					if (NumberComparator.compareU(condition.getComparator(),NumberComparator.GREATER))
 					{
-						condition.setConditionalCmp(maxValueConditionalCmp);
+						if (maxValue>0)
+						{
+							maxValue--;
+						}
+						else
+						{
+							StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+							if ("F".equals(localizationService.getLocalizedMessage("SCORE_GEN")))
+							{
+								newComparator.append("_F");
+							}
+							condition.setNewComparator(newComparator.toString());
+						}
+					}
+					if (condition.getConditionalCmp()>maxValue)
+					{
+						condition.setConditionalCmp(maxValue);
 					}
 				}
 			}
@@ -4403,15 +4814,14 @@ public class TestBean implements Serializable
     	String property=getPropertyChecked();
     	if (property==null)
     	{
-			// Get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
+    		Operation operation=null;
     		
     		// Get section to process if any
-        	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
-        	SectionBean section=getSectionFromSectionsAccordion(operation,sectionsAccordion);
+        	AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
+        	SectionBean section=getSectionFromSectionsAccordion(sectionsAccordion);
     		
     		// We need to process some input fields
-    		processSectionsInputFields(operation,event.getComponent(),section);
+    		processSectionsInputFields(event.getComponent(),section);
     		
     		// Set back accordion row index -1
     		sectionsAccordion.setRowIndex(-1);
@@ -4419,43 +4829,67 @@ public class TestBean implements Serializable
     		boolean forceRemoveQuestion=true;
     		if (event.getComponent().getAttributes().get("questionOrder")!=null)
     		{
-    			//questionToRemoveSectionOrder=((Integer)event.getComponent().getAttributes().get("order")).intValue();
     			questionToRemoveSectionOrder=activeSectionIndex+1;
     			questionToRemoveOrder=((Integer)event.getComponent().getAttributes().get("questionOrder")).intValue();
     			forceRemoveQuestion=false;
     		}
     		
+    		boolean questionExists=true;
+			long questionToRemoveId=0L;
+			for (QuestionOrderBean qob:section.getQuestionOrders())
+			{
+				if (qob.getOrder()==questionToRemoveOrder)
+				{
+					questionToRemoveId=qob.getQuestionId();
+					break;
+				}
+			}
+			if (questionToRemoveId>0L)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+				
+				questionExists=questionsService.checkQuestionId(operation,questionToRemoveId);
+			}
+			else
+			{
+				questionExists=false;
+			}
+    		
     		// Check that current section name entered by user is valid
-    		if (checkSectionName(section.getName()))
+    		if (checkSectionName(section.getName()) && questionExists)
     		{
         		boolean checkFeedbacks=
-        			checkFeedbacksForDeleteQuestion(operation,questionToRemoveSectionOrder,questionToRemoveOrder);
+        			checkFeedbacksForDeleteQuestion(questionToRemoveSectionOrder,questionToRemoveOrder);
             	if (forceRemoveQuestion || checkFeedbacks)
             	{
                    	// Remove question from section
-                	if (section!=null)
+               		section.removeQuestionOrder(questionToRemoveOrder);
+               		
+                	// Update random quantity if needed
+                	if (section.getRandomQuantity()>section.getQuestionOrdersSize())
                 	{
-                		section.removeQuestionOrder(questionToRemoveOrder);
+                		section.setRandomQuantity(section.getQuestionOrdersSize());
+                		section.acceptRandomQuantity();
                 		
-                		// Update random quantity if needed
-                		if (section.getRandomQuantity()>section.getQuestionOrdersSize())
-                		{
-                			section.setRandomQuantity(section.getQuestionOrdersSize());
-                			section.acceptRandomQuantity();
-                			
-            				// We need to update random quantity
-            				updateSectionRandomQuantity(operation,event.getComponent(),section);
-                		}
+            			// We need to update random quantity
+            			updateSectionRandomQuantity(event.getComponent(),section);
                 	}
                 	
         			// If it is needed update feedbacks
         			if (!checkFeedbacks)
         			{
-        				updateFeedbacksForDeleteQuestion(operation,questionToRemoveSectionOrder,questionToRemoveOrder);
+        				updateFeedbacksForDeleteQuestion(questionToRemoveSectionOrder,questionToRemoveOrder);
         			}
         			
+        			// We need to update questions of current section
+        			updateSectionQuestions(operation,section);
+        			
         			// We need to update sections text fields
-        			updateSectionsTextFields(operation,event.getComponent(),getSectionsSize(operation));
+        			updateSectionsTextFields(event.getComponent(),getSectionsSize());
             	}
         		else
         		{
@@ -4465,17 +4899,23 @@ public class TestBean implements Serializable
     		}
     		else
     		{
-    			// Restore old section name
-    			section.setName(activeSectionName);
-    			
     			// Scroll page to top position
     			scrollToTop();
+    			
+    			// We need to update questions of current sections
+    			updateSectionQuestions(operation,section);
+    			
+    			// We need to update sections text fields
+    			updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    			
+    			// Restore old section name
+    			section.setName(activeSectionName);
     		}
     	}
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process weight
-    		processSectionWeight(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionWeight(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -4483,7 +4923,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
@@ -4491,13 +4931,60 @@ public class TestBean implements Serializable
     	else if ("questionOrderWeight".equals(property))
     	{
     		// We need to process question orders weights
-    		processQuestionOrderWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processQuestionOrderWeights(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process
     		FacesContext.getCurrentInstance().responseComplete();
     	}
 	}
     
+	/**
+	 * Action listener for updating questions information if we cancel the changes within the dialog to confirm 
+	 * question deletion. 
+	 * @param event Action event
+	 */
+	public void cancelRemoveQuestion(ActionEvent event)
+	{
+		// We need to update questions of current section
+		updateSectionQuestions(getActiveSection(event.getComponent()));
+		
+		// We need to update sections text fields
+		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+	}
+    
+	private boolean checkSaveTest(Operation operation)
+	{
+		boolean ok=false;
+		
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		if (getTestId()>0L)
+		{
+			ok=false;
+			if (getEditEnabled(operation).booleanValue())
+			{
+				if (getAuthor().getId()==userSessionService.getCurrentUserId())
+				{
+					ok=true;
+				}
+				else
+				{
+					ok=getEditOtherUsersTestsEnabled(operation).booleanValue() && 
+						(!getTestAuthorAdmin(operation).booleanValue() || 
+						getEditAdminsTestsEnabled(operation).booleanValue()) && 
+						(!getTestAuthorSuperadmin(operation).booleanValue() || 
+						getEditSuperadminsTestsEnabled(operation).booleanValue());
+				}
+			}
+		}
+		else
+		{
+			ok=getAddEnabled(operation).booleanValue();
+		}
+		return ok;
+	}
+	
     //Guarda la prueba y devuelve el nombre de la vista siguiente
     //return Nombre de la siguiente vista: "tests"
     /**
@@ -4506,130 +4993,222 @@ public class TestBean implements Serializable
      */
     public String saveTest()
     {
-    	String nextView="tests?faces-redirect=true";
+    	String nextView=null;
     	
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null); 
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+    	setGlobalOtherUserCategoryAllowed(null);
+    	resetTestAuthorAdmin();
+    	resetTestAuthorSuperadmin();
+    	setAddEnabled(null);
+    	setEditEnabled(null);
+    	setEditOtherUsersTestsEnabled(null);
+    	setEditAdminsTestsEnabled(null);
+    	setEditSuperadminsTestsEnabled(null);
+    	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
     	
-    	if (getTestId(operation)>0L)
+    	long testId=getTestId();
+    	boolean update=testId>0L;
+    	
+    	if (update && !testsService.checkTestId(operation,testId))
     	{
-        	if (activeTestIndex==GENERAL_TABVIEW_TAB)
-        	{
-        		// Check test name
-        		if (!checkTestName(getName(operation)))
-        		{
-        			nextView=null;
-        		}
-        		
-       			// Check calendar dates if needed
-       			if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields(operation))
-       			{
-       				nextView=null;
-       			}
-       		}
-       		else if (activeTestIndex==SECTIONS_TABVIEW_TAB)
-       		{
-   				UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
-       			
-   	    		// Get section to process if any
-   	        	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,viewRoot);
-   	        	SectionBean section=getSectionFromSectionsAccordion(operation,sectionsAccordion);
-   	    		
-   	    		// We need to process some input fields
-   	    		processSectionsInputFields(operation,viewRoot,section);
-   	    		
-   	    		// Set back accordion row index -1
-   	    		sectionsAccordion.setRowIndex(-1);
-   				
-   	    		// Check that current section name entered by user is valid
-   				if (checkSectionName(section.getName()))
-   				{
-   					activeSectionName=section.getName();
-   				}
-   				else
-   				{
-   					// Restore old section tab without changing its name
-   					updateSectionsTextFields(operation,viewRoot,getSectionsSize(operation));
-   					section.setName(activeSectionName);
-  					
-   					nextView=null;
-   				}
-       		}
-   		}
-        
-        // Check test category
-		setGlobalOtherUserCategoryAllowed(null);
-		resetTestAuthorAdmin(operation);
-		resetTestAuthorSuperadmin(operation);
-		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
-    	if (checkCategory(operation))
+    		displayErrorPage("TEST_UPDATE_NOT_FOUND_ERROR","The test you are trying to update no longer exists.");
+    	}
+    	else if (!checkSaveTest(operation) || (update && !checkCurrentCategory(operation)))
     	{
-    		if (!checkAvailableTestName(operation))
-    		{
-    			addErrorMessage("TEST_NAME_ALREADY_DECLARED");
-    			nextView=null;
-    		}
+    		displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
     	}
     	else
     	{
-    		addErrorMessage("TEST_CATEGORY_ASSIGN_ERROR");
-    		nextView=null;
-    		
-    		setUseGlobalQuestions(null);
-    		setUseOtherUsersQuestions(null);
-    		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-    		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-    		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-    		setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-       		resetAdmins();
-       		resetSuperadmins();
-       		
-       		// Reload test categories from DB
-       		setTestsCategories(null);
-   		}
-   		
-       	// Validate that all sections have at least one question
-       	boolean sectionEmpty=false;
-       	for (SectionBean section:getSections(operation))
-       	{
-       		if (section.getQuestionOrdersSize()==0)
-       		{
-       			sectionEmpty=true;
-       			break;
+        	nextView="tests?faces-redirect=true";
+			boolean reloadCategories=true;
+        	if (update)
+        	{
+            	if (activeTestTabIndex==GENERAL_TABVIEW_TAB)
+            	{
+            		// Check test name
+            		if (!checkTestName(getName()))
+            		{
+            			nextView=null;
+            		}
+            		
+           			// Check calendar dates if needed
+           			if (activeGeneralTabIndex==CALENDAR_TAB_GENERAL_ACCORDION && !checkCalendarInputFields())
+           			{
+           				nextView=null;
+           			}
+           		}
+           		else if (activeTestTabIndex==SECTIONS_TABVIEW_TAB)
+           		{
+       				UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+           			
+       	    		// Get section to process if any
+       	        	AccordionPanel sectionsAccordion=getSectionsAccordion(viewRoot);
+       	        	SectionBean section=getSectionFromSectionsAccordion(sectionsAccordion);
+       	    		
+       	    		// We need to process some input fields
+       	    		processSectionsInputFields(viewRoot,section);
+       	    		
+       	    		// Set back accordion row index -1
+       	    		sectionsAccordion.setRowIndex(-1);
+       				
+       	    		// Check that current section name entered by user is valid
+       				if (checkSectionName(section.getName()))
+       				{
+       					activeSectionName=section.getName();
+       				}
+       				else
+       				{
+       					// Restore old section tab without changing its name
+       					updateSectionsTextFields(viewRoot,getSectionsSize());
+       					section.setName(activeSectionName);
+      					
+       					nextView=null;
+       				}
+           		}
        		}
-       	}
-       	if (sectionEmpty)
-       	{
-       		addErrorMessage("TEST_SECTION_EMPTY");
-   			nextView=null;
-       	}
-    	
-    	if (nextView!=null)
-    	{
-    		try
-    		{
-            	// Get test
-            	Test test=getAsTest(operation);
-        		if (getTestId(operation)>0L) // Update test
+            
+            // Check test category
+        	if (!categoriesService.checkCategoryId(operation,getCategoryId()))
+        	{
+        		addErrorMessage(update?"TEST_CATEGORY_UPDATE_NOT_FOUND":"TEST_CATEGORY_ADD_NOT_FOUND");
+        		nextView=null;
+        		
+				// Refresh tests categories from DB
+        		resetTestsCategories(operation);
+        		
+		    	// We also need to change active tab to display categories combo
+		    	setNewActiveTestTab(GENERAL_WIZARD_TAB);
+        	}
+        	else if (checkCategory(operation))
+        	{
+        		if (!checkAvailableTestName(operation))
         		{
-        			testsService.updateTest(test);
+        			addErrorMessage("TEST_NAME_ALREADY_DECLARED");
+        			nextView=null;
         		}
-        		else // New test
-        		{
-        			testsService.addTest(test);
-        		}
-    		}
-    		finally
-    		{
+        	}
+        	else
+        	{
+	    		addErrorMessage("TEST_CATEGORY_NOT_GRANTED_ERROR");
+	    		nextView=null;
+	    		
+	    		setCategoryId(operation,0L);
+	    		
+				// Refresh tests categories from DB
+		    	resetTestsCategories(operation);
+		    	reloadCategories=false;
+		    	
+		    	// We also need to change active tab to display categories combo
+		    	setNewActiveTestTab(GENERAL_WIZARD_TAB);
+        	}
+        	
+        	if (nextView!=null)
+        	{
     			// End current user session Hibernate operation
     			userSessionService.endCurrentUserOperation();
-    		}
+        		
+    			Operation writeOp=null;
+        		try
+        		{
+    				// Start a new Hibernate operation
+    				writeOp=HibernateUtil.startOperation();
+        			
+    				// We need to remove added questions that had been deleted before saving
+    				updateQuestions(writeOp,true);
+    				
+    		       	// Validate that all sections have at least one question
+    		       	boolean sectionEmpty=false;
+    		       	for (SectionBean section:getSections())
+    		       	{
+    		       		if (section.getQuestionOrdersSize()==0)
+    		       		{
+    		       			sectionEmpty=true;
+    		       			break;
+    		       		}
+    		       	}
+    		       	if (sectionEmpty)
+    		       	{
+    		       		addErrorMessage("TEST_SECTION_EMPTY");
+    		   			nextView=null;
+    		       	}
+    				
+    		       	if (nextView!=null)
+    		       	{
+    	            	// Get test
+    	            	Test test=getAsTest(getCurrentUserOperation(null));
+    	        		if (update) // Update test
+    	        		{
+    	        			testsService.updateTest(writeOp,test);
+    	        		}
+    	        		else // New test
+    	        		{
+    	        			testsService.addTest(writeOp,test);
+    	        		}
+    	        		
+    					// Do commit
+    					writeOp.commit();
+    		       	}
+        		}
+        		catch (ServiceException se)
+        		{
+    				// Do rollback
+    				writeOp.rollback();
+    				
+    				throw se;
+        		}
+        		finally
+        		{
+    				// End Hibernate operation
+    				HibernateUtil.endOperation(writeOp);
+        		}
+        	}
+        	if (nextView==null)
+        	{
+        		// Reload categories if needed
+        		if (reloadCategories)
+        		{
+        			setTestsCategories(null);
+        		}
+        		
+				// Reset user permissions
+        		setFilterGlobalQuestionsEnabled(null);
+        		setFilterOtherUsersQuestionsEnabled(null);
+        		setUseGlobalQuestions(null);
+        		setUseOtherUsersQuestions(null);
+        		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+        		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+        		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+           		resetAdmins();
+           		resetSuperadmins();
+        	}
     	}
     	return nextView;
+	}
+    
+	private void setNewActiveTestTab(String newActiveTestTab)
+	{
+		if (!newActiveTestTab.equals(getActiveTestTabName()))
+		{
+			UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+			if (getTestId()>0L)
+			{
+    			TabView testFormTabs=(TabView)viewRoot.findComponent(":testForm:testFormTabs");
+    			activeTestTabIndex=getTestTabIndex(newActiveTestTab);
+    			testFormTabs.setActiveIndex(activeTestTabIndex);
+			}
+			else
+			{
+	    		Wizard testFormWizard=(Wizard)viewRoot.findComponent(":testForm:testFormWizard");
+	    		activeTestTabName=newActiveTestTab;
+	    		testFormWizard.setStep(newActiveTestTab);
+			}
+		}
 	}
     
     /**
@@ -4638,7 +5217,7 @@ public class TestBean implements Serializable
      */
     public void setFromTest(Test test)
     {
-    	testId=test.getId();
+    	setTestId(test.getId());
     	setName(test.getName());
     	setAuthor(test.getCreatedBy());
     	setTimeCreated(test.getTimeCreated());
@@ -4682,7 +5261,8 @@ public class TestBean implements Serializable
     	setPreliminarySummaryButton(test.isNavigation()?test.getPreliminarySummaryButton():"");
     	setPreliminarySummary(test.isNavigation()?test.getPreliminarySummary():"");
     	setFeedbackDisplaySummary(test.isFeedbackDisplaySummary());
-    	setFeedbackDisplaySummaryMarks(test.isFeedbackDisplaySummary()?test.isFeedbackDisplaySummaryMarks():false);
+    	setFeedbackDisplaySummaryMarks(
+    		test.isFeedbackDisplaySummary()?test.isFeedbackDisplaySummaryMarks():false);
     	setFeedbackDisplaySummaryAttempts(
     		test.isFeedbackDisplaySummary()?test.isFeedbackDisplaySummaryAttempts():true);
     	setFeedbackSummaryPrevious(test.isFeedbackDisplaySummary()?test.getFeedbackSummaryPrevious():"");
@@ -4703,14 +5283,12 @@ public class TestBean implements Serializable
     	{
     		if (tu.isOmUser())
     		{
-    			User testUser=new User();
-    			testUser.setFromOtherUser(tu.getUser());
+    			User testUser=tu.getUser().getUserCopy();
     			testUsersGroups.add(new UserGroupBean(testUser));
     		}
     		if (tu.isOmAdmin())
     		{
-    			User testAdmin=new User();
-    			testAdmin.setFromOtherUser(tu.getUser());
+    			User testAdmin=tu.getUser().getUserCopy();
     			testAdminsGroups.add(new UserGroupBean(testAdmin));
     		}
     	}
@@ -4800,65 +5378,62 @@ public class TestBean implements Serializable
     	operation=getCurrentUserOperation(operation);
     	
         Date currentDate=new Date();
-        Date timeCreated=getTimeCreated(operation);
-        test=new Test(getTestId(operation),getName(operation),getCategory(operation),getAuthor(operation),
-        	timeCreated==null?currentDate:timeCreated);
+        Date timeCreated=getTimeCreated();
+        test=new Test(getTestId(),getName(),getCategory(),getAuthor(),timeCreated==null?currentDate:timeCreated);
         test.setModifiedBy(userSessionService.getCurrentUser(operation));
         test.setTimeModified(currentDate);
-        test.setTimeTestDeploy(getTimeTestDeploy(operation));
-        test.setTimeDeployDeploy(getTimeDeployDeploy(operation));
-        test.setDescription(getDescription(operation));
-        test.setTitle(getTitle(operation));
-        test.setAssessement(getAssessement(operation));
-        test.setScoreType(getScoreType(operation));
-        test.setAllUsersAllowed(isAllUsersAllowed(operation));
-        test.setAllowAdminReports(isAllowAdminReports(operation));
+        test.setTimeTestDeploy(getTimeTestDeploy());
+        test.setTimeDeployDeploy(getTimeDeployDeploy());
+        test.setDescription(getDescription());
+        test.setTitle(getTitle());
+        test.setAssessement(getAssessement());
+        test.setScoreType(getScoreType());
+        test.setAllUsersAllowed(isAllUsersAllowed());
+        test.setAllowAdminReports(isAllowAdminReports());
         String startDateHidden=getStartDateHidden();
         String closeDateHidden=getCloseDateHidden();
         String warningDateHidden=getWarningDateHidden();
         String feedbackDateHidden=getFeedbackDateHidden();
-        boolean restrictDates=isRestrictDates(operation);
-        test.setStartDate(restrictDates?getStartDate(operation):null);
-        test.setCloseDate(restrictDates?getCloseDate(operation):null);
-        test.setWarningDate(restrictDates?getWarningDate(operation):null);
-        test.setFeedbackDate(isRestrictFeedbackDate(operation)?getFeedbackDate(operation):null);
+        boolean restrictDates=isRestrictDates();
+        test.setStartDate(restrictDates?getStartDate():null);
+        test.setCloseDate(restrictDates?getCloseDate():null);
+        test.setWarningDate(restrictDates?getWarningDate():null);
+        test.setFeedbackDate(isRestrictFeedbackDate()?getFeedbackDate():null);
         setStartDateHidden(startDateHidden);
         setCloseDateHidden(closeDateHidden);
         setWarningDateHidden(warningDateHidden);
         setFeedbackDateHidden(feedbackDateHidden);
-        test.setFreeSummary(isFreeSummary(operation));
-        test.setFreeStop(isFreeStop(operation));
-        test.setSummaryQuestions(isSummaryQuestions(operation));
-        test.setSummaryScores(isSummaryScores(operation));
-        test.setSummaryAttempts(isSummaryAttempts(operation));
-        boolean navigation=isNavigation(operation);
+        test.setFreeSummary(isFreeSummary());
+        test.setFreeStop(isFreeStop());
+        test.setSummaryQuestions(isSummaryQuestions());
+        test.setSummaryScores(isSummaryScores());
+        test.setSummaryAttempts(isSummaryAttempts());
+        boolean navigation=isNavigation();
         test.setNavigation(navigation);
-        test.setNavLocation(getNavLocation(operation));
-        test.setRedoQuestion(getRedoQuestion(operation));
-        test.setRedoTest(isRedoTest(operation));
-        test.setPresentationTitle(getPresentationTitle(operation));
-        test.setPresentation(getPresentation(operation));
-        test.setPreliminarySummaryTitle(navigation?getPreliminarySummaryTitle(operation):"");
-        test.setPreliminarySummaryButton(navigation?getPreliminarySummaryButton(operation):"");
-        test.setPreliminarySummary(navigation?getPreliminarySummary(operation):"");
-        boolean feedbackDisplaySummary=isFeedbackDisplaySummary(operation);
+        test.setNavLocation(getNavLocation());
+        test.setRedoQuestion(getRedoQuestion());
+        test.setRedoTest(isRedoTest());
+        test.setPresentationTitle(getPresentationTitle());
+        test.setPresentation(getPresentation());
+        test.setPreliminarySummaryTitle(navigation?getPreliminarySummaryTitle():"");
+        test.setPreliminarySummaryButton(navigation?getPreliminarySummaryButton():"");
+        test.setPreliminarySummary(navigation?getPreliminarySummary():"");
+        boolean feedbackDisplaySummary=isFeedbackDisplaySummary();
         test.setFeedbackDisplaySummary(feedbackDisplaySummary);
-        test.setFeedbackDisplaySummaryMarks(feedbackDisplaySummary?isFeedbackDisplaySummaryMarks(operation):false);
-        test.setFeedbackDisplaySummaryAttempts(
-        	feedbackDisplaySummary?isFeedbackDisplaySummaryAttempts(operation):true);
-       	test.setFeedbackSummaryPrevious(feedbackDisplaySummary?getFeedbackSummaryPrevious(operation):"");
-       	boolean feedbackDisplayScores=isFeedbackDisplayScores(operation);
+        test.setFeedbackDisplaySummaryMarks(feedbackDisplaySummary?isFeedbackDisplaySummaryMarks():false);
+        test.setFeedbackDisplaySummaryAttempts(feedbackDisplaySummary?isFeedbackDisplaySummaryAttempts():true);
+       	test.setFeedbackSummaryPrevious(feedbackDisplaySummary?getFeedbackSummaryPrevious():"");
+       	boolean feedbackDisplayScores=isFeedbackDisplayScores();
        	test.setFeedbackDisplayScores(feedbackDisplayScores);
-       	test.setFeedbackDisplayScoresMarks(feedbackDisplayScores?isFeedbackDisplayScoresMarks(operation):false);
-       	test.setFeedbackDisplayScoresPercentages(
-       		feedbackDisplayScores?isFeedbackDisplayScoresPercentages(operation):true);
-       	test.setFeedbackScoresPrevious(feedbackDisplayScores?getFeedbackScoresPrevious(operation):"");
-       	test.setFeedbackAdvancedPrevious(getFeedbackAdvancedPrevious(operation));
-       	test.setFeedbackAdvancedNext(getFeedbackAdvancedNext(operation));
+       	test.setFeedbackDisplayScoresMarks(feedbackDisplayScores?isFeedbackDisplayScoresMarks():false);
+       	test.setFeedbackDisplayScoresPercentages(feedbackDisplayScores?isFeedbackDisplayScoresPercentages():true);
+       	test.setFeedbackScoresPrevious(feedbackDisplayScores?getFeedbackScoresPrevious():"");
+       	test.setFeedbackAdvancedPrevious(getFeedbackAdvancedPrevious());
+       	test.setFeedbackAdvancedNext(getFeedbackAdvancedNext());
    		
         // Users and groups with permission to do/administrate this test
        	StringBuffer sGroups=new StringBuffer();
-        for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+        for (UserGroupBean testUserGroup:getTestUsersGroups())
         {
         	if (testUserGroup.isTestUser())
         	{
@@ -4871,8 +5446,7 @@ public class TestBean implements Serializable
             	}
             	else
             	{
-            		tu=new TestUser();
-            		tu.setFromOtherTestUser(testUserFromDB);
+            		tu=testUserFromDB.getTestUserCopy();
             		tu.setOmUser(true);
             		tu.setOmAdmin(false);
             	}
@@ -4893,7 +5467,7 @@ public class TestBean implements Serializable
         }
         test.setUserGroups(sGroups.toString());
         sGroups.setLength(0);
-       	for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+       	for (UserGroupBean testAdminGroup:getTestAdminsGroups())
        	{
        		if (testAdminGroup.isTestUser())
        		{
@@ -4916,8 +5490,7 @@ public class TestBean implements Serializable
                		}
                		else
                		{
-               			ta=new TestUser();
-               			ta.setFromOtherTestUser(testAdminFromDB);
+               			ta=testAdminFromDB.getTestUserCopy();
                			ta.setOmUser(false);
                			ta.setOmAdmin(true);
                		}
@@ -4944,151 +5517,119 @@ public class TestBean implements Serializable
        	test.setAdminGroups(sGroups.toString());
     	
     	// Sections (note that it is important to initialize sections before feedbacks)
-    	for (SectionBean section:getSections(operation))
+    	for (SectionBean section:getSections())
     	{
-    		test.getSections().add(section.getAsSection(operation,test));
+    		test.getSections().add(section.getAsSection(test));
     	}
     	
     	// Support contacts
-    	for (SupportContactBean supportContact:getSupportContacts(operation))
+    	for (SupportContactBean supportContact:getSupportContacts())
     	{
-    		test.getSupportContacts().add(supportContact.getAsSupportContact(operation,test));
+    		test.getSupportContacts().add(supportContact.getAsSupportContact(test));
     	}
     	
     	// Evaluators
-    	for (EvaluatorBean evaluator:getEvaluators(operation))
+    	for (EvaluatorBean evaluator:getEvaluators())
     	{
-    		test.getEvaluators().add(evaluator.getAsEvaluator(operation,test));
+    		test.getEvaluators().add(evaluator.getAsEvaluator(test));
     	}
     	
     	// Feedbacks (be careful that sections must be initialized before initializing feedbacks)
-    	for (TestFeedbackBean testFeedback:getFeedbacks(operation))
+    	for (TestFeedbackBean testFeedback:getFeedbacks())
     	{
-    		test.getTestFeedbacks().add(testFeedback.getAsTestFeedback(operation,test));
+    		test.getTestFeedbacks().add(testFeedback.getAsTestFeedback(test));
     	}
     	return test;
     }
     
     /**
      * Initialize some test fields.
-     * @param operation Operation
      */
-    private void initializeTest(Operation operation)
+    private void initializeTest()
     {
 		// Note that it is important to set this flag first to avoid infinite recursion
     	testInitialized=true;
     	
+		// End current user session Hibernate operation
+		userSessionService.endCurrentUserOperation();
+		
 		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		Operation operation=getCurrentUserOperation(null);
     	
     	FacesContext context=FacesContext.getCurrentInstance();
     	Map<String,String> params=context.getExternalContext().getRequestParameterMap();
     	if (params.containsKey("testId")) // Edit test
     	{
     		setFromTest(testsService.getTest(operation,Long.parseLong(params.get("testId"))));
+    		initialCategoryId=getCategoryId();
     		
     		// We need to initialize special categories filters for the questions within sections tab
-			List<String> allPermissions=new ArrayList<String>();
-			allPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-			allPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+			List<String> allCategoriesPermissions=new ArrayList<String>();
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+			List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
 			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
 			if ("M".equals(categoryGen))
 			{
-				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
 			}
 			else
 			{
-				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
 			}
 			
-			List<String> allEvenPrivateCategoriesPermissions=new ArrayList<String>();
-			allEvenPrivateCategoriesPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-			allEvenPrivateCategoriesPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-			allEvenPrivateCategoriesPermissions.add(
-				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-			allEvenPrivateCategories=new SpecialCategoryFilter(
-				-1L,"ALL_EVEN_PRIVATE_CATEGORIES",allEvenPrivateCategoriesPermissions);
-			
-			List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-			allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-			allPrivateCategoriesOfOtherUsersPermissions.add(
-				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-			allPrivateCategories=
-				new SpecialCategoryFilter(-6L,"ALL_PRIVATE_CATEGORIES",allPrivateCategoriesOfOtherUsersPermissions);
-			
-			if (getAuthor(operation).getId()==userSessionService.getCurrentUserId())
+    		// We add all initialized categories filters to categories filters map
+    		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
+    		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
+    		specialCategoryFiltersMap.put(Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+    		if (getAuthor().getId()==userSessionService.getCurrentUserId())
     		{
-        		List<String> allMyCategoriesPermissions=new ArrayList<String>();
-    			allMyCategoriesPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-    			allTestAuthorCategories=new SpecialCategoryFilter(-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions);
-    			
-    			allTestAuthorCategoriesExceptGlobals=
-    				new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-    			
-    			
-        		// We add all initialized categories filters to categories filters map
-        		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
-        		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allTestAuthorCategories.id),allTestAuthorCategories);
-        		specialCategoryFiltersMap.put(
-        			Long.valueOf(allTestAuthorCategoriesExceptGlobals.id),allTestAuthorCategoriesExceptGlobals);
-        		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
-        		specialCategoryFiltersMap.put(
-        			Long.valueOf(ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.id),ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS);
-            	specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
-            	specialCategoryFiltersMap.put(
-            		Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
+    			specialCategoryFiltersMap.put(
+    				Long.valueOf(ALL_MY_CATEGORIES_FOR_TEST_AUTHOR.id),ALL_MY_CATEGORIES_FOR_TEST_AUTHOR);
+        		specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR.id),
+        			ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR);
     		}
     		else
     		{
-        		List<String> allCategoriesOfQuestionAuthorPermissions=new ArrayList<String>();
-        		allCategoriesOfQuestionAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-    			allTestAuthorCategories=
-    				new SpecialCategoryFilter(-2L,"ALL_CATEGORIES_OF",allCategoriesOfQuestionAuthorPermissions);
-    			
-    			allTestAuthorCategoriesExceptGlobals=
-    				new SpecialCategoryFilter(-3L,"ALL_CATEGORIES_OF_EXCEPT_GLOBALS",new ArrayList<String>());
-    			
-        		// We add all initialized categories filters to categories filters map
-        		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
-        		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allTestAuthorCategories.id),allTestAuthorCategories);
-        		specialCategoryFiltersMap.put(
-        			Long.valueOf(allTestAuthorCategoriesExceptGlobals.id),allTestAuthorCategoriesExceptGlobals);
-        		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
-        		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
+    			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES.id),ALL_MY_CATEGORIES);
+    			specialCategoryFiltersMap.put(
+    				Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id),ALL_MY_CATEGORIES_EXCEPT_GLOBALS);
+    			specialCategoryFiltersMap.put(
+    				Long.valueOf(ALL_TEST_AUTHOR_CATEGORIES.id),ALL_TEST_AUTHOR_CATEGORIES);
+    			specialCategoryFiltersMap.put(Long.valueOf(ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id),
+    				ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS);
     		}
+    		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
     	}
     	else if (params.containsKey("testCopyId")) // Create copy of an existing test
     	{
 	    	Test testFrom=testsService.getTest(operation,Long.parseLong(params.get("testCopyId")));
     		
-	    	// We instantiate a new test
-	    	Test test=new Test();
-    		
-	    	// Copy data from test
-	    	test.setFromOtherTest(testFrom);
+	    	// Copy data from test to a new instance
+	    	Test test=testFrom.getTestCopy();
 	    	
 	    	// Add sections
 	    	Map<Section,Section> sectionsFromTo=new HashMap<Section,Section>();
 	    	test.setSections(new ArrayList<Section>());
 	    	for (Section sectionFrom:testFrom.getSections())
 	    	{
-	    		Section section=new Section();
-	    		
 	    		// Copy data from section
-	    		section.setFromOtherSection(sectionFrom);
+	    		Section section=sectionFrom.getSectionCopy();
 	    		
 	    		// Add question orders
 	    		section.setQuestionOrders(new ArrayList<QuestionOrder>());
 	    		for (QuestionOrder questionOrderFrom:sectionFrom.getQuestionOrders())
 	    		{
-	    			QuestionOrder questionOrder=new QuestionOrder();
-	    			
 	    			// Copy data from question order
-	    			questionOrder.setFromOtherQuestionOrder(questionOrderFrom);
+	    			QuestionOrder questionOrder=questionOrderFrom.getQuestionOrderCopy();
 	    			
 	    			// This is a new question order still so we need to reset some fields
 	    			questionOrder.setId(0L);
@@ -5111,10 +5652,8 @@ public class TestBean implements Serializable
     		test.setTestFeedbacks(new ArrayList<TestFeedback>());
     		for (TestFeedback testFeedbackFrom:testFrom.getTestFeedbacks())
     		{
-    			TestFeedback testFeedback=new TestFeedback();
-    			
     			// Copy data from feedback
-    			testFeedback.setFromOtherTestFeedback(testFeedbackFrom);
+    			TestFeedback testFeedback=testFeedbackFrom.getTestFeedbackCopy();
     			
     			// This is a new feedback still so we need to reset some fields
     			testFeedback.setId(0L);
@@ -5132,10 +5671,8 @@ public class TestBean implements Serializable
     		test.setSupportContacts(new ArrayList<SupportContact>());
     		for (SupportContact supportContactFrom:testFrom.getSupportContacts())
     		{
-    			SupportContact supportContact=new SupportContact();
-    			
     			// Copy data from support contact
-    			supportContact.setFromOtherSupportContact(supportContactFrom);
+    			SupportContact supportContact=supportContactFrom.getSupportContactCopy();
     			
     			// This is a new support contact still so we need to reset some fields
     			supportContact.setId(0L);
@@ -5149,10 +5686,8 @@ public class TestBean implements Serializable
     		test.setEvaluators(new ArrayList<Evaluator>());
 	    	for (Evaluator evaluatorFrom:testFrom.getEvaluators())
 	    	{
-	    		Evaluator evaluator=new Evaluator();
-	    		
     			// Copy data from evaluator
-    			evaluator.setFromOtherEvaluator(evaluatorFrom);
+	    		Evaluator evaluator=evaluatorFrom.getEvaluatorCopy();
     			
     			// This is a new evaluator still so we need to reset some fields
     			evaluator.setId(0L);
@@ -5166,10 +5701,8 @@ public class TestBean implements Serializable
     		test.setTestUsers(new ArrayList<TestUser>());
 	    	for (TestUser testUserFrom:testFrom.getTestUsers())
     		{
-    			TestUser testUser=new TestUser();
-    			
     			// Copy data from test user
-    			testUser.setFromOtherTestUser(testUserFrom);
+	    		TestUser testUser=testUserFrom.getTestUserCopy();
     			
     			// This is a new test user still so we need to reset some fields
     			testUser.setId(0L);
@@ -5221,60 +5754,50 @@ public class TestBean implements Serializable
     		setFromTest(test);
     		
         	// Set category of copied test if current user has access granted, otherwise reset it
-    		if (!checkCategory(operation))
+    		if (checkCategory(operation))
+    		{
+    			initialCategoryId=getCategoryId();
+    		}
+    		else
     		{
         		List<Category> categories=getTestsCategories(operation);
-    			setCategory(categories.isEmpty()?null:categories.get(0));	    			
+    			setCategory(categories.isEmpty()?null:categories.get(0));
+    			initialCategoryId=0L;
     		}
     		
        		// We need to initialize special categories filters for the questions within sections tab
-   			List<String> allPermissions=new ArrayList<String>();
-   			allPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-   			allPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
-   			if ("M".equals(categoryGen))
-   			{
-   				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
-   			}
-   			else
-   			{
-   				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
-   			}
+			List<String> allCategoriesPermissions=new ArrayList<String>();
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+			List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
+			if ("M".equals(categoryGen))
+			{
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
+			}
+			else
+			{
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
+			}
        		
-   			List<String> allEvenPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add(
-   				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-   			allEvenPrivateCategories=new SpecialCategoryFilter(
-   				-1L,"ALL_EVEN_PRIVATE_CATEGORIES_OF_OTHER_USERS",allEvenPrivateCategoriesOfOtherUsersPermissions);
-       		
-        	List<String> allMyCategoriesPermissions=new ArrayList<String>();
-    		allMyCategoriesPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-    		allTestAuthorCategories=new SpecialCategoryFilter(-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions);
-   			
-    		allTestAuthorCategoriesExceptGlobals=
-    			new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-   			
-    		List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    		allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			allPrivateCategoriesOfOtherUsersPermissions.add(
-   				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-   			allPrivateCategories=new SpecialCategoryFilter(
-   				-6L,"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions);
-   			
-        	// We add all initialized categories filters to categories filters map
-        	specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
-        	specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        	specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-       		specialCategoryFiltersMap.put(Long.valueOf(allTestAuthorCategories.id),allTestAuthorCategories);
-       		specialCategoryFiltersMap.put(
-       			Long.valueOf(allTestAuthorCategoriesExceptGlobals.id),allTestAuthorCategoriesExceptGlobals);
-       		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
-        	specialCategoryFiltersMap.put(
-        		Long.valueOf(ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.id),ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS);
-       		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
-       		specialCategoryFiltersMap.put(Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
+    		// We add all initialized categories filters to categories filters map
+    		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
+    		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
+    		specialCategoryFiltersMap.put(
+   			Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+   			specialCategoryFiltersMap.put(
+   				Long.valueOf(ALL_MY_CATEGORIES_FOR_TEST_AUTHOR.id),ALL_MY_CATEGORIES_FOR_TEST_AUTHOR);
+   			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR.id),
+    			ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR);
+    		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
 		}
     	else // New test
     	{
@@ -5287,6 +5810,7 @@ public class TestBean implements Serializable
         	setTimeDeployDeploy(null);
         	List<Category> categories=getTestsCategories(operation);
         	setCategory(categories.isEmpty()?null:categories.get(0));
+        	initialCategoryId=0L;
         	setDescription("");
         	setTitle("");
         	setAssessement(assessementsService.getAssessement(operation,"ASSESSEMENT_NOT_ASSESSED"));
@@ -5352,75 +5876,56 @@ public class TestBean implements Serializable
        		setFeedbacks(new ArrayList<TestFeedbackBean>());
        		
        		// We need to initialize special categories filters for the questions within sections tab
-   			List<String> allPermissions=new ArrayList<String>();
-   			allPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-   			allPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
-   			if ("M".equals(categoryGen))
-   			{
-   				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
-   			}
-   			else
-   			{
-   				allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
-   			}
-       		
-    		List<String> allEvenPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			allEvenPrivateCategoriesOfOtherUsersPermissions.add(
-   				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-   			allEvenPrivateCategories=new SpecialCategoryFilter(
-   				-1L,"ALL_EVEN_PRIVATE_CATEGORIES_OF_OTHER_USERS",allEvenPrivateCategoriesOfOtherUsersPermissions);
-       		
-       		List<String> allMyCategoriesPermissions=new ArrayList<String>();
-   			allMyCategoriesPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
-   			allTestAuthorCategories=new SpecialCategoryFilter(-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions);
-   			
-    		allTestAuthorCategoriesExceptGlobals=
-    			new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-   			
-    		List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    		allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
-   			allPrivateCategoriesOfOtherUsersPermissions.add(
-   				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-   			allPrivateCategories=new SpecialCategoryFilter(
-   				-6L,"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions);
-   			
-   			// We add all initialized categories filters to categories filters map
-   			specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
-        	specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        	specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-       		specialCategoryFiltersMap.put(Long.valueOf(allTestAuthorCategories.id),allTestAuthorCategories);
-       		specialCategoryFiltersMap.put(
-       			Long.valueOf(allTestAuthorCategoriesExceptGlobals.id),allTestAuthorCategoriesExceptGlobals);
-       		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
-       		specialCategoryFiltersMap.put(
-       			Long.valueOf(ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.id),ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS);
-       		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
-        	specialCategoryFiltersMap.put(Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
+			List<String> allCategoriesPermissions=new ArrayList<String>();
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+			allCategoriesPermissions.add("PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+			List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_GLOBAL_QUESTIONS");
+			allCategoriesAuthorPermissions.add("PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS");
+			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
+			if ("M".equals(categoryGen))
+			{
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
+			}
+			else
+			{
+				allCategories=new SpecialCategoryFilter(
+					0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
+			}
+			
+    		// We add all initialized categories filters to categories filters map
+    		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
+    		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
+    		specialCategoryFiltersMap.put(
+   			Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+   			specialCategoryFiltersMap.put(
+   				Long.valueOf(ALL_MY_CATEGORIES_FOR_TEST_AUTHOR.id),ALL_MY_CATEGORIES_FOR_TEST_AUTHOR);
+   			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR.id),
+    			ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_TEST_AUTHOR);
+    		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
+    		specialCategoryFiltersMap.put(
+    			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
     	}
-    	setCurrentSection(getSections(operation).get(0));
+    	setCurrentSection(getSections().get(0));
     }
     
 	/**
 	 * Checks if changing a property of a section will affect to the feedbacks already defined.
-	 * @param operation Operation
 	 * @return true if changing a property of a section won't affect to the feedbacks already defined, 
 	 * false otherwise
 	 */
-	private boolean checkFeedbacksForChangeProperty(Operation operation)
+	private boolean checkFeedbacksForChangeProperty()
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			if (feedback.getCondition().getUnit().equals(TestFeedbackConditionBean.MARKS_UNIT))
 			{
-				int maxConditionalValue=feedback.getCondition().getMaxConditionalValue(operation);
+				int maxConditionalValue=feedback.getCondition().getMaxConditionalValue();
 				ok=(feedback.getCondition().getMinValue()<=0 || 
 					feedback.getCondition().getMinValue()<=maxConditionalValue) && 
 					(feedback.getCondition().getMaxValue()==Integer.MAX_VALUE || 
@@ -5436,19 +5941,15 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Updates feebacks related to the modification of a property of a test if needed.
-	 * @param operation Operation
 	 */
-	private void updateFeedbacksForChangeProperty(Operation operation)
+	private void updateFeedbacksForChangeProperty()
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		for (TestFeedbackBean feedback:getFeedbacks(operation))
+		for (TestFeedbackBean feedback:getFeedbacks())
 		{
 			TestFeedbackConditionBean condition=feedback.getCondition();
 			if (condition.getUnit().equals(TestFeedbackConditionBean.MARKS_UNIT))
 			{
-				int maxValue=condition.getMaxConditionalValue(operation);
+				int maxValue=condition.getMaxConditionalValue();
 				if (NumberComparator.compareU(condition.getComparator(),NumberComparator.BETWEEN))					
 				{
 					if (condition.getConditionalBetweenMax()>maxValue)
@@ -5464,7 +5965,19 @@ public class TestBean implements Serializable
 				{
 					if (NumberComparator.compareU(condition.getComparator(),NumberComparator.GREATER))
 					{
-						maxValue--;
+						if (maxValue>0)
+						{
+							maxValue--;
+						}
+						else
+						{
+							StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+							if ("F".equals(localizationService.getLocalizedMessage("SCORE_GEN")))
+							{
+								newComparator.append("_F");
+							}
+							condition.setNewComparator(newComparator.toString());
+						}
 					}
 					if (condition.getConditionalCmp()>maxValue)
 					{
@@ -5527,11 +6040,10 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Process a checkbox (shuffle) of a section  within the sections tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param section Section
 	 */
-	private void processSectionShuffle(Operation operation,UIComponent component,SectionBean section)
+	private void processSectionShuffle(UIComponent component,SectionBean section)
 	{
 		List<String> exceptions=new ArrayList<String>();
 		exceptions.add("sectionName");
@@ -5540,16 +6052,15 @@ public class TestBean implements Serializable
 		exceptions.add("random");
 		exceptions.add("randomQuantity");
 		exceptions.add("questionOrderWeight");
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,exceptions);
+		processSectionsInputFields(component,section,exceptions);
 	}
 	
 	/**
 	 * Process a checkbox (random) of a section  within the sections tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param section Section
 	 */
-	private void processSectionRandom(Operation operation,UIComponent component,SectionBean section)
+	private void processSectionRandom(UIComponent component,SectionBean section)
 	{
 		List<String> exceptions=new ArrayList<String>();
 		exceptions.add("sectionName");
@@ -5558,7 +6069,7 @@ public class TestBean implements Serializable
 		exceptions.add("shuffle");
 		exceptions.add("randomQuantity");
 		exceptions.add("questionOrderWeight");
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,exceptions);
+		processSectionsInputFields(component,section,exceptions);
 	}
 	
 	/**
@@ -5605,15 +6116,12 @@ public class TestBean implements Serializable
 		// so we dont't duplicate checks
 		if (getPropertyChecked()==null)
 		{
-			// Get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			boolean ok=true;
 			boolean needConfirm=false;
 			String property=(String)event.getComponent().getAttributes().get("property");
 			if ("scoreType".equals(property))
 			{
-				needConfirm=!checkFeedbacksForChangeProperty(operation);
+				needConfirm=!checkFeedbacksForChangeProperty();
 			}
 			else if ("allUsersAllowed".equals(property))
 			{
@@ -5653,7 +6161,7 @@ public class TestBean implements Serializable
 					// We need to process some input fields
 					List<String> exceptions=new ArrayList<String>(1);
 					exceptions.add("sectionWeight");
-					processSectionsInputFields(operation,event.getComponent(),sectionChecked,exceptions);
+					processSectionsInputFields(event.getComponent(),sectionChecked,exceptions);
 					
 					// Check that current section name entered by user is valid
 					if (checkSectionName(sectionChecked.getName()))
@@ -5662,7 +6170,7 @@ public class TestBean implements Serializable
 							sectionChecked.getWeight()<=getMaxWeight();
 						if (checkFeedbacks)
 						{
-							checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+							checkFeedbacks=checkFeedbacksForChangeProperty();
 							needConfirm=!checkFeedbacks;
 						}
 						else
@@ -5683,7 +6191,7 @@ public class TestBean implements Serializable
 								}
 								
 								// We need to update section weights
-								updateSectionWeight(operation,event.getComponent(),sectionChecked);
+								updateSectionWeight(event.getComponent(),sectionChecked);
 							}
 							else if (sectionChecked.getWeight()>getMaxWeight())
 							{
@@ -5717,7 +6225,7 @@ public class TestBean implements Serializable
 		    		if (isEnabledChecboxesSetters())
 		    		{
 						// We need to process random quantity
-						processSectionRandomQuantity(operation,event.getComponent(),section);
+						processSectionRandomQuantity(event.getComponent(),section);
 						
 			    		section.setRandom(false);
 		    		}
@@ -5727,7 +6235,7 @@ public class TestBean implements Serializable
 		    			
 		    			// Process the checkbox to shuffle questions within a section 
 		    			// (listener will be invoked again)
-		    			processSectionShuffle(operation,event.getComponent(),section);
+		    			processSectionShuffle(event.getComponent(),section);
 		    		}
 		    	}
 			}
@@ -5741,10 +6249,10 @@ public class TestBean implements Serializable
 						if (!section.isRandom())
 						{
 							// We need to process random quantity
-							processSectionRandomQuantity(operation,event.getComponent(),section);
+							processSectionRandomQuantity(event.getComponent(),section);
 						}
 						
-						if (!(section.isRandom() && checkFeedbacksForChangeProperty(operation)) || 
+						if (!(section.isRandom() && checkFeedbacksForChangeProperty()) || 
 							(section.isRandom() && section.getRandomQuantity()<=0))
 						{
 							section.setRandomQuantity(section.getQuestionOrdersSize());
@@ -5759,7 +6267,7 @@ public class TestBean implements Serializable
 							}
 							
 							// We need to update random quantity
-							updateSectionRandomQuantity(operation,event.getComponent(),section);
+							updateSectionRandomQuantity(event.getComponent(),section);
 						}
 					}
 					else
@@ -5768,7 +6276,7 @@ public class TestBean implements Serializable
 						
 		    			// Process the checkbox to select randomly the questions to display within a section 
 		    			// (listener will be invoked again)
-						processSectionRandom(operation,event.getComponent(),section);
+						processSectionRandom(event.getComponent(),section);
 					}
 				}
 			}
@@ -5780,7 +6288,7 @@ public class TestBean implements Serializable
 					// We need to process some input fields
 					List<String> exceptions=new ArrayList<String>(1);
 					exceptions.add("randomQuantity");
-					processSectionsInputFields(operation,event.getComponent(),sectionChecked,exceptions);
+					processSectionsInputFields(event.getComponent(),sectionChecked,exceptions);
 					
 					// Check that current section name entered by user is valid
 					if (checkSectionName(sectionChecked.getName()))
@@ -5789,7 +6297,7 @@ public class TestBean implements Serializable
 							sectionChecked.getRandomQuantity()<=sectionChecked.getQuestionOrdersSize();
 						if (checkFeedbacks)
 						{
-							checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+							checkFeedbacks=checkFeedbacksForChangeProperty();
 							needConfirm=!checkFeedbacks;
 						}
 						else
@@ -5810,7 +6318,7 @@ public class TestBean implements Serializable
 								}
 								
 								// We need to update random quantity
-								updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+								updateSectionRandomQuantity(event.getComponent(),sectionChecked);
 							}
 							else if (sectionChecked.getRandomQuantity()==0 && sectionChecked.getQuestionOrdersSize()>0)
 							{
@@ -5824,14 +6332,14 @@ public class TestBean implements Serializable
 								}
 								
 								// We need to update random quantity
-								updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+								updateSectionRandomQuantity(event.getComponent(),sectionChecked);
 							}
 							else if (sectionChecked.getRandomQuantity()>sectionChecked.getQuestionOrdersSize())
 							{
 								sectionChecked.setRandomQuantity(sectionChecked.getQuestionOrdersSize());
 								
 								// We need to update random quantity
-								updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+								updateSectionRandomQuantity(event.getComponent(),sectionChecked);
 							}
 							sectionChecked.acceptRandomQuantity();
 							sectionChecked=null;
@@ -5862,7 +6370,7 @@ public class TestBean implements Serializable
 					// We need to process some input fields
 					List<String> exceptions=new ArrayList<String>(1);
 					exceptions.add("questionOrderWeight");
-					processSectionsInputFields(operation,event.getComponent(),sectionChecked,exceptions);
+					processSectionsInputFields(event.getComponent(),sectionChecked,exceptions);
 					
 					// Check that current section name entered by user is valid
 					if (checkSectionName(sectionChecked.getName()))
@@ -5871,7 +6379,7 @@ public class TestBean implements Serializable
 							questionOrderChecked.getWeight()<=getMaxWeight();
 						if (checkFeedbacks)
 						{
-							checkFeedbacks=checkFeedbacksForChangeProperty(operation);
+							checkFeedbacks=checkFeedbacksForChangeProperty();
 							needConfirm=!checkFeedbacks;
 						}
 						else
@@ -5892,7 +6400,7 @@ public class TestBean implements Serializable
 								}
 								
 								// We need to update questions weights
-								updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+								updateQuestionOrderWeights(event.getComponent(),sectionChecked);
 							}
 							else if (questionOrderChecked.getWeight()>getMaxWeight())
 							{
@@ -5962,33 +6470,32 @@ public class TestBean implements Serializable
 		String property=getPropertyChecked();
 		if (property!=null)
 		{
-			// Get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			// We need to update feedbacks to valid values
-			updateFeedbacksForChangeProperty(operation);
+			updateFeedbacksForChangeProperty();
 			
 			if ("sectionWeight".equals(property))
 			{
 				// We need to update section weights
-				updateSectionWeights(operation,event.getComponent(),sectionChecked);
+				updateSectionWeights(event.getComponent(),sectionChecked);
 				sectionChecked.acceptWeight();
 			}
 			else if ("randomQuantity".equals(property))
 			{
 				// We need to update section random quantity
-				updateSectionRandomQuantity(operation,event.getComponent(),sectionChecked);
+				updateSectionRandomQuantity(event.getComponent(),sectionChecked);
 				sectionChecked.acceptRandomQuantity();
 			}
 			else if ("questionOrderWeight".equals(property))
 			{
 				// We need to update questions weights
-				updateQuestionOrderWeights(operation,event.getComponent(),sectionChecked);
+				updateQuestionOrderWeights(event.getComponent(),sectionChecked);
 				for (QuestionOrderBean questionOrder:sectionChecked.getQuestionOrders())
 				{
 					questionOrder.acceptWeight();
 				}
 			}
+			
+			updateQuestions();
 			
 			// Reset property checked
 			setPropertyChecked(null);
@@ -5998,8 +6505,8 @@ public class TestBean implements Serializable
 			if (nextSectionIndexOnChangePropertyConfirm!=-1)
 			{
 				activeSectionIndex=nextSectionIndexOnChangePropertyConfirm;
-				activeSectionName=getSection(operation,nextSectionIndexOnChangePropertyConfirm+1).getName();
-				refreshActiveSection(operation,event.getComponent());
+				activeSectionName=getSection(nextSectionIndexOnChangePropertyConfirm+1).getName();
+				refreshActiveSection(event.getComponent());
 			}
 			else if (nextTestTabNameOnChangePropertyConfirm!=null)
 			{
@@ -6040,6 +6547,8 @@ public class TestBean implements Serializable
 			if ("scoreType".equals(property))
 			{
 				rollbackScoreType();
+				
+				updateQuestions();
 			}
 			else if ("sectionWeight".equals(property))
 			{
@@ -6047,8 +6556,10 @@ public class TestBean implements Serializable
 				{
 					sectionChecked.rollbackWeight();
 					
+					updateQuestions();
+					
 					// We need to update section weights
-					updateSectionWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+					updateSectionWeights(event.getComponent(),sectionChecked);
 					sectionChecked.acceptWeight();
 				}
 			}
@@ -6058,8 +6569,10 @@ public class TestBean implements Serializable
 				{
 					sectionChecked.rollbackRandomQuantity();
 					
+					updateQuestions();
+					
 					// We need to update random quantity
-					updateSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+					updateSectionRandomQuantity(event.getComponent(),sectionChecked);
 					sectionChecked.acceptRandomQuantity();
 				}
 			}
@@ -6069,8 +6582,10 @@ public class TestBean implements Serializable
 				{
 					questionOrderChecked.rollbackWeight();
 					
+					updateQuestions();
+					
 					// We need to update questions weights
-					updateQuestionOrderWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+					updateQuestionOrderWeights(event.getComponent(),sectionChecked);
 					for (QuestionOrderBean questionOrder:sectionChecked.getQuestionOrders())
 					{
 						questionOrder.acceptWeight();
@@ -6102,7 +6617,7 @@ public class TestBean implements Serializable
      * @param questionId Question's identifier
      * @return Question
      */
-    public Question getQuestion(Operation operation,long questionId)
+    private Question getQuestion(Operation operation,long questionId)
     {
     	return questionsService.getQuestion(getCurrentUserOperation(operation),questionId);
     }
@@ -6112,17 +6627,8 @@ public class TestBean implements Serializable
      */
     public List<Question> getUsedQuestions()
     {
-    	return getUsedQuestions(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return Questions used in this test
-     */
-    private List<Question> getUsedQuestions(Operation operation)
-    {
     	List<Question> usedQuestions=new ArrayList<Question>();
-    	for (SectionBean section:getSections(getCurrentUserOperation(operation)))
+    	for (SectionBean section:getSections())
     	{
     		for (Question question:section.getQuestions())
     		{
@@ -6148,12 +6654,15 @@ public class TestBean implements Serializable
 	{
 		if (questions==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+			
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(null);
+			
     		try
     		{
-    			// Get current user session Hibernate operation
-    			operation=getCurrentUserOperation(operation);
-    			
-    			User testAuthor=getAuthor(operation);
+    			User testAuthor=getAuthor();
     			
     			if (checkQuestionsFilterPermission(operation,null))   
     			{
@@ -6164,48 +6673,58 @@ public class TestBean implements Serializable
     					if (allCategories.equals(filter))
     					{
     						questions=questionsService.getAllVisibleCategoriesQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
-    					else if (allEvenPrivateCategories.equals(filter))
+    					else if (ALL_EVEN_PRIVATE_CATEGORIES.equals(filter))
     					{
     						questions=questionsService.getAllCategoriesQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
-    					else if (allTestAuthorCategories.equals(filter))
+    					else if (ALL_MY_CATEGORIES.equals(filter))
     					{
     						questions=questionsService.getAllMyCategoriesQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+       							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
-    					else if (allTestAuthorCategoriesExceptGlobals.equals(filter))
+    					else if (ALL_MY_CATEGORIES_EXCEPT_GLOBALS.equals(filter))
     					{
     						questions=questionsService.getAllMyCategoriesExceptGlobalsQuestions(
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
+    					}
+    					else if (ALL_TEST_AUTHOR_CATEGORIES.equals(filter))
+    					{
+    						questions=questionsService.getAllUserCategoriesQuestions(
+    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    					}
+    					else if (ALL_TEST_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.equals(filter))
+    					{
+    						questions=questionsService.getAllUserCategoriesExceptGlobalsQuestions(
     							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
     					else if (ALL_GLOBAL_CATEGORIES.equals(filter))
     					{
     						questions=questionsService.getAllGlobalCategoriesQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
     					else if (ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						questions=questionsService.getAllPublicCategoriesOfOtherUsersQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
-    					else if (allPrivateCategories.equals(filter))
+    					else if (ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						questions=questionsService.getAllPrivateCategoriesOfOtherUsersQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
     					else if (ALL_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						questions=questionsService.getAllCategoriesOfOtherUsersQuestions(
-    							operation,testAuthor,null,getFilterQuestionType(),getFilterQuestionLevel());
+    							operation,null,getFilterQuestionType(),getFilterQuestionLevel());
     					}
     				}
     				else
     				{
-    					questions=questionsService.getQuestions(operation,testAuthor,null,filterCategoryId,
-    						isFilterIncludeSubcategories(),getFilterQuestionType(),getFilterQuestionLevel());
+    					questions=questionsService.getQuestions(operation,null,filterCategoryId,
+        					isFilterIncludeSubcategories(),getFilterQuestionType(),getFilterQuestionLevel());
     				}
     				
     				// We need to remove questions not visible for current user
@@ -6221,13 +6740,17 @@ public class TestBean implements Serializable
     					}
     					else
     					{
-    						checkQuestionCategory=checkQuestionCategoryFilterPermission(operation,questionCategory); 
+    						checkQuestionCategory=checkQuestionsFilterPermission(operation,questionCategory); 
     						questionsCategories.put(questionCategory,checkQuestionCategory);
     					}
     					if (!checkQuestionCategory)
     					{
     						questionsToRemove.add(question);
     					}
+    				}
+    				for (Question questionToRemove:questionsToRemove)
+    				{
+    					questions.remove(questionToRemove);
     				}
     			}
     		}
@@ -6278,8 +6801,8 @@ public class TestBean implements Serializable
 			}
 			else
 			{
-				filteredUsersForAddingUsers=
-					usersService.getSortedUsers(operation,getFilterUsersUserTypeId(),isFilterUsersIncludeOmUsers());
+				filteredUsersForAddingUsers=usersService.getSortedUsers(
+					operation,getFilterUsersUserTypeId(),isFilterUsersIncludeOmUsers());
 			}
 		}
 		return filteredUsersForAddingUsers;
@@ -6319,8 +6842,8 @@ public class TestBean implements Serializable
 			}
 			else
 			{
-				filteredUsersForAddingAdmins=
-					usersService.getSortedUsers(operation,getFilterAdminsUserTypeId(),isFilterAdminsIncludeOmUsers());
+				filteredUsersForAddingAdmins=usersService.getSortedUsers(
+					operation,getFilterAdminsUserTypeId(),isFilterAdminsIncludeOmUsers());
 			}
 		}
 		return filteredUsersForAddingAdmins;
@@ -6363,24 +6886,69 @@ public class TestBean implements Serializable
 			else
 			{
 				filteredUsersForAddingSupportContactFilterUsers=usersService.getSortedUsers(operation,
-					getFilterSupportContactFilterUsersUserTypeId(),isFilterSupportContactFilterUsersIncludeOmUsers());
+					getFilterSupportContactFilterUsersUserTypeId(),
+					isFilterSupportContactFilterUsersIncludeOmUsers());
 			}
-			if (!isAllUsersAllowed(operation))
+			if (!isAllUsersAllowed())
 			{
+				if (groupUsersMap==null)
+				{
+					groupUsersMap=new HashMap<String,List<User>>();
+				}
 				List<User> testUsers=new ArrayList<User>();
-				for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+				for (UserGroupBean testUserGroup:getTestUsersGroups())
 				{
 					if (testUserGroup.isTestUser())
 					{
-						testUsers.add(testUserGroup.getUser());
+						User user=testUserGroup.getUser();
+						if (!testUsers.contains(user))
+						{
+							testUsers.add(user);
+						}
+					}
+					else
+					{
+						List<User> groupUsers=groupUsersMap.get(testUserGroup.getGroup());
+						if (groupUsers==null)
+						{
+							groupUsers=usersService.getUsersWithGroup(operation,testUserGroup.getGroup());
+							groupUsersMap.put(testUserGroup.getGroup(),groupUsers);
+						}
+						for (User groupUser:groupUsers)
+						{
+							if (!testUsers.contains(groupUser))
+							{
+								testUsers.add(groupUser);
+							}
+						}
 					}
 				}
 				List<User> testAdmins=new ArrayList<User>();
-				for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean testAdminGroup:getTestAdminsGroups())
 				{
 					if (testAdminGroup.isTestUser())
 					{
-						testAdmins.add(testAdminGroup.getUser());
+						User admin=testAdminGroup.getUser();
+						if (!testAdmins.contains(admin))
+						{
+							testAdmins.add(admin);
+						}
+					}
+					else
+					{
+						List<User> groupAdmins=groupUsersMap.get(testAdminGroup.getGroup());
+						if (groupAdmins==null)
+						{
+							groupAdmins=usersService.getUsersWithGroup(operation,testAdminGroup.getGroup());
+							groupUsersMap.put(testAdminGroup.getGroup(),groupAdmins);
+						}
+						for (User groupAdmin:groupAdmins)
+						{
+							if (!testAdmins.contains(groupAdmin))
+							{
+								testAdmins.add(groupAdmin);
+							}
+						}
 					}
 				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
@@ -6430,31 +6998,75 @@ public class TestBean implements Serializable
 			
 			if (getFilterEvaluatorFilterUsersUserTypeId()==-1L)
 			{
-				filteredUsersForAddingEvaluatorFilterUsers=
-					usersService.getSortedUsersWithoutUserType(operation,isFilterEvaluatorFilterUsersIncludeOmUsers());
+				filteredUsersForAddingEvaluatorFilterUsers=usersService.getSortedUsersWithoutUserType(
+					operation,isFilterEvaluatorFilterUsersIncludeOmUsers());
 			}
 			else
 			{
-				filteredUsersForAddingEvaluatorFilterUsers=usersService.getSortedUsers(
-					operation,getFilterEvaluatorFilterUsersUserTypeId(),isFilterEvaluatorFilterUsersIncludeOmUsers());
+				filteredUsersForAddingEvaluatorFilterUsers=usersService.getSortedUsers(operation,
+					getFilterEvaluatorFilterUsersUserTypeId(),isFilterEvaluatorFilterUsersIncludeOmUsers());
 			}
 			
-			if (!isAllUsersAllowed(operation))
+			if (!isAllUsersAllowed())
 			{
+				if (groupUsersMap==null)
+				{
+					groupUsersMap=new HashMap<String,List<User>>();
+				}
 				List<User> testUsers=new ArrayList<User>();
-				for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+				for (UserGroupBean testUserGroup:getTestUsersGroups())
 				{
 					if (testUserGroup.isTestUser())
 					{
-						testUsers.add(testUserGroup.getUser());
+						User user=testUserGroup.getUser();
+						if (!testUsers.contains(user))
+						{
+							testUsers.add(user);
+						}
+					}
+					else
+					{
+						List<User> groupUsers=groupUsersMap.get(testUserGroup.getGroup());
+						if (groupUsers==null)
+						{
+							groupUsers=usersService.getUsersWithGroup(operation,testUserGroup.getGroup());
+							groupUsersMap.put(testUserGroup.getGroup(),groupUsers);
+						}
+						for (User groupUser:groupUsers)
+						{
+							if (!testUsers.contains(groupUser))
+							{
+								testUsers.add(groupUser);
+							}
+						}
 					}
 				}
 				List<User> testAdmins=new ArrayList<User>();
-				for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean testAdminGroup:getTestAdminsGroups())
 				{
 					if (testAdminGroup.isTestUser())
 					{
-						testAdmins.add(testAdminGroup.getUser());
+						User admin=testAdminGroup.getUser();
+						if (!testAdmins.contains(admin))
+						{
+							testAdmins.add(testAdminGroup.getUser());
+						}
+					}
+					else
+					{
+						List<User> groupAdmins=groupUsersMap.get(testAdminGroup.getGroup());
+						if (groupAdmins==null)
+						{
+							groupAdmins=usersService.getUsersWithGroup(operation,testAdminGroup.getGroup());
+							groupUsersMap.put(testAdminGroup.getGroup(),groupAdmins);
+						}
+						for (User groupAdmin:groupAdmins)
+						{
+							if (!testAdmins.contains(groupAdmin))
+							{
+								testAdmins.add(groupAdmin);
+							}
+						}
 					}
 				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
@@ -6558,28 +7170,19 @@ public class TestBean implements Serializable
 	 */
 	public List<UserGroupBean> getTestUsersGroups()
 	{
-		return getTestUsersGroups(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+    	return testUsersGroups;
 	}
 	
 	/**
-	 * @param testUsers Users and groups with permission to do this test
+	 * @param testUsersGroups Users and groups with permission to do this test
 	 */
 	public void setTestUsersGroups(List<UserGroupBean> testUsersGroups)
 	{
 		this.testUsersGroups=testUsersGroups;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users and groups with permission to do this test
-	 */
-	private List<UserGroupBean> getTestUsersGroups(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(operation);
-    	}
-    	return testUsersGroups;
 	}
 	
 	/**
@@ -6602,7 +7205,7 @@ public class TestBean implements Serializable
 		operation=getCurrentUserOperation(operation);
 		
 		List<User> testUsers=new ArrayList<User>();
-		for (UserGroupBean testUserGroup:getTestUsersGroups(operation))
+		for (UserGroupBean testUserGroup:getTestUsersGroups())
 		{
 			if (testUserGroup.isTestUser())
 			{
@@ -6613,8 +7216,7 @@ public class TestBean implements Serializable
 		{
 			if (!testUsers.contains(user))
 			{
-				User availableUser=new User();
-				availableUser.setFromOtherUser(user);
+				User availableUser=user.getUserCopy();
 				availableUsers.add(availableUser);
 			}
 		}
@@ -6646,7 +7248,11 @@ public class TestBean implements Serializable
 	 */
 	public List<UserGroupBean> getTestAdminsGroups()
 	{
-		return getTestAdminsGroups(null);
+    	if (!testInitialized)
+    	{
+    		initializeTest();
+    	}
+    	return testAdminsGroups;
 	}
 	
 	/**
@@ -6655,19 +7261,6 @@ public class TestBean implements Serializable
 	public void setTestAdminsGroups(List<UserGroupBean> testAdminsGroups)
 	{
 		this.testAdminsGroups=testAdminsGroups;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users and groups with permission to administrate this test
-	 */
-	private List<UserGroupBean> getTestAdminsGroups(Operation operation)
-	{
-    	if (!testInitialized)
-    	{
-    		initializeTest(operation);
-    	}
-    	return testAdminsGroups;
 	}
 	
 	/**
@@ -6690,7 +7283,7 @@ public class TestBean implements Serializable
 		operation=getCurrentUserOperation(operation);
 		
 		List<User> testAdmins=new ArrayList<User>();
-		for (UserGroupBean testAdminGroup:getTestAdminsGroups(operation))
+		for (UserGroupBean testAdminGroup:getTestAdminsGroups())
 		{
 			if (testAdminGroup.isTestUser())
 			{
@@ -6701,8 +7294,7 @@ public class TestBean implements Serializable
 		{
 			if (!testAdmins.contains(user))
 			{
-				User availableAdmin=new User();
-				availableAdmin.setFromOtherUser(user);
+				User availableAdmin=user.getUserCopy();
 				availableAdmins.add(availableAdmin);
 			}
 		}
@@ -6715,53 +7307,86 @@ public class TestBean implements Serializable
 	 */
 	public void applyQuestionsFilter(ActionEvent event)
 	{
+    	boolean filterCategoryNotFound=false;
+    	boolean filterCategoryInvalid=false;
+		
     	// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
     	
-    	setUseGlobalQuestions(null);
-    	setUseOtherUsersQuestions(null);
-        Category filterCategory=null;
-        long filterCategoryId=getFilterCategoryId(operation);
-        if (filterCategoryId>0L)
-        {
-        	filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-        	resetAdminFromCategoryAllowed(filterCategory);
-        	resetSuperadminFromCategoryAllowed(filterCategory);
-        }
-    	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-        setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-        setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-        setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-        setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-        setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+   		setFilterGlobalQuestionsEnabled(null);
+   		setFilterOtherUsersQuestionsEnabled(null);
+   		setUseGlobalQuestions(null);
+   		setUseOtherUsersQuestions(null);
+       	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+       	Category filterCategory=null;
+       	long filterCategoryId=getFilterCategoryId(operation);
+       	if (filterCategoryId>0L)
+       	{
+       		if (categoriesService.checkCategoryId(operation,filterCategoryId))
+       		{
+           		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+           		resetAdminFromCategoryAllowed(filterCategory);
+           		resetSuperadminFromCategoryAllowed(filterCategory);
+       		}
+       		else
+       		{
+       			filterCategoryNotFound=true;
+       		}
+       	}
+       	else
+       	{
+       		filterCategory=new Category();
+       		filterCategory.setId(filterCategoryId);
+       	}
+       	if (!filterCategoryNotFound)
+       	{
+       		filterCategoryInvalid=!checkQuestionsFilterPermission(operation,filterCategory);
+       	}
+		
+       	if (filterCategoryNotFound)
+       	{
+       		addErrorMessage("QUESTIONS_FILTER_CATEGORY_NOT_FOUND_ERROR");
+       		setFilterCategoryId(Long.MIN_VALUE);
+       	}
+       	else if (filterCategoryInvalid)
+       	{
+       		addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
+       		setFilterCategoryId(Long.MIN_VALUE);
+       	}
+       	
+   		// Reload questions from DB
+       	questions=null;
+       	
+       	setAddEnabled(null);
+       	setEditEnabled(null);
+       	setEditOtherUsersTestsEnabled(null);
+       	setEditAdminsTestsEnabled(null);
+       	setEditSuperadminsTestsEnabled(null);
+   		setFilterGlobalTestsEnabled(null);
+   		setFilterOtherUsersTestsEnabled(null);
+   		setGlobalOtherUserCategoryAllowed(null);
+   		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+   		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+   		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+       	resetAdmins();
+       	resetSuperadmins();
+       	
+   		// Always reload images categories from DB
+       	specialCategoriesFilters=null;
+   		setQuestionsCategories(null);
+   		
+   		List<Question> questions=getQuestions(operation);
+   			
+        // Get current user session Hibernate operation
+   		operation=getCurrentUserOperation(null);
+   		
+   		getQuestionsCategories(operation);
+   		getFilterCategoryId(operation);
         
-        if (checkQuestionsFilterPermission(operation,filterCategory))
-        {
-        	// Reload questions from DB
-        	questions=null;
-        }
-        else
-        {
-        	addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-        	setGlobalOtherUserCategoryAllowed(null);
-        	setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-        	setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-        	setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
-        	
-        	// Reload tests categories from DB
-        	testsCategories=null;
-        	
-        	// Reload questions categories from DB
-        	specialCategoriesFilters=null;
-        	questionsCategories=null;
-        	
-        	if (!getQuestionsCategories(operation).contains(filterCategory))
-        	{
-        		// Reload questions from DB
-        		questions=null;
-        	}
-        }
-    	questionsDualList.setSource(getQuestions(operation));
+        DualListModel<Question> questionsDualList=getFilteredQuestionsDualList(operation);
+    	questionsDualList.setSource(questions);
     	questionsDualList.getTarget().clear();
 	}
 	
@@ -6786,8 +7411,8 @@ public class TestBean implements Serializable
 	{
 		if (questionsDualList==null)
 		{
-			questionsDualList=
-				new DualListModel<Question>(getQuestions(getCurrentUserOperation(operation)),new ArrayList<Question>());
+			questionsDualList=new DualListModel<Question>(
+				getQuestions(getCurrentUserOperation(operation)),new ArrayList<Question>());
 		}
 		return questionsDualList;
 	}
@@ -6797,26 +7422,16 @@ public class TestBean implements Serializable
 	 */
 	public DualListModel<User> getUsersDualList()
 	{
-		return getUsersDualList(null);
+		if (usersDualList==null)
+		{
+			usersDualList=new DualListModel<User>(getAvailableUsers(),new ArrayList<User>());
+		}
+		return usersDualList;
 	}
 	
 	public void setUsersDualList(DualListModel<User> usersDualList)
 	{
 		this.usersDualList=usersDualList;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users as dual list
-	 */
-	public DualListModel<User> getUsersDualList(Operation operation)
-	{
-		if (usersDualList==null)
-		{
-			usersDualList=
-				new DualListModel<User>(getAvailableUsers(getCurrentUserOperation(operation)),new ArrayList<User>());
-		}
-		return usersDualList;
 	}
 	
 	/**
@@ -6851,8 +7466,8 @@ public class TestBean implements Serializable
 	{
 		if (adminsDualList==null)
 		{
-			adminsDualList=
-				new DualListModel<User>(getAvailableAdmins(getCurrentUserOperation(operation)),new ArrayList<User>());
+			adminsDualList=new DualListModel<User>(
+				getAvailableAdmins(getCurrentUserOperation(operation)),new ArrayList<User>());
 		}
 		return adminsDualList;
 	}
@@ -6890,7 +7505,8 @@ public class TestBean implements Serializable
 		if (supportContactFilterUsersDualList==null)
 		{
 			supportContactFilterUsersDualList=new DualListModel<User>(
-				getAvailableSupportContactFilterUsers(getCurrentUserOperation(operation)),new ArrayList<User>());
+				getAvailableSupportContactFilterUsers(getCurrentUserOperation(operation)),
+				getTestSupportContactFilterUsers());
 		}
 		return supportContactFilterUsersDualList;
 	}
@@ -6902,10 +7518,11 @@ public class TestBean implements Serializable
 	public void applySupportContactFilterUsersFilter(ActionEvent event)
 	{
 		// Refresh dual list of filtered users for "Add/Edit tech support address" dialog
-		refreshEvaluatorFilterUsersDualList(getCurrentUserOperation(null),event.getComponent());
+		refreshSupportContactFilterUsersDualList(getCurrentUserOperation(null),event.getComponent());
 		
 		// Reload filtered users for "Add/Edit tech support address" dialog
 		setFilteredUsersForAddingSupportContactFilterUsers(null);
+		groupUsersMap=null;
 	}
 	
 	private void refreshSupportContactFilterUsersDualList(Operation operation,UIComponent component)
@@ -6917,14 +7534,13 @@ public class TestBean implements Serializable
 			// "Add/Edit tech support address" dialog with the information from hidden field
 			List<User> testSupportContactFilterUsers=getTestSupportContactFilterUsers();
 			testSupportContactFilterUsers.clear();
-			if (getSupportContactFilterUsersIdsHidden()!=null && !"".equals(getSupportContactFilterUsersIdsHidden()))
+			if (getSupportContactFilterUsersIdsHidden()!=null && 
+				!"".equals(getSupportContactFilterUsersIdsHidden()))
 			{
-				// Get current user session Hibernate operation
-				operation=getCurrentUserOperation(operation);
-				
 				for (String userId:getSupportContactFilterUsersIdsHidden().split(Pattern.quote(",")))
 				{
-					testSupportContactFilterUsers.add(usersService.getUser(operation,Long.parseLong(userId)));
+					testSupportContactFilterUsers.add(
+						usersService.getUser(getCurrentUserOperation(operation),Long.parseLong(userId)));
 				}
 			}
 			
@@ -6944,6 +7560,94 @@ public class TestBean implements Serializable
 		{
 			setSupportContactFilterUsersIdsHidden(
 				(String)supportContactFilterUsersIdsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
+	 * @return Groups for the filter of the "Add/Edit tech support address" dialog as dual list
+	 */
+	public DualListModel<String> getSupportContactFilterGroupsDualList()
+	{
+		return getSupportContactFilterGroupsDualList(null);
+	}
+	
+	public void setSupportContactFilterGroupsDualList(DualListModel<String> supportContactFilterGroupsDualList)
+	{
+		this.supportContactFilterGroupsDualList=supportContactFilterGroupsDualList;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups for the filter of the "Add/Edit tech support address" dialog as dual list
+	 */
+	private DualListModel<String> getSupportContactFilterGroupsDualList(Operation operation)
+	{
+		if (supportContactFilterGroupsDualList==null)
+		{
+			supportContactFilterGroupsDualList=new DualListModel<String>(
+				getAvailableSupportContactFilterGroups(getCurrentUserOperation(operation)),
+				getTestSupportContactFilterGroups());
+		}
+		return supportContactFilterGroupsDualList;
+	}
+	
+	private void refreshSupportContactFilterGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden field with groups
+		if (processSupportContactFilterGroupsHidden(component))
+		{
+			// Fill the list of available groups included within the current group filter of the 
+			// "Add/Edit tech support address" dialog with the information from hidden field
+			List<String> availableSupportContactFilterGroups=
+				getAvailableSupportContactFilterGroups(getCurrentUserOperation(operation));
+			availableSupportContactFilterGroups.clear();
+			if (getAvailableSupportContactFilterGroupsHidden()!=null && 
+				!"".equals(getAvailableSupportContactFilterGroupsHidden()))
+			{
+				for (String group:getAvailableSupportContactFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableSupportContactFilterGroups.add(group);
+				}
+			}
+			
+			// Fill the list of groups included within the current group filter of the 
+			// "Add/Edit tech support address" dialog with the information from hidden field
+			List<String> testSupportContactFilterGroups=getTestSupportContactFilterGroups();
+			testSupportContactFilterGroups.clear();
+			if (getSupportContactFilterGroupsHidden()!=null && !"".equals(getSupportContactFilterGroupsHidden()))
+			{
+				for (String group:getSupportContactFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					testSupportContactFilterGroups.add(group);
+				}
+			}
+			
+			// Reload dual list of filtered groups for "Add/Edit tech support address" dialog
+			setSupportContactFilterGroupsDualList(null);
+		}
+	}
+	
+	private boolean processSupportContactFilterGroupsHidden(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableSupportContactFilterGroupsHiddenInput=(UIInput)component.findComponent(
+			":techSupportAddressDialogForm:availableSupportContactFilterGroupsHidden");
+		availableSupportContactFilterGroupsHiddenInput.processDecodes(context);
+		if (availableSupportContactFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableSupportContactFilterGroupsHidden(
+				(String)availableSupportContactFilterGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput supportContactFilterGroupsHiddenInput=
+			(UIInput)component.findComponent(":techSupportAddressDialogForm:supportContactFilterGroupsHidden");
+		supportContactFilterGroupsHiddenInput.processDecodes(context);
+		if (supportContactFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setSupportContactFilterGroupsHidden((String)supportContactFilterGroupsHiddenInput.getSubmittedValue());
 			submittedValue=true;
 		}
 		return submittedValue;
@@ -6971,7 +7675,8 @@ public class TestBean implements Serializable
 		if (evaluatorFilterUsersDualList==null)
 		{
 			evaluatorFilterUsersDualList=new DualListModel<User>(
-				getAvailableEvaluatorFilterUsers(getCurrentUserOperation(operation)),getTestEvaluatorFilterUsers());
+				getAvailableEvaluatorFilterUsers(getCurrentUserOperation(operation)),
+				getTestEvaluatorFilterUsers());
 		}
 		return evaluatorFilterUsersDualList;
 	}
@@ -6987,6 +7692,7 @@ public class TestBean implements Serializable
 		
 		// Reload filtered users for "Add/Edit assessement address" dialog
 		setFilteredUsersForAddingEvaluatorFilterUsers(null);
+		groupUsersMap=null;
 	}
 	
 	private void refreshEvaluatorFilterUsersDualList(Operation operation,UIComponent component)
@@ -7000,12 +7706,10 @@ public class TestBean implements Serializable
 			testEvaluatorFilterUsers.clear();
 			if (getEvaluatorFilterUsersIdsHidden()!=null && !"".equals(getEvaluatorFilterUsersIdsHidden()))
 			{
-				// Get current user session Hibernate operation 
-				operation=getCurrentUserOperation(operation);
-				
 				for (String userId:getEvaluatorFilterUsersIdsHidden().split(Pattern.quote(",")))
 				{
-					testEvaluatorFilterUsers.add(usersService.getUser(operation,Long.parseLong(userId)));
+					testEvaluatorFilterUsers.add(
+						usersService.getUser(getCurrentUserOperation(operation),Long.parseLong(userId)));
 				}
 			}
 			
@@ -7024,6 +7728,94 @@ public class TestBean implements Serializable
 		if (evaluatorFilterUsersIdsHiddenInput.getSubmittedValue()!=null)
 		{
 			setEvaluatorFilterUsersIdsHidden((String)evaluatorFilterUsersIdsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
+	 * @return Groups for the filter of the "Add/Edit assessement address" dialog as dual list
+	 */
+	public DualListModel<String> getEvaluatorFilterGroupsDualList()
+	{
+		return getEvaluatorFilterGroupsDualList(null);
+	}
+	
+	public void setEvaluatorFilterGroupsDualList(DualListModel<String> evaluatorFilterGroupsDualList)
+	{
+		this.evaluatorFilterGroupsDualList=evaluatorFilterGroupsDualList;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups for the filter of the "Add/Edit assessement address" dialog as dual list
+	 */
+	private DualListModel<String> getEvaluatorFilterGroupsDualList(Operation operation)
+	{
+		if (evaluatorFilterGroupsDualList==null)
+		{
+			evaluatorFilterGroupsDualList=new DualListModel<String>(
+				getAvailableEvaluatorFilterGroups(getCurrentUserOperation(operation)),
+				getTestEvaluatorFilterGroups());
+		}
+		return evaluatorFilterGroupsDualList;
+	}
+	
+	private void refreshEvaluatorFilterGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden field with groups
+		if (processEvaluatorFilterGroupsHidden(component))
+		{
+			// Fill the list of available groups included within the current group filter of the 
+			// "Add/Edit assessement address" dialog with the information from hidden field
+			List<String> availableEvaluatorFilterGroups=
+				getAvailableEvaluatorFilterGroups(getCurrentUserOperation(operation));
+			availableEvaluatorFilterGroups.clear();
+			if (getAvailableEvaluatorFilterGroupsHidden()!=null && 
+				!"".equals(getAvailableEvaluatorFilterGroupsHidden()))
+			{
+				for (String group:getAvailableEvaluatorFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableEvaluatorFilterGroups.add(group);
+				}
+			}
+			
+			// Fill the list of groups included within the current group filter of the 
+			// "Add/Edit assessement address" dialog with the information from hidden field
+			List<String> testEvaluatorFilterGroups=getTestEvaluatorFilterGroups();
+			testEvaluatorFilterGroups.clear();
+			if (getEvaluatorFilterGroupsHidden()!=null && !"".equals(getEvaluatorFilterGroupsHidden()))
+			{
+				for (String group:getEvaluatorFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					testEvaluatorFilterGroups.add(group);
+				}
+			}
+			
+			// Reload dual list of filtered groups for "Add/Edit assessement address" dialog
+			setEvaluatorFilterGroupsDualList(null);
+		}
+	}
+	
+	private boolean processEvaluatorFilterGroupsHidden(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableEvaluatorFilterGroupsHiddenInput=(UIInput)component.findComponent(
+			":assessementAddressDialogForm:availableEvaluatorFilterGroupsHidden");
+		availableEvaluatorFilterGroupsHiddenInput.processDecodes(context);
+		if (availableEvaluatorFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableEvaluatorFilterGroupsHidden(
+				(String)availableEvaluatorFilterGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput evaluatorFilterGroupsHiddenInput=
+			(UIInput)component.findComponent(":assessementAddressDialogForm:evaluatorFilterGroupsHidden");
+		evaluatorFilterGroupsHiddenInput.processDecodes(context);
+		if (evaluatorFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setEvaluatorFilterGroupsHidden((String)evaluatorFilterGroupsHiddenInput.getSubmittedValue());
 			submittedValue=true;
 		}
 		return submittedValue;
@@ -7078,8 +7870,8 @@ public class TestBean implements Serializable
 		if (supportContactFilterSubtypes==null)
 		{
 			supportContactFilterSubtypes=new ArrayList<String>();
-			for (AddressType addressType:
-				addressTypesService.getAddressTypes(getCurrentUserOperation(operation),getSupportContactFilterType()))
+			for (AddressType addressType:addressTypesService.getAddressTypes(
+				getCurrentUserOperation(operation),getSupportContactFilterType()))
 			{
 				String subtype=addressType.getSubtype();
 				if (subtype!=null && !subtype.equals(""))
@@ -7202,8 +7994,7 @@ public class TestBean implements Serializable
 		{
 			if (!testSupportContactFilterUsers.contains(user))
 			{
-				User availableSupportContactFilterUser=new User();
-				availableSupportContactFilterUser.setFromOtherUser(user);
+				User availableSupportContactFilterUser=user.getUserCopy();
 				availableSupportContactFilterUsers.add(availableSupportContactFilterUser);
 			}
 		}
@@ -7248,6 +8039,135 @@ public class TestBean implements Serializable
 	public void setFilterSupportContactRangeSurnameUpperLimit(String filterSupportContactRangeSurnameUpperLimit)
 	{
 		this.filterSupportContactRangeSurnameUpperLimit=filterSupportContactRangeSurnameUpperLimit;
+	}
+	
+	public String getSupportContactGroup()
+	{
+		return supportContactGroup;
+	}
+	
+	public void setSupportContactGroup(String supportContactGroup)
+	{
+		this.supportContactGroup=supportContactGroup;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	public List<String> getTestSupportContactFilterGroups()
+	{
+		return testSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @param testSupportContactFilterGroups Groups included within the current group filter of the 
+	 * "Add/Edit tech support address" dialog
+	 */
+	public void setTestSupportContactFilterGroups(List<String> testSupportContactFilterGroups)
+	{
+		this.testSupportContactFilterGroups=testSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @return Available groups included within the current group filter of the "Add/Edit tech support address" 
+	 * dialog as a string with the groups separated by commas
+	 */
+	public String getAvailableSupportContactFilterGroupsHidden()
+	{
+		return availableSupportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param availableSupportContactFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit tech support address" dialog as a string with the groups separated by commas
+	 */
+	public void setAvailableSupportContactFilterGroupsHidden(String availableSupportContactFilterGroupsHidden)
+	{
+		this.availableSupportContactFilterGroupsHidden=availableSupportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit tech support address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getSupportContactFilterGroupsHidden()
+	{
+		return supportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param supportContactFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit tech support address" dialog as a string with the groups separated by commas
+	 */
+	public void setSupportContactFilterGroupsHidden(String supportContactFilterGroupsHidden)
+	{
+		this.supportContactFilterGroupsHidden=supportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups not included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	public List<String> getAvailableSupportContactFilterGroups()
+	{
+		return getAvailableSupportContactFilterGroups(null);
+	}
+	
+	/**
+	 * Set groups not included within the current group filter of the "Add/Edit tech support address" dialog 
+	 * @param availableSupportContactFilterGroups Groups not included within the current group filter of the 
+	 * "Add/Edit tech support address" dialog
+	 */
+	public void setAvailableSupportContactFilterGroups(List<String> availableSupportContactFilterGroups)
+	{
+		this.availableSupportContactFilterGroups=availableSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups not included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	private List<String> getAvailableSupportContactFilterGroups(Operation operation)
+	{
+		if (availableSupportContactFilterGroups==null)
+		{
+			availableSupportContactFilterGroups=new ArrayList<String>();
+
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			if (isAllUsersAllowed())
+			{
+				for (String group:usersService.getGroups(operation))
+				{
+					if (!getTestSupportContactFilterGroups().contains(group))
+					{
+						availableSupportContactFilterGroups.add(group);
+					}
+				}
+			}
+			else
+			{
+				for (UserGroupBean userGroup:getTestUsersGroups())
+				{
+					if (!userGroup.isTestUser() && 
+						!getTestSupportContactFilterGroups().contains(userGroup.getGroup()) && 
+						!availableSupportContactFilterGroups.contains(userGroup.getGroup()))
+					{
+						availableSupportContactFilterGroups.add(userGroup.getGroup());
+					}
+				}
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
+				{
+					if (!adminGroup.isTestUser() && 
+						!getTestSupportContactFilterGroups().contains(adminGroup.getGroup()) && 
+						!availableSupportContactFilterGroups.contains(adminGroup.getGroup()))
+					{
+						availableSupportContactFilterGroups.add(adminGroup.getGroup());
+					}
+				}
+			}
+		}
+		return availableSupportContactFilterGroups;
 	}
 	
 	public String getEvaluatorFilterType()
@@ -7298,8 +8218,8 @@ public class TestBean implements Serializable
 		if (evaluatorFilterSubtypes==null)
 		{
 			evaluatorFilterSubtypes=new ArrayList<String>();
-			for (AddressType addressType:
-				addressTypesService.getAddressTypes(getCurrentUserOperation(operation),getEvaluatorFilterType()))
+			for (AddressType addressType:addressTypesService.getAddressTypes(
+				getCurrentUserOperation(operation),getEvaluatorFilterType()))
 			{
 				String subtype=addressType.getSubtype();
 				if (subtype!=null && !subtype.equals(""))
@@ -7421,8 +8341,7 @@ public class TestBean implements Serializable
 		{
 			if (!testEvaluatorFilterUsers.contains(user))
 			{
-				User availableEvaluatorFilterUser=new User();
-				availableEvaluatorFilterUser.setFromOtherUser(user);
+				User availableEvaluatorFilterUser=user.getUserCopy();
 				availableEvaluatorFilterUsers.add(availableEvaluatorFilterUser);
 			}
 		}
@@ -7467,6 +8386,135 @@ public class TestBean implements Serializable
 	public void setFilterEvaluatorRangeSurnameUpperLimit(String filterEvaluatorRangeSurnameUpperLimit)
 	{
 		this.filterEvaluatorRangeSurnameUpperLimit=filterEvaluatorRangeSurnameUpperLimit;
+	}
+	
+	public String getEvaluatorGroup()
+	{
+		return evaluatorGroup;
+	}
+	
+	public void setEvaluatorGroup(String evaluatorGroup)
+	{
+		this.evaluatorGroup=evaluatorGroup;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	public List<String> getTestEvaluatorFilterGroups()
+	{
+		return testEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @param testEvaluatorFilterGroups Groups included within the current group filter of the 
+	 * "Add/Edit assessement address" dialog
+	 */
+	public void setTestEvaluatorFilterGroups(List<String> testEvaluatorFilterGroups)
+	{
+		this.testEvaluatorFilterGroups=testEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @return Available groups included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getAvailableEvaluatorFilterGroupsHidden()
+	{
+		return availableEvaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param availableEvaluatorFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit assessement address" dialog as a string with the groups separated by commas
+	 */
+	public void setAvailableEvaluatorFilterGroupsHidden(String availableEvaluatorFilterGroupsHidden)
+	{
+		this.availableEvaluatorFilterGroupsHidden=availableEvaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getEvaluatorFilterGroupsHidden()
+	{
+		return evaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param evaluatorFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit assessement address" dialog as a string with the groups separated by commas
+	 */
+	public void setEvaluatorFilterGroupsHidden(String evaluatorFilterGroupsHidden)
+	{
+		this.evaluatorFilterGroupsHidden=evaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups not included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	public List<String> getAvailableEvaluatorFilterGroups()
+	{
+		return getAvailableEvaluatorFilterGroups(null);
+	}
+	
+	/**
+	 * Set groups not included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * @param availableEvaluatorFilterGroups Groups not included within the current group filter of the 
+	 * "Add/Edit assessement address" dialog
+	 */
+	public void setAvailableEvaluatorFilterGroups(List<String> availableEvaluatorFilterGroups)
+	{
+		this.availableEvaluatorFilterGroups=availableEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups not included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	private List<String> getAvailableEvaluatorFilterGroups(Operation operation)
+	{
+		if (availableEvaluatorFilterGroups==null)
+		{
+			availableEvaluatorFilterGroups=new ArrayList<String>();
+
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			if (isAllUsersAllowed())
+			{
+				for (String group:usersService.getGroups(operation))
+				{
+					if (!getTestEvaluatorFilterGroups().contains(group))
+					{
+						availableEvaluatorFilterGroups.add(group);
+					}
+				}
+			}
+			else
+			{
+				for (UserGroupBean userGroup:getTestUsersGroups())
+				{
+					if (!userGroup.isTestUser() && 
+						!getTestEvaluatorFilterGroups().contains(userGroup.getGroup()) && 
+						!availableEvaluatorFilterGroups.contains(userGroup.getGroup()))
+					{
+						availableEvaluatorFilterGroups.add(userGroup.getGroup());
+					}
+				}
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
+				{
+					if (!adminGroup.isTestUser() && 
+						!getTestEvaluatorFilterGroups().contains(adminGroup.getGroup()) && 
+						!availableEvaluatorFilterGroups.contains(adminGroup.getGroup()))
+					{
+						availableEvaluatorFilterGroups.add(adminGroup.getGroup());
+					}
+				}
+			}
+		}
+		return availableEvaluatorFilterGroups;
 	}
 	
 	public String getSupportContact()
@@ -7519,6 +8567,56 @@ public class TestBean implements Serializable
 		this.cancelTestTarget=cancelTestTarget;
 	}
 	
+	public Boolean getFilterGlobalTestsEnabled()
+	{
+		return getFilterGlobalTestsEnabled(null);
+	}
+	
+	public void setFilterGlobalTestsEnabled(Boolean filterGlobalTestsEnabled)
+	{
+		this.filterGlobalTestsEnabled=filterGlobalTestsEnabled;
+	}
+	
+	public boolean isFilterGlobalTestsEnabled()
+	{
+		return getFilterGlobalTestsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterGlobalTestsEnabled(Operation operation)
+	{
+		if (filterGlobalTestsEnabled==null)
+		{
+			filterGlobalTestsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_TESTS_GLOBAL_FILTER_ENABLED"));
+		}
+		return filterGlobalTestsEnabled;
+	}
+	
+	public Boolean getFilterOtherUsersTestsEnabled()
+	{
+		return getFilterOtherUsersTestsEnabled(null);
+	}
+	
+	public void setFilterOtherUsersTestsEnabled(Boolean filterOtherUsersTestsEnabled)
+	{
+		this.filterOtherUsersTestsEnabled=filterOtherUsersTestsEnabled;
+	}
+	
+	public boolean isFilterOtherUsersTestsEnabled()
+	{
+		return getFilterOtherUsersTestsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterOtherUsersTestsEnabled(Operation operation)
+	{
+		if (filterOtherUsersTestsEnabled==null)
+		{
+			filterOtherUsersTestsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_TESTS_OTHER_USERS_FILTER_ENABLED"));
+		}
+		return filterOtherUsersTestsEnabled;
+	}
+	
 	public Boolean getGlobalOtherUserCategoryAllowed()
 	{
 		return getGlobalOtherUserCategoryAllowed(null);
@@ -7538,13 +8636,136 @@ public class TestBean implements Serializable
 	{
 		if (globalOtherUserCategoryAllowed==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			globalOtherUserCategoryAllowed=Boolean.valueOf(permissionsService.isGranted(
-				operation,getAuthor(operation),"PERMISSION_TEST_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
+			globalOtherUserCategoryAllowed=Boolean.valueOf(
+				permissionsService.isGranted(getCurrentUserOperation(operation),getAuthor(),
+				"PERMISSION_TEST_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
 		}
 		return globalOtherUserCategoryAllowed;
+	}
+	
+	public Boolean getAddEnabled()
+	{
+		return getAddEnabled(null);
+	}
+	
+	public void setAddEnabled(Boolean addEnabled)
+	{
+		this.addEnabled=addEnabled;
+	}
+	
+	public boolean isAddEnabled()
+	{
+		return getAddEnabled().booleanValue();
+	}
+	
+	private Boolean getAddEnabled(Operation operation)
+	{
+		if (addEnabled==null)
+		{
+			addEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_TESTS_ADD_ENABLED"));
+		}
+		return addEnabled;
+	}
+	
+	public Boolean getEditEnabled()
+	{
+		return getEditEnabled(null);
+	}
+	
+	public void setEditEnabled(Boolean editEnabled)
+	{
+		this.editEnabled=editEnabled;
+	}
+	
+	public boolean isEditEnabled()
+	{
+		return getEditEnabled().booleanValue();
+	}
+	
+	private Boolean getEditEnabled(Operation operation)
+	{
+		if (editEnabled==null)
+		{
+			editEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_TESTS_EDIT_ENABLED"));
+		}
+		return editEnabled;
+	}
+	
+	public Boolean getEditOtherUsersTestsEnabled()
+	{
+		return getEditOtherUsersTestsEnabled(null);
+	}
+	
+	public void setEditOtherUsersTestsEnabled(Boolean editOtherUsersTestsEnabled)
+	{
+		this.editOtherUsersTestsEnabled=editOtherUsersTestsEnabled;
+	}
+	
+	public boolean isEditOtherUsersTestsEnabled()
+	{
+		return getEditOtherUsersTestsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditOtherUsersTestsEnabled(Operation operation)
+	{
+		if (editOtherUsersTestsEnabled==null)
+		{
+			editOtherUsersTestsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_TESTS_EDIT_OTHER_USERS_TESTS_ENABLED"));
+		}
+		return editOtherUsersTestsEnabled;
+	}
+	
+	public Boolean getEditAdminsTestsEnabled()
+	{
+		return getEditAdminsTestsEnabled(null);
+	}
+	
+	public void setEditAdminsTestsEnabled(Boolean editAdminsTestsEnabled)
+	{
+		this.editAdminsTestsEnabled=editAdminsTestsEnabled;
+	}
+	
+	public boolean isEditAdminsTestsEnabled()
+	{
+		return getEditAdminsTestsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditAdminsTestsEnabled(Operation operation)
+	{
+		if (editAdminsTestsEnabled==null)
+		{
+			editAdminsTestsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_TESTS_EDIT_ADMINS_TESTS_ENABLED"));
+		}
+		return editAdminsTestsEnabled;
+	}
+	
+	public Boolean getEditSuperadminsTestsEnabled()
+	{
+		return getEditSuperadminsTestsEnabled(null);
+	}
+	
+	public void setEditSuperadminsTestsEnabled(Boolean editSuperadminsTestsEnabled)
+	{
+		this.editSuperadminsTestsEnabled=editSuperadminsTestsEnabled;
+	}
+	
+	public boolean isEditSuperadminsTestsEnabled()
+	{
+		return getEditSuperadminsTestsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditSuperadminsTestsEnabled(Operation operation)
+	{
+		if (editSuperadminsTestsEnabled==null)
+		{
+			editSuperadminsTestsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_TESTS_EDIT_SUPERADMINS_TESTS_ENABLED"));
+		}
+		return editSuperadminsTestsEnabled;
 	}
 	
 	public Boolean getTestAuthorAdmin()
@@ -7559,15 +8780,12 @@ public class TestBean implements Serializable
 	
 	private Boolean getTestAuthorAdmin(Operation operation)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		return isAdmin(operation,getAuthor(operation));
+		return isAdmin(getCurrentUserOperation(operation),getAuthor());
 	}
 	
-	private void resetTestAuthorAdmin(Operation operation)
+	private void resetTestAuthorAdmin()
 	{
-		admins.remove(Long.valueOf(getAuthor(getCurrentUserOperation(operation)).getId()));
+		admins.remove(Long.valueOf(getAuthor().getId()));
 	}
 	
 	public Boolean getTestAuthorSuperadmin()
@@ -7582,15 +8800,12 @@ public class TestBean implements Serializable
 	
 	private Boolean getTestAuthorSuperadmin(Operation operation)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		return isSuperadmin(operation,getAuthor(operation));
+		return isSuperadmin(getCurrentUserOperation(operation),getAuthor());
 	}
 	
-	private void resetTestAuthorSuperadmin(Operation operation)
+	private void resetTestAuthorSuperadmin()
 	{
-		superadmins.remove(Long.valueOf(getAuthor(getCurrentUserOperation(operation)).getId()));
+		superadmins.remove(Long.valueOf(getAuthor().getId()));
 	}
 	
 	public Boolean getViewTestsFromOtherUsersPrivateCategoriesEnabled()
@@ -7613,8 +8828,8 @@ public class TestBean implements Serializable
 	{
 		if (viewTestsFromOtherUsersPrivateCategoriesEnabled==null)
 		{
-			viewTestsFromOtherUsersPrivateCategoriesEnabled=
-				Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+			viewTestsFromOtherUsersPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
 				"PERMISSION_TESTS_VIEW_TESTS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewTestsFromOtherUsersPrivateCategoriesEnabled;
@@ -7640,8 +8855,9 @@ public class TestBean implements Serializable
 	{
 		if (viewTestsFromAdminsPrivateCategoriesEnabled==null)
 		{
-			viewTestsFromAdminsPrivateCategoriesEnabled=Boolean.valueOf(userSessionService.isGranted(
-				getCurrentUserOperation(operation),"PERMISSION_TESTS_VIEW_TESTS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED"));
+			viewTestsFromAdminsPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
+				"PERMISSION_TESTS_VIEW_TESTS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewTestsFromAdminsPrivateCategoriesEnabled;
 	}
@@ -7667,11 +8883,61 @@ public class TestBean implements Serializable
 	{
 		if (viewTestsFromSuperadminsPrivateCategoriesEnabled==null)
 		{
-			viewTestsFromSuperadminsPrivateCategoriesEnabled=
-				Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+			viewTestsFromSuperadminsPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
 				"PERMISSION_TESTS_VIEW_TESTS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewTestsFromSuperadminsPrivateCategoriesEnabled;
+	}
+	
+	public Boolean getFilterGlobalQuestionsEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled(null);
+	}
+	
+	public void setFilterGlobalQuestionsEnabled(Boolean filterGlobalQuestionsEnabled)
+	{
+		this.filterGlobalQuestionsEnabled=filterGlobalQuestionsEnabled;
+	}
+	
+	public boolean isFilterGlobalQuestionsEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterGlobalQuestionsEnabled(Operation operation)
+	{
+		if (filterGlobalQuestionsEnabled==null)
+		{
+			filterGlobalQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED"));
+		}
+		return filterGlobalQuestionsEnabled;
+	}
+	
+	public Boolean getFilterOtherUsersQuestionsEnabled()
+	{
+		return getFilterOtherUsersQuestionsEnabled(null);
+	}
+	
+	public void setFilterOtherUsersQuestionsEnabled(Boolean filterOtherUsersQuestionsEnabled)
+	{
+		this.filterOtherUsersQuestionsEnabled=filterOtherUsersQuestionsEnabled;
+	}
+	
+	public boolean isFilterOtherUsersQuestionsEnabled()
+	{
+		return getFilterOtherUsersQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterOtherUsersQuestionsEnabled(Operation operation)
+	{
+		if (filterOtherUsersQuestionsEnabled==null)
+		{
+			filterOtherUsersQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED"));
+		}
+		return filterOtherUsersQuestionsEnabled;
 	}
 	
 	public Boolean getUseGlobalQuestions()
@@ -7693,11 +8959,8 @@ public class TestBean implements Serializable
 	{
 		if (useGlobalQuestions==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			useGlobalQuestions=Boolean.valueOf(
-				permissionsService.isGranted(operation,getAuthor(operation),"PERMISSION_TEST_USE_GLOBAL_QUESTIONS"));
+			useGlobalQuestions=Boolean.valueOf(permissionsService.isGranted(
+				getCurrentUserOperation(operation),getAuthor(),"PERMISSION_TEST_USE_GLOBAL_QUESTIONS"));
 		}
 		return useGlobalQuestions;
 	}
@@ -7722,10 +8985,8 @@ public class TestBean implements Serializable
 		if (useOtherUsersQuestions==null)
 		{
 			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			useOtherUsersQuestions=Boolean.valueOf(permissionsService.isGranted(
-				operation,getAuthor(operation),"PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS"));
+				getCurrentUserOperation(operation),getAuthor(),"PERMISSION_TEST_USE_OTHER_USERS_QUESTIONS"));
 		}
 		return useOtherUsersQuestions;
 	}
@@ -7751,8 +9012,8 @@ public class TestBean implements Serializable
 	{
 		if (viewQuestionsFromOtherUsersPrivateCategoriesEnabled==null)
 		{
-			viewQuestionsFromOtherUsersPrivateCategoriesEnabled=
-				Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+			viewQuestionsFromOtherUsersPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
 				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewQuestionsFromOtherUsersPrivateCategoriesEnabled;
@@ -7778,8 +9039,8 @@ public class TestBean implements Serializable
 	{
 		if (viewQuestionsFromAdminsPrivateCategoriesEnabled==null)
 		{
-			viewQuestionsFromAdminsPrivateCategoriesEnabled=
-				Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+			viewQuestionsFromAdminsPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
 				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewQuestionsFromAdminsPrivateCategoriesEnabled;
@@ -7806,131 +9067,11 @@ public class TestBean implements Serializable
 	{
 		if (viewQuestionsFromSuperadminsPrivateCategoriesEnabled==null)
 		{
-			viewQuestionsFromSuperadminsPrivateCategoriesEnabled=
-				Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+			viewQuestionsFromSuperadminsPrivateCategoriesEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),
 				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-	}
-	
-	public void setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(
-		Boolean testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled)
-	{
-		this.testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled=
-			testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled;
-	}
-	
-	public boolean isTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(Operation operation)
-	{
-		if (testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			User testAuthor=getAuthor(operation);
-			if (testAuthor.getId()==userSessionService.getCurrentUserId())
-			{
-				testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled=
-					getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation);
-			}
-			else
-			{
-				testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,testAuthor,
-					"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-		}
-		return testAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-	}
-	
-	public void setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(
-			Boolean testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled)
-	{
-		this.testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled=
-			testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled;
-	}
-	
-	public boolean isTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(Operation operation)
-	{
-		if (testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-				
-			User testAuthor=getAuthor(operation);
-			if (testAuthor.getId()==userSessionService.getCurrentUserId())
-			{
-				testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled=
-					getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation);
-			}
-			else
-			{
-				testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,testAuthor,
-					"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-		}
-		return testAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-	}
-	
-	public void setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(
-		Boolean testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled)
-	{
-		this.testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled=
-			testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled;
-	}
-	
-	public boolean isTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled()
-	{
-		return getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(Operation operation)
-	{
-		if (testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-				
-			User testAuthor=getAuthor(operation);
-			if (testAuthor.getId()==userSessionService.getCurrentUserId())
-			{
-				testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled=
-					getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation);
-			}
-			else
-			{
-				testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,testAuthor,
-					"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-		}
-		return testAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled;
 	}
 	
 	public Boolean getViewOMEnabled()
@@ -8151,20 +9292,10 @@ public class TestBean implements Serializable
 	
 	public List<SectionBean> getSectionsSorting()
 	{
-		return getSectionsSorting(null);
-	}
-	
-	public void setSectionsSorting(List<SectionBean> sectionsSorting)
-	{
-		this.sectionsSorting=sectionsSorting;
-	}
-	
-	private List<SectionBean> getSectionsSorting(Operation operation)
-	{
 		if (sectionsSorting==null)
 		{
 			sectionsSorting=new ArrayList<SectionBean>();
-			for (SectionBean section:getSections(getCurrentUserOperation(operation)))
+			for (SectionBean section:getSections())
 			{
 				sectionsSorting.add(section);
 			}
@@ -8183,22 +9314,17 @@ public class TestBean implements Serializable
 		return sectionsSorting;
 	}
 	
-    public List<TestFeedbackBean> getFeedbacksSorting()
-    {
-		return getFeedbacksSorting(null);
-	}
-    
-	public void setFeedbacksSorting(List<TestFeedbackBean> feedbacksSorting)
+	public void setSectionsSorting(List<SectionBean> sectionsSorting)
 	{
-		this.feedbacksSorting=feedbacksSorting;
+		this.sectionsSorting=sectionsSorting;
 	}
 	
-    private List<TestFeedbackBean> getFeedbacksSorting(Operation operation)
+    public List<TestFeedbackBean> getFeedbacksSorting()
     {
     	if (feedbacksSorting==null)
     	{
     		feedbacksSorting=new ArrayList<TestFeedbackBean>();
-    		for (TestFeedbackBean feedback:getFeedbacks(getCurrentUserOperation(operation)))
+    		for (TestFeedbackBean feedback:getFeedbacks())
     		{
     			feedbacksSorting.add(feedback);
     		}
@@ -8212,6 +9338,11 @@ public class TestBean implements Serializable
     		});
     	}
 		return feedbacksSorting;
+	}
+    
+	public void setFeedbacksSorting(List<TestFeedbackBean> feedbacksSorting)
+	{
+		this.feedbacksSorting=feedbacksSorting;
 	}
 	
     /**
@@ -8254,7 +9385,7 @@ public class TestBean implements Serializable
      * @param unit Score unit string
      * @return Score unit
      */
-    public ScoreUnit getScoreUnit(Operation operation,String unit)
+    private ScoreUnit getScoreUnit(Operation operation,String unit)
     {
     	return scoreUnitsService.getScoreUnit(getCurrentUserOperation(operation),unit);
     }
@@ -8339,13 +9470,12 @@ public class TestBean implements Serializable
 	/**
 	 * Refresh accordion of the common data tab of the test to display current active tab.<br/><br/>
 	 * Useful to avoid undesired tab changes after updating an accordion.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void refreshActiveGeneralTab(Operation operation,UIComponent component)
+	private void refreshActiveGeneralTab(UIComponent component)
 	{
 		String generalAccordionId=null;
-		if (getTestId(getCurrentUserOperation(operation))>0L)
+		if (getTestId()>0L)
 		{
 			generalAccordionId=":testForm:testFormTabs:generalAccordion";
 		}
@@ -8370,13 +9500,12 @@ public class TestBean implements Serializable
 	/**
 	 * Refresh sections accordion to display current active tab.<br/><br/>
 	 * Useful to avoid undesired tab changes after updating an accordion.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void refreshActiveSection(Operation operation,UIComponent component)
+	private void refreshActiveSection(UIComponent component)
 	{
 		String sectionsAccordionId=null;
-		if (getTestId(getCurrentUserOperation(operation))>0L)
+		if (getTestId()>0L)
 		{
 			sectionsAccordionId=":testForm:testFormTabs:sectionsAccordion";
 		}
@@ -8415,7 +9544,7 @@ public class TestBean implements Serializable
 		String descriptionInputId=null;
 		String assessementInputId=null;
 		String scoreTypeInputId=null;
-		if (getTestId(operation)==0L)
+		if (getTestId()==0L)
 		{
 			nameInputId=":testForm:nameInput";
 			categoryInputId=":testForm:categoryInput";
@@ -8474,15 +9603,14 @@ public class TestBean implements Serializable
 	/**
 	 * Process some input fields (all users allowed, allow admin reports) of the users tab of the accordion within 
 	 * the common data tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processUsersTabCommonDataInputFields(Operation operation,UIComponent component)
+	private void processUsersTabCommonDataInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String allUsersAllowedId=null;
 		String allowAdminReportsId=null;
-		if (getTestId(getCurrentUserOperation(operation))==0L)
+		if (getTestId()==0L)
 		{
 			allUsersAllowedId=":testForm:generalAccordion:allUsersAllowed";
 			allowAdminReportsId=":testForm:generalAccordion:allowAdminReports";
@@ -8509,20 +9637,16 @@ public class TestBean implements Serializable
 	/**
 	 * Process some input fields (start date, close date, warning date, feedback date) of the calendar tab 
 	 * of the accordion within the common data tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processCalendarTabCommonDataInputFields(Operation operation,UIComponent component)
+	private void processCalendarTabCommonDataInputFields(UIComponent component)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
 		FacesContext context=FacesContext.getCurrentInstance();
 		String startDateId=null;
 		String closeDateId=null;
 		String warningDateId=null;
 		String feedbackDateId=null;
-		if (getTestId(operation)==0L)
+		if (getTestId()==0L)
 		{
 			startDateId=":testForm:generalAccordion:startDate";
 			closeDateId=":testForm:generalAccordion:closeDate";
@@ -8537,7 +9661,7 @@ public class TestBean implements Serializable
 			feedbackDateId=":testForm:testFormTabs:generalAccordion:feedbackDate";
 		}
 		DateFormat df=null;
-		if (isRestrictDates(operation))
+		if (isRestrictDates())
 		{
 			UIInput startDate=(UIInput)component.findComponent(startDateId);
 			startDate.processDecodes(context);
@@ -8631,23 +9755,21 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Process some input fields of the sections tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param section Section
 	 */
-	private void processSectionsInputFields(Operation operation,UIComponent component,SectionBean section)
+	private void processSectionsInputFields(UIComponent component,SectionBean section)
 	{
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,new ArrayList<String>(0));
+		processSectionsInputFields(component,section,new ArrayList<String>(0));
 	}
 	
 	/**
 	 * Process some input fields of the sections tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param section Section
 	 * @param exceptions List of identifiers of input fields to be excluded from processing 
 	 */
-	private void processSectionsInputFields(Operation operation,UIComponent component,SectionBean section,
+	private void processSectionsInputFields(UIComponent component,SectionBean section,
 		List<String> exceptions)
 	{
 		// Reset checked property
@@ -8656,7 +9778,7 @@ public class TestBean implements Serializable
 		FacesContext context=FacesContext.getCurrentInstance();
 		if (section!=null)
 		{
-			AccordionPanel sectionsAccordion=getSectionsAccordion(getCurrentUserOperation(operation),component);
+			AccordionPanel sectionsAccordion=getSectionsAccordion(component);
 			if (sectionsAccordion!=null)
 			{
 				// Save current accordion row index and set it to point active tab
@@ -8796,7 +9918,8 @@ public class TestBean implements Serializable
 										random.processDecodes(context);
 										if (random.getSubmittedValue()!=null)
 										{
-											section.setRandom(Boolean.valueOf((String)random.getSubmittedValue()));
+											section.setRandom(
+												Boolean.valueOf((String)random.getSubmittedValue()));
 										}
 									}
 									inputsProcessed++;
@@ -8941,13 +10064,12 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Process some editor input fields within the feedback tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processFeedbackEditorInputFields(Operation operation,UIComponent component)
+	private void processFeedbackEditorInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
-		AccordionPanel feedbackAccordion=getFeedbackAccordion(getCurrentUserOperation(operation),component);
+		AccordionPanel feedbackAccordion=getFeedbackAccordion(component);
 		switch (Integer.parseInt(feedbackAccordion.getActiveIndex()))
 		{
 			case SUMMARY_TAB_FEEDBACK_ACCORDION:
@@ -8982,8 +10104,8 @@ public class TestBean implements Serializable
 				{
 					setFeedbackAdvancedPrevious((String)feedbackAdvancedPreviousInput.getSubmittedValue());
 				}
-				UIInput feedbackAdvancedNextInput=
-					(UIInput)component.findComponent(":testForm:testFormTabs:feedbackAccordion:feedbackAdvancedNext");
+				UIInput feedbackAdvancedNextInput=(UIInput)component.findComponent(
+					":testForm:testFormTabs:feedbackAccordion:feedbackAdvancedNext");
 				feedbackAdvancedNextInput.processDecodes(context);
 				if (feedbackAdvancedNextInput.getSubmittedValue()!=null)
 				{
@@ -8994,15 +10116,14 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Process some input fields of the advanced feedbacks tab of the accordion within the feedback tab of a test.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processAdvancedFeedbacksFeedbackInputFields(Operation operation,UIComponent component)
+	private void processAdvancedFeedbacksFeedbackInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String feedbackAdvancedPreviousId=null;
 		String feedbackAdvancedNextId=null;
-		if (getTestId(getCurrentUserOperation(operation))==0L)
+		if (getTestId()==0L)
 		{
 			feedbackAdvancedPreviousId=":testForm:feedbackAccordion:feedbackAdvancedPrevious";
 			feedbackAdvancedNextId=":testForm:feedbackAccordion:feedbackAdvancedNext";
@@ -9030,28 +10151,31 @@ public class TestBean implements Serializable
 	 * Update text fields of the sections tab of a test.<br/><br/>
 	 * This is needed after some operations because text fields are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateSectionsTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateSectionsTextFields(UIComponent component,int numTabs)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		UIData sectionsAccordion=(UIData)getSectionsAccordion(operation,component);
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIData sectionsAccordion=(UIData)getSectionsAccordion(component);
         UIComponent tab=sectionsAccordion.getChildren().get(0);
 		UIInput sectionNameInput=null;
 		UIInput sectionTitleInput=null;
+		boolean sectionWeightDone=!isSectionsWeightsDisplayed();
+		UIComponent randomPanel=null;
+		UIComponent questionsPanel=null;
 		for (UIComponent sectionTabChild:tab.getChildren())
 		{
 			if (sectionTabChild.getId().equals("randomPanel"))
 			{
-				for (UIComponent randomPanelChild:sectionTabChild.getChildren())
+				randomPanel=sectionTabChild;
+				UIComponent sectionNamesGrid=null;
+				for (UIComponent randomPanelChild:randomPanel.getChildren())
 				{
 					if (randomPanelChild.getId().equals("sectionNamesGrid"))
 					{
-						for (UIComponent sectionNamesGridChild:randomPanelChild.getChildren())
+						sectionNamesGrid=randomPanelChild;
+						for (UIComponent sectionNamesGridChild:sectionNamesGrid.getChildren())
 						{
 							if (sectionNamesGridChild.getId().equals("sectionName"))
 							{
@@ -9059,15 +10183,11 @@ public class TestBean implements Serializable
 								for (int i=0;i<numTabs;i++)
 								{
 									sectionsAccordion.setRowIndex(i);
-									sectionNameInput.pushComponentToEL(FacesContext.getCurrentInstance(),null);
-									sectionNameInput.setSubmittedValue(getSection(operation,i+1).getName());
-									sectionNameInput.popComponentFromEL(FacesContext.getCurrentInstance());
+									sectionNameInput.pushComponentToEL(context,null);
+									sectionNameInput.setSubmittedValue(getSection(i+1).getName());
+									sectionNameInput.popComponentFromEL(context);
 								}
 								sectionsAccordion.setRowIndex(-1);
-								if (sectionTitleInput!=null)
-								{
-									break;
-								}
 							}
 							else if (sectionNamesGridChild.getId().equals("sectionTitle"))
 							{
@@ -9075,30 +10195,110 @@ public class TestBean implements Serializable
 								for (int i=0;i<numTabs;i++)
 								{
 									sectionsAccordion.setRowIndex(i);
-									sectionTitleInput.pushComponentToEL(FacesContext.getCurrentInstance(),null);
-									sectionTitleInput.setSubmittedValue(getSection(operation,i+1).getTitle());
-									sectionTitleInput.popComponentFromEL(FacesContext.getCurrentInstance());
+									sectionTitleInput.pushComponentToEL(context,null);
+									sectionTitleInput.setSubmittedValue(getSection(i+1).getTitle());
+									sectionTitleInput.popComponentFromEL(context);
 								}
 								sectionsAccordion.setRowIndex(-1);
-								if (sectionTitleInput!=null)
+							}
+							else if (!sectionWeightDone && sectionNamesGridChild.getId().equals("sectionWeight"))
+							{
+								UIInput sectionWeightInput=(UIInput)sectionNamesGridChild;
+								for (int i=0;i<numTabs;i++)
 								{
-									break;
+									sectionsAccordion.setRowIndex(i);
+									sectionWeightInput.pushComponentToEL(context,null);
+									sectionWeightInput.setSubmittedValue(Integer.toString(getSection(i+1).getWeight()));
+									sectionWeightInput.popComponentFromEL(context);
 								}
+								sectionsAccordion.setRowIndex(-1);
+								sectionWeightDone=true;
+							}
+							if (sectionNameInput!=null && sectionTitleInput!=null && sectionWeightDone)
+							{
+								break;
 							}
 						}
+						if (sectionNamesGrid!=null)
+						{
+							break;
+						}
+					}
+				}
+			}
+			else if (sectionTabChild.getId().equals("questionsPanel"))
+			{
+				questionsPanel=sectionTabChild;
+				UIData questionsSection=null;
+				for (UIComponent questionsPanelChild:sectionTabChild.getChildren())
+				{
+					if (questionsPanelChild.getId().equals("questionsSection"))
+					{
+						questionsSection=(UIData)questionsPanelChild;
 						break;
 					}
 				}
-				break;
+				if (questionsSection!=null)
+				{
+					Column columnWeight=null;
+					for (UIComponent questionsSectionChild:questionsSection.getChildren())
+					{
+						if (questionsSectionChild instanceof Column && 
+							((Column)questionsSectionChild).getStyleClass().equals("columnWeight"))
+						{
+							columnWeight=(Column)questionsSectionChild;
+							break;
+						}
+					}
+					if (columnWeight!=null)
+					{
+						UIInput questionOrderWeight=null;
+						for (UIComponent columnWeightChild:columnWeight.getChildren())
+						{
+							if (columnWeightChild.getId().equals("questionOrderWeight"))
+							{
+								questionOrderWeight=(UIInput)columnWeightChild;
+								for (int i=0;i<numTabs;i++)
+								{
+									sectionsAccordion.setRowIndex(i);
+									
+									// Save current datatable row index
+									int currentDatatableRowIndex=questionsSection.getRowIndex();
+									
+									// We need to update all question weights (all rows)
+									for (int j=0;j<questionsSection.getRowCount();j++)
+									{
+										questionsSection.setRowIndex(j);
+										QuestionOrderBean questionOrder=
+											(QuestionOrderBean)questionsSection.getRowData();
+										questionOrderWeight.pushComponentToEL(context,null);
+										questionOrderWeight.setSubmittedValue(
+											Integer.toString(questionOrder.getWeight()));
+										questionOrderWeight.popComponentFromEL(context);
+									}
+									
+									// Set back datatable row index
+									questionsSection.setRowIndex(currentDatatableRowIndex);
+									
+									sectionsAccordion.setRowIndex(-1);
+								}
+							}
+							if (questionOrderWeight!=null)
+							{
+								break;
+							}
+						}
+					}
+				}
 			}
-			if (sectionNameInput!=null && sectionTitleInput!=null)
+			if (randomPanel!=null && questionsPanel!=null)
 			{
 				break;
 			}
 		}
 	}
 	
-	private void processSectionWeight(Operation operation,UIComponent component,SectionBean section)
+	private void processSectionWeight(UIComponent component,SectionBean section)
 	{
 		List<String> exceptions=new ArrayList<String>();
 		exceptions.add("sectionName");
@@ -9107,10 +10307,10 @@ public class TestBean implements Serializable
 		exceptions.add("random");
 		exceptions.add("randomQuantity");
 		exceptions.add("questionOrderWeight");
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,exceptions);
+		processSectionsInputFields(component,section,exceptions);
 	}
 	
-	private void processSectionRandomQuantity(Operation operation,UIComponent component,SectionBean section)
+	private void processSectionRandomQuantity(UIComponent component,SectionBean section)
 	{
 		List<String> exceptions=new ArrayList<String>();
 		exceptions.add("sectionName");
@@ -9119,10 +10319,10 @@ public class TestBean implements Serializable
 		exceptions.add("shuffle");
 		exceptions.add("random");
 		exceptions.add("questionOrderWeight");
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,exceptions);
+		processSectionsInputFields(component,section,exceptions);
 	}
 	
-	private void processQuestionOrderWeights(Operation operation,UIComponent component,SectionBean section)
+	private void processQuestionOrderWeights(UIComponent component,SectionBean section)
 	{
 		List<String> exceptions=new ArrayList<String>();
 		exceptions.add("sectionName");
@@ -9131,14 +10331,14 @@ public class TestBean implements Serializable
 		exceptions.add("shuffle");
 		exceptions.add("random");
 		exceptions.add("randomQuantity");
-		processSectionsInputFields(getCurrentUserOperation(operation),component,section,exceptions);
+		processSectionsInputFields(component,section,exceptions);
 	}
 	
-	private void updateSectionRandomQuantity(Operation operation,UIComponent component,SectionBean section)
+	private void updateSectionRandomQuantity(UIComponent component,SectionBean section)
 	{
 		if (section!=null)
 		{
-			UIData sectionsAccordion=(UIData)getSectionsAccordion(getCurrentUserOperation(operation),component);
+			UIData sectionsAccordion=(UIData)getSectionsAccordion(component);
 			int currentAccordionRowIndex=sectionsAccordion.getRowIndex();
 			sectionsAccordion.setRowIndex(section.getOrder()-1);
 	        UIComponent tab=sectionsAccordion.getChildren().get(0);
@@ -9175,12 +10375,12 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private void updateSectionWeights(Operation operation,UIComponent component,SectionBean section,
-		boolean updateSectionWeight,boolean updateQuestionOrderWeights)
+	private void updateSectionWeights(UIComponent component,SectionBean section,boolean updateSectionWeight,
+		boolean updateQuestionOrderWeights)
 	{
 		if (section!=null)
 		{
-			UIData sectionsAccordion=(UIData)getSectionsAccordion(getCurrentUserOperation(operation),component);
+			UIData sectionsAccordion=(UIData)getSectionsAccordion(component);
 			int currentAccordionRowIndex=sectionsAccordion.getRowIndex();
 			sectionsAccordion.setRowIndex(section.getOrder()-1);
 	        UIComponent tab=sectionsAccordion.getChildren().get(0);
@@ -9254,19 +10454,19 @@ public class TestBean implements Serializable
 		}
 	}
 	
-	private void updateSectionWeights(Operation operation,UIComponent component,SectionBean section)
+	private void updateSectionWeights(UIComponent component,SectionBean section)
 	{
-		updateSectionWeights(getCurrentUserOperation(operation),component,section,true,true);
+		updateSectionWeights(component,section,true,true);
 	}
 	
-	private void updateSectionWeight(Operation operation,UIComponent component,SectionBean section)
+	private void updateSectionWeight(UIComponent component,SectionBean section)
 	{
-		updateSectionWeights(getCurrentUserOperation(operation),component,section,true,false);
+		updateSectionWeights(component,section,true,false);
 	}
 	
-	private void updateQuestionOrderWeights(Operation operation,UIComponent component,SectionBean section)
+	private void updateQuestionOrderWeights(UIComponent component,SectionBean section)
 	{
-		updateSectionWeights(getCurrentUserOperation(operation),component,section,false,true);
+		updateSectionWeights(component,section,false,true);
 	}
 	
 	/**
@@ -9330,11 +10530,8 @@ public class TestBean implements Serializable
 	{
 		if (userGroupsDualList==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			List<String> availableUserGroups=usersService.getGroups(operation);
-			for (UserGroupBean userGroup:getTestUsersGroups(operation))
+			List<String> availableUserGroups=usersService.getGroups(getCurrentUserOperation(operation));
+			for (UserGroupBean userGroup:getTestUsersGroups())
 			{
 				if (!userGroup.isTestUser())
 				{
@@ -9357,7 +10554,7 @@ public class TestBean implements Serializable
 		
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
 		
 		setUserGroupsDualList(null);
 		setUserGroup("");
@@ -9399,7 +10596,7 @@ public class TestBean implements Serializable
 		refreshUserGroupsDualList(operation,event.getComponent());
     	
 		// Add selected groups
-		List<UserGroupBean> testUsersGroups=getTestUsersGroups(operation);
+		List<UserGroupBean> testUsersGroups=getTestUsersGroups();
    		for (String userGroup:getUserGroupsDualList(operation).getTarget())
   		{
   			testUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
@@ -9434,7 +10631,7 @@ public class TestBean implements Serializable
 		
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
    		
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("addUsersDialog.show()");
@@ -9446,7 +10643,8 @@ public class TestBean implements Serializable
      */
     public void acceptAddUsers(ActionEvent event)
     {
-   		for (User user:usersDualList.getTarget())
+    	List<UserGroupBean> testUsersGroups=getTestUsersGroups();
+   		for (User user:getUsersDualList().getTarget())
   		{
    			testUsersGroups.add(new UserGroupBean(user));
    		}
@@ -9463,9 +10661,9 @@ public class TestBean implements Serializable
     	
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
 		
-		testUsersGroups.remove((UserGroupBean)event.getComponent().getAttributes().get("userGroup"));
+		getTestUsersGroups().remove((UserGroupBean)event.getComponent().getAttributes().get("userGroup"));
 	}
     
 	private void refreshUserGroupsDualList(Operation operation,UIComponent component)
@@ -9641,7 +10839,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				for (UserGroupBean userGroup:getTestUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -9674,7 +10872,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				for (UserGroupBean userGroup:getTestUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -9757,11 +10955,8 @@ public class TestBean implements Serializable
 	{
 		if (adminGroupsDualList==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			List<String> availableAdminGroups=usersService.getGroups(operation);
-			for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+			List<String> availableAdminGroups=usersService.getGroups(getCurrentUserOperation(operation));
+			for (UserGroupBean adminGroup:getTestAdminsGroups())
 			{
 				if (!adminGroup.isTestUser())
 				{
@@ -9784,7 +10979,7 @@ public class TestBean implements Serializable
 		
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
 		
 		setAdminGroupsDualList(null);
 		setAdminGroup("");
@@ -9826,7 +11021,7 @@ public class TestBean implements Serializable
 		refreshAdminGroupsDualList(operation,event.getComponent());
     	
 		// Add selected groups
-		List<UserGroupBean> testAdminsGroups=getTestAdminsGroups(operation);
+		List<UserGroupBean> testAdminsGroups=getTestAdminsGroups();
    		for (String adminGroup:getAdminGroupsDualList(operation).getTarget())
   		{
   			testAdminsGroups.add(new UserGroupBean(usersService,userSessionService,adminGroup));
@@ -9854,14 +11049,14 @@ public class TestBean implements Serializable
 	 */
 	public void showAddAdmins(ActionEvent event)
 	{
-   		adminsDualList=null;
+		setAdminsDualList(null);
    		
    		// Get current user session Hibernate operation
    		Operation operation=getCurrentUserOperation(null);
    		
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
    		
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("addAdminsDialog.show()");
@@ -9873,7 +11068,8 @@ public class TestBean implements Serializable
      */
     public void acceptAddAdmins(ActionEvent event)
     {
-   		for (User admin:adminsDualList.getTarget())
+    	List<UserGroupBean> testAdminsGroups=getTestAdminsGroups();
+   		for (User admin:getAdminsDualList().getTarget())
   		{
    			testAdminsGroups.add(new UserGroupBean(admin));
    		}
@@ -9890,9 +11086,9 @@ public class TestBean implements Serializable
     	
 		// We need to process some input fields
 		processCommonDataInputFields(operation,event.getComponent());
-		processUsersTabCommonDataInputFields(operation,event.getComponent());
+		processUsersTabCommonDataInputFields(event.getComponent());
     	
-    	testAdminsGroups.remove((UserGroupBean)event.getComponent().getAttributes().get("adminGroup"));
+    	getTestAdminsGroups().remove((UserGroupBean)event.getComponent().getAttributes().get("adminGroup"));
 	}
     
 	private void refreshAdminGroupsDualList(Operation operation,UIComponent component)
@@ -9996,7 +11192,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
 				{
 					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
 					{
@@ -10029,7 +11225,7 @@ public class TestBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
 				{
 					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
 					{
@@ -10063,7 +11259,7 @@ public class TestBean implements Serializable
     	// We need to update manually 'startDateHidden' hidden input field
     	FacesContext context=FacesContext.getCurrentInstance();
     	String startDateHiddenId=null;
-    	if (getTestId(getCurrentUserOperation(null))>0L)
+    	if (getTestId()>0L)
     	{
     		startDateHiddenId=":testForm:testFormTabs:generalAccordion:startDateHidden";
     	}
@@ -10089,7 +11285,7 @@ public class TestBean implements Serializable
     	// We need to update manually 'closeDateHidden' hidden input field
     	FacesContext context=FacesContext.getCurrentInstance();
     	String closeDateHiddenId=null;
-    	if (getTestId(getCurrentUserOperation(null))>0L)
+    	if (getTestId()>0L)
     	{
     		closeDateHiddenId=":testForm:testFormTabs:generalAccordion:closeDateHidden";
     	}
@@ -10115,7 +11311,7 @@ public class TestBean implements Serializable
     	// We need to update manually 'warningDateHidden' hidden input field
     	FacesContext context=FacesContext.getCurrentInstance();
     	String warningDateHiddenId=null;
-    	if (getTestId(getCurrentUserOperation(null))>0L)
+    	if (getTestId()>0L)
     	{
     		warningDateHiddenId=":testForm:testFormTabs:generalAccordion:warningDateHidden";
     	}
@@ -10141,7 +11337,7 @@ public class TestBean implements Serializable
     	// We need to update manually 'feedbackDateHidden' hidden input field
     	FacesContext context=FacesContext.getCurrentInstance();
     	String feedbackDateHiddenId=null;
-    	if (getTestId(getCurrentUserOperation(null))>0L)
+    	if (getTestId()>0L)
     	{
     		feedbackDateHiddenId=":testForm:testFormTabs:generalAccordion:feedbackDateHidden";
     	}
@@ -10191,11 +11387,16 @@ public class TestBean implements Serializable
 			setSupportContactFilterSubtype("");
 	   		getTestSupportContactFilterUsers().clear();
 	   		setFilteredUsersForAddingSupportContactFilterUsers(null);
+			groupUsersMap=null;
 	   		setSupportContactFilterUsersDualList(null);
 	   		setFilterSupportContactRangeNameLowerLimit("A");
 	   		setFilterSupportContactRangeNameUpperLimit("Z");
 	   		setFilterSupportContactRangeSurnameLowerLimit("A");
 	   		setFilterSupportContactRangeSurnameUpperLimit("Z");
+	   		setSupportContactGroup("");
+	   		setAvailableSupportContactFilterGroups(null);	   		
+	   		getTestSupportContactFilterGroups().clear();
+	   		setSupportContactFilterGroupsDualList(null);
 	   		setSupportContact("");
 	   		setSupportContactDialogDisplayed(true);
 			
@@ -10232,6 +11433,7 @@ public class TestBean implements Serializable
 			setCurrentSupportContact(new SupportContactBean(this,supportContact.getSupportContact(),
 				supportContact.getFilterType(),supportContact.getFilterSubtype(),supportContact.getFilterValue()));
 			getCurrentSupportContact().setId(supportContact.getId());
+			
 			String filterType=getCurrentSupportContact().getFilterType();
 			String filterSubtype=getCurrentSupportContact().getFilterSubtype();
 			String filterValue=getCurrentSupportContact().getFilterValue();
@@ -10240,17 +11442,22 @@ public class TestBean implements Serializable
 			setSupportContactFilterSubtypes(null);
 	   		getTestSupportContactFilterUsers().clear();
 	   		setFilteredUsersForAddingSupportContactFilterUsers(null);
+			groupUsersMap=null;
 	   		setSupportContactFilterUsersDualList(null);
 	   		setFilterSupportContactRangeNameLowerLimit("A");
 	   		setFilterSupportContactRangeNameUpperLimit("Z");
 	   		setFilterSupportContactRangeSurnameLowerLimit("A");
 	   		setFilterSupportContactRangeSurnameUpperLimit("Z");
+	   		setSupportContactGroup("");
+	   		setAvailableSupportContactFilterGroups(null);	   		
+		   	getTestSupportContactFilterGroups().clear();
+		   	setSupportContactFilterGroupsDualList(null);
 	   		if (filterValue!=null && !"".equals(filterValue) && "USER_FILTER".equals(filterType))
 	   		{
 	   			if ("USERS_SELECTION".equals(filterSubtype))
 	   			{
 	   				List<String> checkedOUCUs=new ArrayList<String>();
-	   				for (String sOUCU:filterValue.split(","))
+	   				for (String sOUCU:filterValue.split(Pattern.quote(",")))
 	   				{
 	   					if (!checkedOUCUs.contains(sOUCU))
 	   					{
@@ -10296,6 +11503,16 @@ public class TestBean implements Serializable
 	   				}
 	   			}
 	   		}
+		   	else if (filterValue!=null && !"".equals(filterValue) && "GROUP_FILTER".equals(filterType))
+		   	{
+	   			for (String authId:filterValue.split(Pattern.quote(",")))
+	   			{
+	   				if (!getTestSupportContactFilterGroups().contains(authId))
+	   				{
+	   					getTestSupportContactFilterGroups().add(authId);
+	   				}
+	   			}
+		   	}
 	   		setSupportContact(getCurrentSupportContact().getSupportContact());
 	   		setSupportContactDialogDisplayed(true);
 	   		
@@ -10312,6 +11529,25 @@ public class TestBean implements Serializable
 		}
 	}
     
+    /**
+     * Adds a group as filter for a support contact.
+     * @param event Action event
+     */
+	public void addSupportContactGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add/Edit tech support addresses" dialog
+		refreshSupportContactFilterGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddSupportContactGroup(operation,true))
+		{
+			getSupportContactFilterGroupsDualList(operation).getTarget().add(getSupportContactGroup());
+		}
+	}
+	
     /**
      * Adds a support contact.
      * @param event Action event
@@ -10358,17 +11594,29 @@ public class TestBean implements Serializable
 					filterValue.append(getFilterSupportContactRangeSurnameUpperLimit());
 				}
 			}
+			else if ("GROUP_FILTER".equals(filterType))
+			{
+				refreshSupportContactFilterGroupsDualList(operation,event.getComponent());
+				for (String supportedGroup:getTestSupportContactFilterGroups())
+				{
+					if (filterValue.length()>0)
+					{
+						filterValue.append(',');
+					}
+					filterValue.append(supportedGroup);
+				}
+			}
 			SupportContactBean currentSupportContact=getCurrentSupportContact();
 			if (currentSupportContact==null)
 			{
 				// Add a new support contact
-				getSupportContacts(operation).add(
-					new SupportContactBean(this,getSupportContact(),filterType,filterSubtype,filterValue.toString()));
+				getSupportContacts().add(new SupportContactBean(
+					this,getSupportContact(),filterType,filterSubtype,filterValue.toString()));
 			}
 			else
 			{
 				SupportContactBean supportContact=null;
-				for (SupportContactBean s:getSupportContacts(operation))
+				for (SupportContactBean s:getSupportContacts())
 				{
 					if (currentSupportContact.equals(s))
 					{
@@ -10414,7 +11662,7 @@ public class TestBean implements Serializable
 		// Check common data input fields
 		if (checkCommonDataInputFields(operation))
 		{
-			getSupportContacts(operation).remove(event.getComponent().getAttributes().get("supportContact"));
+			getSupportContacts().remove(event.getComponent().getAttributes().get("supportContact"));
 		}
 		else
 		{
@@ -10423,6 +11671,81 @@ public class TestBean implements Serializable
 		}
 	}
     
+	/**
+	 * @return true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup()
+	{
+		return isEnabledAddSupportContactGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(Operation operation)
+	{
+		return isEnabledAddSupportContactGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(boolean displayErrors)
+	{
+		return isEnabledAddSupportContactGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return  true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getSupportContactGroup()==null || getSupportContactGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getSupportContactGroup(),true))
+			{
+				DualListModel<String> supportContactFilterGroupsDualList=
+					getSupportContactFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (supportContactFilterGroupsDualList.getSource().contains(getSupportContactGroup()) || 
+					supportContactFilterGroupsDualList.getTarget().contains(getSupportContactGroup()))
+				{
+					addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+					ok=false;
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getSupportContactGroup()!=null && !getSupportContactGroup().equals("") && 
+				checkUserGroup(getSupportContactGroup(),false);
+			if (ok)
+			{
+				DualListModel<String> supportContactFilterGroupsDualList=
+					getSupportContactFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (supportContactFilterGroupsDualList.getSource().contains(getSupportContactGroup()) || 
+					supportContactFilterGroupsDualList.getTarget().contains(getSupportContactGroup()))
+				{
+					ok=false;
+				}
+			}
+		}
+		return ok;
+	}
+	
 	/**
 	 * Check that the support contact is a valid email address, displaying an error message otherwise.
 	 * @return true if the support contact is a valid email address, false otherwise
@@ -10509,14 +11832,19 @@ public class TestBean implements Serializable
 			setEvaluatorFilterSubtype("");
 	   		getTestEvaluatorFilterUsers().clear();
 	   		setFilteredUsersForAddingEvaluatorFilterUsers(null);
+			groupUsersMap=null;
 	   		setEvaluatorFilterUsersDualList(null);
 	   		setFilterEvaluatorRangeNameLowerLimit("A");
 	   		setFilterEvaluatorRangeNameUpperLimit("Z");
 	   		setFilterEvaluatorRangeSurnameLowerLimit("A");
 	   		setFilterEvaluatorRangeSurnameUpperLimit("Z");
+	   		setEvaluatorGroup("");
+	   		setAvailableEvaluatorFilterGroups(null);	   		
+	   		getTestEvaluatorFilterGroups().clear();
+	   		setEvaluatorFilterGroupsDualList(null);
 	   		setEvaluator("");
 	   		setEvaluatorDialogDisplayed(true);
-			
+	   		
 			RequestContext rq=RequestContext.getCurrentInstance();
 			rq.execute("addAssessementAddressDialog.show()");
 		}
@@ -10558,17 +11886,22 @@ public class TestBean implements Serializable
 			setEvaluatorFilterSubtypes(null);
 		   	getTestEvaluatorFilterUsers().clear();
 		   	setFilteredUsersForAddingEvaluatorFilterUsers(null);
+			groupUsersMap=null;
 		   	setEvaluatorFilterUsersDualList(null);
 		   	setFilterEvaluatorRangeNameLowerLimit("A");
 		   	setFilterEvaluatorRangeNameUpperLimit("Z");
 		   	setFilterEvaluatorRangeSurnameLowerLimit("A");
 		   	setFilterEvaluatorRangeSurnameUpperLimit("Z");
+	   		setEvaluatorGroup("");
+	   		setAvailableEvaluatorFilterGroups(null);	   		
+		   	getTestEvaluatorFilterGroups().clear();
+		   	setEvaluatorFilterGroupsDualList(null);
 		   	if (filterValue!=null && !"".equals(filterValue) && "USER_FILTER".equals(filterType))
 		   	{
 		   		if ("USERS_SELECTION".equals(filterSubtype))
 		   		{
 		   			List<String> checkedOUCUs=new ArrayList<String>();
-		   			for (String sOUCU:filterValue.split(","))
+		   			for (String sOUCU:filterValue.split(Pattern.quote(",")))
 		   			{
 		   				if (!checkedOUCUs.contains(sOUCU))
 		   				{
@@ -10614,6 +11947,16 @@ public class TestBean implements Serializable
 		   			}
 		   		}
 		   	}
+		   	else if (filterValue!=null && !"".equals(filterValue) && "GROUP_FILTER".equals(filterType))
+		   	{
+	   			for (String authId:filterValue.split(Pattern.quote(",")))
+	   			{
+	   				if (!getTestEvaluatorFilterGroups().contains(authId))
+	   				{
+	   					getTestEvaluatorFilterGroups().add(authId);
+	   				}
+	   			}
+		   	}
 	 		setEvaluator(getCurrentEvaluator().getEvaluator());
 	   		setEvaluatorDialogDisplayed(true);
 	  		
@@ -10627,6 +11970,25 @@ public class TestBean implements Serializable
 		{
 			// Scroll page to top position
 			scrollToTop();
+		}
+	}
+	
+    /**
+     * Adds a group as filter for an evaluator.
+     * @param event Action event
+     */
+	public void addEvaluatorGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add/Edit assessement addresses" dialog
+		refreshEvaluatorFilterGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddEvaluatorGroup(operation,true))
+		{
+			getEvaluatorFilterGroupsDualList(operation).getTarget().add(getEvaluatorGroup());
 		}
 	}
 	
@@ -10676,17 +12038,29 @@ public class TestBean implements Serializable
 					filterValue.append(getFilterEvaluatorRangeSurnameUpperLimit());
 				}
 			}
+			else if ("GROUP_FILTER".equals(filterType))
+			{
+				refreshEvaluatorFilterGroupsDualList(operation,event.getComponent());
+				for (String assessedGroup:getTestEvaluatorFilterGroups())
+				{
+					if (filterValue.length()>0)
+					{
+						filterValue.append(',');
+					}
+					filterValue.append(assessedGroup);
+				}
+			}
 			EvaluatorBean currentEvaluator=getCurrentEvaluator();
 			if (currentEvaluator==null)
 			{
 				// Add a new evaluator
-				getEvaluators(operation).add(
+				getEvaluators().add(
 					new EvaluatorBean(this,getEvaluator(),filterType,filterSubtype,filterValue.toString()));
 			}
 			else
 			{
 				EvaluatorBean evaluator=null;
-				for (EvaluatorBean e:getEvaluators(operation))
+				for (EvaluatorBean e:getEvaluators())
 				{
 					if (currentEvaluator.equals(e))
 					{
@@ -10733,13 +12107,88 @@ public class TestBean implements Serializable
 		// Check common data input fields
 		if (checkCommonDataInputFields(operation))
 		{
-			getEvaluators(operation).remove(event.getComponent().getAttributes().get("evaluator"));
+			getEvaluators().remove(event.getComponent().getAttributes().get("evaluator"));
 		}
 		else
 		{
 			// Scroll page to top position
 			scrollToTop();
 		}
+	}
+	
+	/**
+	 * @return true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup()
+	{
+		return isEnabledAddEvaluatorGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(Operation operation)
+	{
+		return isEnabledAddEvaluatorGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(boolean displayErrors)
+	{
+		return isEnabledAddEvaluatorGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return  true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getEvaluatorGroup()==null || getEvaluatorGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getEvaluatorGroup(),true))
+			{
+				DualListModel<String> evaluatorFilterGroupsDualList=
+					getEvaluatorFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (evaluatorFilterGroupsDualList.getSource().contains(getEvaluatorGroup()) || 
+					evaluatorFilterGroupsDualList.getTarget().contains(getEvaluatorGroup()))
+				{
+					addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+					ok=false;
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getEvaluatorGroup()!=null && !getEvaluatorGroup().equals("") && 
+				checkUserGroup(getEvaluatorGroup(),false);
+			if (ok)
+			{
+				DualListModel<String> evaluatorFilterGroupsDualList=
+					getEvaluatorFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (evaluatorFilterGroupsDualList.getSource().contains(getEvaluatorGroup()) || 
+					evaluatorFilterGroupsDualList.getTarget().contains(getEvaluatorGroup()))
+				{
+					ok=false;
+				}
+			}
+		}
+		return ok;
 	}
 	
 	/**
@@ -10815,21 +12264,21 @@ public class TestBean implements Serializable
     	String property=getPropertyChecked();
     	if (property==null)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		// Get section
-        	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
-        	SectionBean section=getSectionFromSectionsAccordion(operation,sectionsAccordion);
+        	AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
+        	SectionBean section=getSectionFromSectionsAccordion(sectionsAccordion);
     		
     		// We need to process some input fields
-    		processSectionsInputFields(operation,event.getComponent(),section);
+    		processSectionsInputFields(event.getComponent(),section);
     		
     		// Set back accordion row index -1
     		sectionsAccordion.setRowIndex(-1);
     		
     		if (section!=null)
     		{
+    			// We need to update questions of this section
+				updateSectionQuestions(section);
+    			
     			// Check that current section name entered by user is valid
     			if (checkSectionName(section.getName()))
     			{
@@ -10843,18 +12292,21 @@ public class TestBean implements Serializable
     			}
     			else
     			{
-    				// Restore old section name
-    				section.setName(activeSectionName);
-    				
     				// Scroll page to top position
     				scrollToTop();
+    				
+    				// We need to update sections text fields
+    				updateSectionsTextFields(event.getComponent(),getSectionsSize());
+    				
+    				// Restore old section name
+    				section.setName(activeSectionName);
     			}
     		}
     	}
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process weight
-    		processSectionWeight(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionWeight(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another in process and we don't want to 
     		// interfere with it
@@ -10863,7 +12315,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another in process and we don't want to 
     		// interfere with it
@@ -10872,7 +12324,7 @@ public class TestBean implements Serializable
     	else if ("questionOrderWeight".equals(property))
     	{
     		// We need to process question orders weights
-    		processQuestionOrderWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processQuestionOrderWeights(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process and we don't want to 
     		// interfere with it
@@ -10896,12 +12348,26 @@ public class TestBean implements Serializable
 			}
 			getCurrentSection().setQuestionOrders(questionOrdersSorting);
 			
-			//We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
-			// We need to update sections text fields
-			updateSectionsTextFields(operation,event.getComponent(),getSectionsSize(operation));
+			// We need update questions of current section
+			updateSectionQuestions(getCurrentSection());
 		}
+		
+		// We need to update sections text fields
+		updateSectionsTextFields(event.getComponent(),getSectionsSize());
+	}
+	
+	/**
+	 * Action listener for updating questions information if we cancel the changes within the dialog for 
+	 * re-sorting questions of a section. 
+	 * @param event Action event
+	 */
+	public void cancelReSortQuestions(ActionEvent event)
+	{
+		// We need update questions of current section
+		updateSectionQuestions(getActiveSection(event.getComponent()));
+		
+		// We need to update sections text fields
+		updateSectionsTextFields(event.getComponent(),getSectionsSize());
 	}
 	
 	/**
@@ -10914,14 +12380,13 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param order Order
 	 * @return Section with order received or null if there is no section with that order
 	 */
-	private SectionBean getSection(Operation operation,int order)
+	private SectionBean getSection(int order)
 	{
 		SectionBean section=null;
-		for (SectionBean s:getSections(getCurrentUserOperation(operation)))
+		for (SectionBean s:getSections())
 		{
 			if (s.getOrder()==order)
 			{
@@ -10933,14 +12398,13 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Sections accordion
 	 */
-	private AccordionPanel getSectionsAccordion(Operation operation,UIComponent component)
+	private AccordionPanel getSectionsAccordion(UIComponent component)
 	{
 		String sectionsAccordionId=null;
-		if (getTestId(getCurrentUserOperation(operation))==0L)
+		if (getTestId()==0L)
 		{
 			sectionsAccordionId=":testForm:sectionsAccordion";
 		}
@@ -10952,19 +12416,27 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param sectionsAccordion Sections accordion component
 	 * @return Section associated with the active tab on the sections accordion
 	 */
-	private SectionBean getSectionFromSectionsAccordion(Operation operation,AccordionPanel sectionsAccordion)
+	private SectionBean getSectionFromSectionsAccordion(AccordionPanel sectionsAccordion)
 	{
 		SectionBean section=null;
 		if (sectionsAccordion!=null)
 		{
-			section=getSection(getCurrentUserOperation(operation),activeSectionIndex+1);
+			section=getSection(activeSectionIndex+1);
 			sectionsAccordion.setRowIndex(activeSectionIndex);
 		}
 		return section;
+	}
+	
+	/**
+	 * @param component Component that triggered the listener that called this method
+	 * @return Active section
+	 */
+	private SectionBean getActiveSection(UIComponent component)
+	{
+		return getSectionFromSectionsAccordion(getSectionsAccordion(component));
 	}
 	
 	/**
@@ -10976,15 +12448,15 @@ public class TestBean implements Serializable
     	String property=getPropertyChecked();
     	if (property==null)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		// Get section to process if any
-        	AccordionPanel sectionsAccordion=getSectionsAccordion(operation,event.getComponent());
-        	SectionBean section=getSectionFromSectionsAccordion(operation,sectionsAccordion);
+        	AccordionPanel sectionsAccordion=getSectionsAccordion(event.getComponent());
+        	SectionBean section=getSectionFromSectionsAccordion(sectionsAccordion);
     		
     		// We need to process some input fields
-    		processSectionsInputFields(operation,event.getComponent(),section);
+    		processSectionsInputFields(event.getComponent(),section);
+    		
+			// We need to update all questions
+    		updateQuestions(true);
     		
     		// Set back accordion row index -1
     		sectionsAccordion.setRowIndex(-1);
@@ -10994,23 +12466,26 @@ public class TestBean implements Serializable
 			{
 				activeSectionName=section.getName();
 				
-	    		sectionsSorting=null;
+				setSectionsSorting(null);
 	    		RequestContext rq=RequestContext.getCurrentInstance();
 	    		rq.execute("resortSectionsDialog.show()");
 			}
 			else
 			{
-				// Restore old section name
-				getCurrentSection().setName(activeSectionName);
+				// We need to update sections text fields
+				updateSectionsTextFields(event.getComponent(),getSectionsSize());
 				
 				// Scroll page to top position
 				scrollToTop();
+				
+				// Restore old section name
+				getCurrentSection().setName(activeSectionName);
 			}
     	}
     	else if ("sectionWeight".equals(property))
     	{
 			// We need to process weight
-    		processSectionWeight(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionWeight(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another in process and we don't want to 
     		// interfere with it
@@ -11019,7 +12494,7 @@ public class TestBean implements Serializable
     	else if ("randomQuantity".equals(property))
     	{
 			// We need to process random quantity
-    		processSectionRandomQuantity(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processSectionRandomQuantity(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another in process and we don't want to 
     		// interfere with it
@@ -11028,7 +12503,7 @@ public class TestBean implements Serializable
     	else if ("questionOrderWeight".equals(property))
     	{
     		// We need to process question orders weights
-    		processQuestionOrderWeights(getCurrentUserOperation(null),event.getComponent(),sectionChecked);
+    		processQuestionOrderWeights(event.getComponent(),sectionChecked);
     		
     		// We need to stop this response because there is another one in process and we don't want to 
     		// interfere with it
@@ -11042,10 +12517,7 @@ public class TestBean implements Serializable
      */
 	public void acceptReSortSections(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
-		List<SectionBean> sectionsSorting=getSectionsSorting(operation);
+		List<SectionBean> sectionsSorting=getSectionsSorting();
 		for (int sectionPos=1;sectionPos<=sectionsSorting.size();sectionPos++)
 		{
 			SectionBean section=sectionsSorting.get(sectionPos-1);
@@ -11053,8 +12525,25 @@ public class TestBean implements Serializable
 		}
 		setSections(sectionsSorting);
 		
+		// We need update questions of current section
+		updateSectionQuestions(getActiveSection(event.getComponent()));
+		
 		// We need to update sections text fields
-		updateSectionsTextFields(operation,event.getComponent(),sectionsSorting.size());
+		updateSectionsTextFields(event.getComponent(),sectionsSorting.size());
+	}
+	
+	/**
+	 * Action listener for updating questions information if we cancel the changes within the dialog for 
+	 * re-sorting sections. 
+	 * @param event Action event
+	 */
+	public void cancelReSortSections(ActionEvent event)
+	{
+		// We need update questions of current section
+		updateSectionQuestions(getActiveSection(event.getComponent()));
+		
+		// We need to update sections text fields
+		updateSectionsTextFields(event.getComponent(),getSectionsSize());
 	}
 	
 	/**
@@ -11062,27 +12551,17 @@ public class TestBean implements Serializable
 	 */
 	public boolean isEnabledReSortSections()
 	{
-		return isEnabledReSortSections(null);
+		return getSectionsSize()>1;
 	}
 	
 	/**
-	 * @param operation Operation
-	 * @return true if button to re-sort sections is enabled, false if it is disabled
-	 */
-	private boolean isEnabledReSortSections(Operation operation)
-	{
-		return getSectionsSize(getCurrentUserOperation(operation))>1;
-	}
-	
-	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Feedback accordion
 	 */
-	private AccordionPanel getFeedbackAccordion(Operation operation,UIComponent component)
+	private AccordionPanel getFeedbackAccordion(UIComponent component)
 	{
 		String feedbackAccordionId=null;
-		if (getTestId(getCurrentUserOperation(operation))==0L)
+		if (getTestId()==0L)
 		{
 			feedbackAccordionId=":testForm:feedbackAccordion";
 		}
@@ -11100,9 +12579,11 @@ public class TestBean implements Serializable
 	public void showReSortFeedbacks(ActionEvent event)
 	{
 		// We need to process some input fields
-		processAdvancedFeedbacksFeedbackInputFields(getCurrentUserOperation(null),event.getComponent());
+		processAdvancedFeedbacksFeedbackInputFields(event.getComponent());
 		
-		feedbacksSorting=null;
+		updateQuestionsForFeedbacks();
+		
+		setFeedbacksSorting(null);
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("resortFeedbacksDialog.show()");
 	}
@@ -11113,12 +12594,25 @@ public class TestBean implements Serializable
      */
 	public void acceptReSortFeedbacks(ActionEvent event)
 	{
+		List<TestFeedbackBean> feedbacksSorting=getFeedbacksSorting();
 		for (int feedbackPos=1;feedbackPos<=feedbacksSorting.size();feedbackPos++)
 		{
 			TestFeedbackBean feedback=feedbacksSorting.get(feedbackPos-1);
 			feedback.setPosition(feedbackPos);
 		}
-		feedbacks=feedbacksSorting;
+		setFeedbacks(feedbacksSorting);
+		
+		updateQuestionsForFeedbacks();
+	}
+	
+	/**
+	 * Action listener for updating questions information if we cancel the changes within the dialog for re-sorting 
+	 * feedbacks. 
+	 * @param event Action event
+	 */
+	public void cancelReSortFeedbacks(ActionEvent event)
+	{
+		updateQuestionsForFeedbacks();
 	}
 	
 	/**
@@ -11126,16 +12620,7 @@ public class TestBean implements Serializable
 	 */
 	public boolean isEnabledReSortFeedbacks()
 	{
-		return isEnabledReSortFeedbacks(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return true if button to re-sort feedbacks is enabled, false if it is disabled
-	 */
-	private boolean isEnabledReSortFeedbacks(Operation operation)
-	{
-		return getFeedbacks(getCurrentUserOperation(operation)).size()>1;
+		return getFeedbacks().size()>1;
 	}
 	
 	/**
@@ -11145,7 +12630,11 @@ public class TestBean implements Serializable
 	public void showAddFeedback(ActionEvent event)
 	{
 		// We need to process some input fields
-		processAdvancedFeedbacksFeedbackInputFields(getCurrentUserOperation(null),event.getComponent());
+		processAdvancedFeedbacksFeedbackInputFields(event.getComponent());
+		
+		updateQuestions(true);
+		
+		resetOldFeedbackValues();
 		
 		// New feedback with default values
 		setCurrentFeedback(new TestFeedbackBean(this));
@@ -11160,7 +12649,11 @@ public class TestBean implements Serializable
 	public void showEditFeedback(ActionEvent event)
 	{
 		// We need to process some input fields
-		processAdvancedFeedbacksFeedbackInputFields(getCurrentUserOperation(null),event.getComponent());
+		processAdvancedFeedbacksFeedbackInputFields(event.getComponent());
+		
+		updateQuestions(true);
+		
+		resetOldFeedbackValues();
 		
 		// Copy feedback so we work at dialog with a copy
 		TestFeedbackBean feedback=(TestFeedbackBean)event.getComponent().getAttributes().get("feedback");
@@ -11171,7 +12664,7 @@ public class TestBean implements Serializable
 		TestFeedbackConditionBean newCondition=new TestFeedbackConditionBean(this);
 		newCondition.setSection(condition.getSection());
 		newCondition.setUnit(condition.getUnit());
-		newCondition.setComparator(condition.getComparator());
+		newCondition.setNewComparator(condition.getComparator());
 		newCondition.setConditionalCmp(condition.getConditionalCmp());
 		newCondition.setConditionalBetweenMin(condition.getConditionalBetweenMin());
 		newCondition.setConditionalBetweenMax(condition.getConditionalBetweenMax());
@@ -11181,17 +12674,113 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * Check conditional value changing it to a valid value if it is invalid.
-	 * @param operation Operation
-	 * @return true if conditional value is valid, false otherwise
+	 * Check old conditional value.
+	 * @return true if old conditional value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackConditionalCmp(Operation operation)
+	private boolean checkOldFeedbackConditionalCmp()
 	{
 		boolean ok=true;
 		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
+		int conditionalCmp=oldConditionalCmp<0?conditional.getConditionalCmp():oldConditionalCmp;
+		int minValue=conditional.getMinValueConditionalCmp();
+		int maxValue=conditional.getMaxValueConditionalCmp();
+		if (conditionalCmp<minValue)
+		{
+			ok=false;
+		}
+		else if (conditionalCmp>maxValue)
+		{
+			ok=false;
+		}
+		return ok;
+	}
+	
+	/**
+	 * Check old conditional min value.
+	 * @return true if old conditional min value is valid, false otherwise
+	 */
+	private boolean checkOldFeedbackConditionalBetweenMin()
+	{
+		boolean ok=true;
+		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
+		int conditionalBetweenMin=
+			oldConditionalBetweenMin<0?conditional.getConditionalBetweenMin():oldConditionalBetweenMin;
+		int conditionalBetweenMax=
+			oldConditionalBetweenMax<0?conditional.getConditionalBetweenMax():oldConditionalBetweenMax;
+		if (conditionalBetweenMin<0)
+		{
+			ok=false;
+		}
+		else if (conditionalBetweenMin>conditionalBetweenMax)
+		{
+			ok=false;
+		}
+		return ok;
+	}
+	
+	/**
+	 * Check old conditional max value changing it to a valid value if it is invalid.
+	 * @return true if old conditional max value is valid, false otherwise
+	 */
+	private boolean checkOldFeedbackConditionalBetweenMax()
+	{
+		boolean ok=true;
+		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
+		int conditionalBetweenMin=
+			oldConditionalBetweenMin<0?conditional.getConditionalBetweenMin():oldConditionalBetweenMin;
+		int conditionalBetweenMax=
+			oldConditionalBetweenMax<0?conditional.getConditionalBetweenMax():oldConditionalBetweenMax;
+		int maxConditionalValue=conditional.getMaxConditionalValue();
+		if (conditionalBetweenMax<conditionalBetweenMin)
+		{
+			ok=false;
+		}
+		else if (conditionalBetweenMax>maxConditionalValue)
+		{
+			ok=false;
+		}
+		return ok;
+	}
+	
+	/**
+	 * Check old feedback conditions values.
+	 * @return true if all old feedback conditions values are valid, false otherwise
+	 */
+	private boolean checkOldFeedbackConditionsValues()
+	{
+		boolean ok=true;
+		
+		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
+		if (NumberComparator.compareU(conditional.getComparator(),NumberComparator.BETWEEN))
+		{
+			if (!checkOldFeedbackConditionalBetweenMin())
+			{
+				ok=false;
+			}
+			if (!checkOldFeedbackConditionalBetweenMax())
+			{
+				ok=false;
+			}
+		}
+		else if (!checkOldFeedbackConditionalCmp())
+		{
+			ok=false;
+		}
+		return ok;
+	}
+	
+	/**
+	 * Check conditional value changing it to a valid value if it is invalid.
+	 * @return true if conditional value is valid, false otherwise
+	 */
+	private boolean checkAndChangeFeedbackConditionalCmp()
+	{
+		boolean ok=true;
+		
+		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
 		int conditionalCmp=conditional.getConditionalCmp();
 		int minValue=conditional.getMinValueConditionalCmp();
-		int maxValue=conditional.getMaxValueConditionalCmp(getCurrentUserOperation(operation));
+		int maxValue=conditional.getMaxValueConditionalCmp();
 		if (conditionalCmp<minValue)
 		{
 			conditional.setConditionalCmp(minValue);
@@ -11230,16 +12819,15 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Check conditional max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if conditional max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackConditionalBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackConditionalBetweenMax()
 	{
 		boolean ok=true;
 		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
 		int conditionalBetweenMin=conditional.getConditionalBetweenMin();
 		int conditionalBetweenMax=conditional.getConditionalBetweenMax();
-		int maxConditionalValue=conditional.getMaxConditionalValue(getCurrentUserOperation(operation));
+		int maxConditionalValue=conditional.getMaxConditionalValue();
 		if (conditionalBetweenMax<conditionalBetweenMin)
 		{
 			conditional.setConditionalBetweenMax(conditionalBetweenMin);
@@ -11255,15 +12843,11 @@ public class TestBean implements Serializable
 	
 	/**
 	 * Check feedback conditions values changing the invalid ones to valid.
-	 * @param operation Operation
 	 * @return true if all feedback conditions values are valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackConditionsValues(Operation operation)
+	private boolean checkAndChangeFeedbackConditionsValues()
 	{
 		boolean ok=true;
-		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
 		
 		TestFeedbackConditionBean conditional=getCurrentFeedback().getCondition();
 		if (NumberComparator.compareU(conditional.getComparator(),NumberComparator.BETWEEN))
@@ -11272,12 +12856,12 @@ public class TestBean implements Serializable
 			{
 				ok=false;
 			}
-			if (!checkAndChangeFeedbackConditionalBetweenMax(operation))
+			if (!checkAndChangeFeedbackConditionalBetweenMax())
 			{
 				ok=false;
 			}
 		}
-		else if (!checkAndChangeFeedbackConditionalCmp(operation))
+		else if (!checkAndChangeFeedbackConditionalCmp())
 		{
 			ok=false;
 		}
@@ -11292,8 +12876,24 @@ public class TestBean implements Serializable
      */
 	public void acceptAddFeedback(ActionEvent event)
 	{
-		if (checkAndChangeFeedbackConditionsValues(getCurrentUserOperation(null)))
+		boolean ok=true;
+		long oldAddFeedbackDialogMilliseconds=
+			oldAddFeedbackDialogTimestamp<0L?Long.MAX_VALUE:new Date().getTime()-oldAddFeedbackDialogTimestamp;
+		if (oldAddFeedbackDialogMilliseconds>OLD_FEEDBACK_DIALOG_VALUES_DELAY)
 		{
+			resetOldFeedbackValues();
+			ok=checkOldFeedbackConditionsValues();
+		}
+		else
+		{
+			ok=checkOldFeedbackConditionsValues();
+			resetOldFeedbackValues();
+		}
+		updateQuestions(true);
+		checkAndChangeFeedbackConditionsValues();
+		if (ok)
+		{
+			List<TestFeedbackBean> feedbacks=getFeedbacks();
 	    	TestFeedbackBean currentFeedback=getCurrentFeedback();
 			if (currentFeedback.getPosition()>feedbacks.size())
 			{
@@ -11321,6 +12921,17 @@ public class TestBean implements Serializable
 		}
 	}
 	
+    /**
+	 * Action listener for updating questions information if we cancel the changes within the dialog for adding 
+	 * feedbacks. 
+     * @param event Action event
+     */
+	public void cancelAddFeedback(ActionEvent event)
+	{
+		resetOldFeedbackValues();
+		updateQuestionsForFeedbacks();
+	}
+	
 	/**
 	 * Action listener to delete a feedback.
 	 * @param event Action event
@@ -11328,7 +12939,9 @@ public class TestBean implements Serializable
 	public void removeFeedback(ActionEvent event)
 	{
 		// We need to process some input fields
-		processAdvancedFeedbacksFeedbackInputFields(getCurrentUserOperation(null),event.getComponent());
+		processAdvancedFeedbacksFeedbackInputFields(event.getComponent());
+		
+		List<TestFeedbackBean> feedbacks=getFeedbacks();
 		
 		// Delete feedback
 		TestFeedbackBean feedback=(TestFeedbackBean)event.getComponent().getAttributes().get("feedback");
@@ -11344,12 +12957,27 @@ public class TestBean implements Serializable
 	}
 	
 	/**
+	 * Reset olf feedback values.
+	 */
+	public void resetOldFeedbackValues()
+	{
+		oldConditionalCmp=-1;
+		oldConditionalBetweenMin=-1;
+		oldConditionalBetweenMax=-1;
+		oldAddFeedbackDialogTimestamp=-1L;
+	}
+	
+	/**
 	 * Ajax listener to check conditional value.
 	 * @param event Ajax event
 	 */
 	public void changeFeedbackConditionalCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackConditionalCmp(getCurrentUserOperation(null));
+		oldConditionalCmp=getCurrentFeedback().getCondition().getConditionalCmp();
+		oldConditionalBetweenMin=-1;
+		oldConditionalBetweenMax=-1;
+		oldAddFeedbackDialogTimestamp=new Date().getTime();
+		checkAndChangeFeedbackConditionalCmp();
 	}
 	
 	/**
@@ -11358,6 +12986,10 @@ public class TestBean implements Serializable
 	 */
 	public void changeFeedbackConditionalBetweenMin(AjaxBehaviorEvent event)
 	{
+		oldConditionalCmp=-1;
+		oldConditionalBetweenMin=getCurrentFeedback().getCondition().getConditionalBetweenMin();
+		oldConditionalBetweenMax=-1;
+		oldAddFeedbackDialogTimestamp=new Date().getTime();
 		checkAndChangeFeedbackConditionalBetweenMin();
 	}
 	
@@ -11367,7 +12999,11 @@ public class TestBean implements Serializable
 	 */
 	public void changeFeedbackConditionalBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackConditionalBetweenMax(getCurrentUserOperation(null));
+		oldConditionalCmp=-1;
+		oldConditionalBetweenMin=-1;
+		oldConditionalBetweenMax=getCurrentFeedback().getCondition().getConditionalBetweenMax();
+		oldAddFeedbackDialogTimestamp=new Date().getTime();
+		checkAndChangeFeedbackConditionalBetweenMax();
 	}
 	
 	/**
@@ -11379,7 +13015,7 @@ public class TestBean implements Serializable
     	TestFeedbackBean currentFeedback=getCurrentFeedback();
 		if (currentFeedback!=null)
 		{
-			if (currentFeedback.getPosition()>feedbacks.size())
+			if (currentFeedback.getPosition()>getFeedbacks().size())
 			{
 				title=localizationService.getLocalizedMessage("ADD_FEEDBACK");
 			}
@@ -11433,16 +13069,6 @@ public class TestBean implements Serializable
      */
     public String getSectionName(SectionBean section)
     {
-    	return getSectionName(null,section);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param section Section
-     * @return Section's name
-     */
-    public String getSectionName(Operation operation,SectionBean section)
-    {
     	StringBuffer sectionName=new StringBuffer();
     	sectionName.append(localizationService.getLocalizedMessage("SECTION"));
     	sectionName.append(' ');
@@ -11453,7 +13079,7 @@ public class TestBean implements Serializable
     		!activeSectionName.equals("") && checkSectionName(activeSectionName,false)))
     	{
     		sectionName.append(": ");
-    		sectionName.append(getNumberedSectionName(getCurrentUserOperation(operation),section));
+    		sectionName.append(getNumberedSectionName(section));
     	}
     	return sectionName.toString();
     }
@@ -11463,16 +13089,6 @@ public class TestBean implements Serializable
      * @return Section's name with a number appended if it is needed to distinguish sections with the same name
      */
     public String getNumberedSectionName(SectionBean section)
-    {
-    	return getNumberedSectionName(null,section);
-    }
-	
-    /**
-     * @param operation Operation
-     * @param section Section
-     * @return Section's name with a number appended if it is needed to distinguish sections with the same name
-     */
-    public String getNumberedSectionName(Operation operation,SectionBean section)
     {
     	StringBuffer sectionName=new StringBuffer();
     	if (section!=null)
@@ -11487,7 +13103,7 @@ public class TestBean implements Serializable
         		
         		sectionName.append(okSectionName?section.getName():activeSectionName);
         		int itNumber=1;
-        		for (SectionBean s:getSections(getCurrentUserOperation(operation)))
+        		for (SectionBean s:getSections())
         		{
         			if (s.getOrder()<section.getOrder() && section.getName().equals(s.getName()))
         			{
@@ -11510,15 +13126,10 @@ public class TestBean implements Serializable
     	}
     	return sectionName.toString();
     }
-    
+	
     public int getFeedbackDialogHeight()
     {
-    	return getFeedbackDialogHeight(null);
-    }
-    
-    private int getFeedbackDialogHeight(Operation operation)
-    {
-    	return getSectionsSize(getCurrentUserOperation(operation))>1?
+    	return getSectionsSize()>1?
     		FEEDBACKS_DIALOG_BASE_HEIGHT+FEEDBACKS_DIALOG_SECTIONS_COMBO_HEIGHT:FEEDBACKS_DIALOG_BASE_HEIGHT;
     }
     
@@ -11606,7 +13217,8 @@ public class TestBean implements Serializable
      */
     private String getLocalizedCategoryLongName(Operation operation,Long categoryId,int maxLength)
     {
-    	return categoriesService.getLocalizedCategoryLongName(getCurrentUserOperation(operation),categoryId,maxLength);
+    	return categoriesService.getLocalizedCategoryLongName(
+    		getCurrentUserOperation(operation),categoryId,maxLength);
     }
     
     /**
@@ -11630,12 +13242,15 @@ public class TestBean implements Serializable
     	String localizedCategoryFilterName="";
     	if (specialCategoryFiltersMap.containsKey(categoryId))
     	{
-    		localizedCategoryFilterName=
-    			localizationService.getLocalizedMessage(specialCategoryFiltersMap.get(categoryId).name);
+    		Category categoryFilter=new Category();
+    		categoryFilter.setId(categoryId);
+    		categoryFilter.setName(specialCategoryFiltersMap.get(categoryId).name);
+    		localizedCategoryFilterName=getSpecialCategoryFilterName(categoryFilter);
     	}
     	else if (categoryId>0L)
     	{
-    		localizedCategoryFilterName=getLocalizedCategoryLongName(operation,categoryId,maxLength);
+    		localizedCategoryFilterName=
+    			getLocalizedCategoryLongName(getCurrentUserOperation(operation),categoryId,maxLength);
     	}
     	return localizedCategoryFilterName;
     }
@@ -11657,6 +13272,9 @@ public class TestBean implements Serializable
 	 */
 	public String cancelTest()
 	{
+		// End current user session Hibernate operation
+		userSessionService.endCurrentUserOperation();
+		
 		StringBuffer nextView=null;
 		if ("logout".equals(getCancelTestTarget()))
 		{
@@ -11685,6 +13303,15 @@ public class TestBean implements Serializable
 	}
     
 	/**
+	 * Action listener for updating questions information if we cancel the dialog to cancel the test creation/edition. 
+	 * @param event Action event
+	 */
+	public void abortCancelTest(ActionEvent event)
+	{
+		updateQuestions();
+	}
+	
+	/**
 	 * Display a question in OM Test Navigator web application.
 	 * @param questionId Question's identifier
 	 * @return Next view
@@ -11695,24 +13322,32 @@ public class TestBean implements Serializable
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		// Get question
-		Question question=questionsService.getQuestion(operation,questionId);
-		
 		setViewOMEnabled(null);
 		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
 		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
 		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-		resetViewOmQuestionEnabled(question);
-		resetAdminFromQuestionAllowed(question);
-		resetSuperadminFromQuestionAllowed(question);
-		if (!isViewOMQuestionEnabled(operation,question))
+		
+		Question question=null;
+		if (!questionsService.checkQuestionId(operation,questionId))
 		{
-			question=null;
+			addErrorMessage("QUESTION_PREVIEW_NOT_FOUND_ERROR");
+		}
+		else
+		{
+			// Get question
+			question=questionsService.getQuestion(operation,questionId);
+			
+			resetViewOmQuestionEnabled(question);
+			resetAdminFromQuestionAllowed(question);
+			resetSuperadminFromQuestionAllowed(question);
+			if (!isViewOMQuestionEnabled(operation,question))
+			{
+				question=null;
+				addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
+			}
 		}
 		if (question==null)
 		{
-			addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-    		
     		resetViewOMQuestionsEnabled();
     		resetAdmins();
 			resetSuperadmins();
@@ -11720,11 +13355,13 @@ public class TestBean implements Serializable
 			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
 			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
 			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
 			setUseGlobalQuestions(null);
 			setUseOtherUsersQuestions(null);
-			setTestAuthorViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-			setTestAuthorViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-			setTestAuthorViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			FacesContext facesContext=FacesContext.getCurrentInstance();
+			updateSectionQuestions(operation,getActiveSection(facesContext.getViewRoot()));
 			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
@@ -11870,54 +13507,38 @@ public class TestBean implements Serializable
 	}
 	
 	/**
-	 * Remove global categories from other users (different to the indicated user) and optionally excluding 
-	 * from removing the indicated category.
-	 * @param categories List of categories
-	 * @param user User (his/her global categories will not be removed)
-	 * @param categoryExcludedFromRemoving Category the will not be removed
+	 * Displays the error page with the indicated message.<br/><br/>
+	 * Be careful that this method can only be invoked safely from non ajax actions.
+	 * @param errorCode Error message (before localization)
+	 * @param plainMessage Plain error message (used if it is not possible to localize error message)
 	 */
-	private void removeGlobalOtherUserCategories(List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
+	private void displayErrorPage(String errorCode,String plainMessage)
 	{
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
+		FacesContext context=FacesContext.getCurrentInstance();
+		ExternalContext externalContext=context.getExternalContext();
+		Map<String,Object> requestMap=externalContext.getRequestMap();
+		requestMap.put("errorCode",errorCode);
+		requestMap.put("plainMessage",plainMessage);
+		try
 		{
-			if (!category.equals(categoryExcludedFromRemoving) && category.getVisibility().isGlobal() && 
-				!category.getUser().equals(user))
+			externalContext.dispatch("/pages/error");
+		}
+		catch (IOException ioe)
+		{
+			String errorMessage=null;
+			try
 			{
-				categoriesToRemove.add(category);
+				errorMessage=localizationService.getLocalizedMessage(errorCode);
 			}
-		}
-		for (Category categoryToRemove:categoriesToRemove)
-		{
-			categories.remove(categoryToRemove);
-		}
-	}
-	
-	/**
-	 * Remove private categories from an user and optionally excluding from removing the indicated category.
-	 * @param operation Operation
-	 * @param categories List of categories
-	 * @param user User
-	 * @param categoryExcludedFromRemoving Category the will not be removed
-	 */
-	private void removePrivateCategories(Operation operation,List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
-	{
-		Visibility privateVisibility=
-			visibilitiesService.getVisibility(getCurrentUserOperation(operation),"CATEGORY_VISIBILITY_PRIVATE");
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
-		{
-			if (!category.equals(categoryExcludedFromRemoving) && !category.getVisibility().isGlobal() &&
-				category.getVisibility().getLevel()>=privateVisibility.getLevel())
+			catch (ServiceException se)
 			{
-				categoriesToRemove.add(category);
+				errorMessage=null;
 			}
-		}
-		for (Category categoryToRemove:categoriesToRemove)
-		{
-			categories.remove(categoryToRemove);
+			if (errorMessage==null)
+			{
+				errorMessage=plainMessage;
+			}
+			throw new FacesException(errorMessage,ioe);
 		}
 	}
 	
@@ -11934,7 +13555,7 @@ public class TestBean implements Serializable
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		if (getTestId(operation)==0L)
+		if (getTestId()==0L)
 		{
 			setEnabledCheckboxesSetters(false);
 		}

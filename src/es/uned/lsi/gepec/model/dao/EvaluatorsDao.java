@@ -149,6 +149,7 @@ public class EvaluatorsDao
 			evaluator=(Evaluator)operation.session.get(Evaluator.class,id);
 			if (evaluator!=null)
 			{
+				Hibernate.initialize(evaluator.getTest());
 				if (includeAddressType)
 				{
 					Hibernate.initialize(evaluator.getAddressType());
@@ -196,7 +197,15 @@ public class EvaluatorsDao
 			{
 				for (Evaluator evaluator:evaluators)
 				{
+					Hibernate.initialize(evaluator.getTest());
 					Hibernate.initialize(evaluator.getAddressType());
+				}
+			}
+			else
+			{
+				for (Evaluator evaluator:evaluators)
+				{
+					Hibernate.initialize(evaluator.getTest());
 				}
 			}
 		}

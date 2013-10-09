@@ -142,6 +142,12 @@ public class AttemptsConditionBean extends ConditionBean implements Serializable
 		this.comparator=comparator;
 	}
 	
+	public void setNewComparator(String newComparator)
+	{
+		this.oldComparator=newComparator;
+		this.comparator=newComparator;
+	}
+	
 	public int getAttemptsCmp()
 	{
 		return attemptsCmp;
@@ -247,7 +253,8 @@ public class AttemptsConditionBean extends ConditionBean implements Serializable
 		{
 			maxValue=MAX_ATTEMPT-1;
 		}
-		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS) || 
+			NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
 			maxValue=MAX_ATTEMPT+1;
 		}
@@ -264,6 +271,10 @@ public class AttemptsConditionBean extends ConditionBean implements Serializable
 			{
 				setAttemptsBetweenMin(1);
 			}
+			else if (getAttemptsCmp()>MAX_ATTEMPT)
+			{
+				setAttemptsBetweenMin(MAX_ATTEMPT);
+			}
 			else
 			{
 				setAttemptsBetweenMin(getAttemptsCmp());
@@ -275,28 +286,38 @@ public class AttemptsConditionBean extends ConditionBean implements Serializable
 		}
 		else if (NumberComparator.compareU(oldComparator,NumberComparator.BETWEEN))
 		{
-			if (getAttemptsBetweenMin()<getMinValueAttemptCmp())
+			int minValueCmp=getMinValueAttemptCmp();
+			if (getAttemptsBetweenMin()<minValueCmp)
 			{
-				setAttemptsCmp(getMinValueAttemptCmp());
-			}
-			else if (getAttemptsBetweenMin()>getMaxValueAttemptCmp())
-			{
-				setAttemptsCmp(getMaxValueAttemptCmp());
+				setAttemptsCmp(minValueCmp);
 			}
 			else
 			{
-				setAttemptsCmp(getAttemptsBetweenMin());
+				int maxValueCmp=getMaxValueAttemptCmp();
+				if (getAttemptsBetweenMin()>maxValueCmp)
+				{
+					setAttemptsCmp(maxValueCmp);
+				}
+				else
+				{
+					setAttemptsCmp(getAttemptsBetweenMin());
+				}
 			}
 		}
 		else
 		{
-			if (getAttemptsCmp()<getMinValueAttemptCmp())
+			int minValueCmp=getMinValueAttemptCmp();
+			if (getAttemptsCmp()<minValueCmp)
 			{
-				setAttemptsCmp(getMinValueAttemptCmp());
+				setAttemptsCmp(minValueCmp);
 			}
-			else if (getAttemptsCmp()>getMaxValueAttemptCmp())
+			else
 			{
-				setAttemptsCmp(getMaxValueAttemptCmp());
+				int maxValueCmp=getMaxValueAttemptCmp();
+				if (getAttemptsCmp()>maxValueCmp)
+				{
+					setAttemptsCmp(maxValueCmp);
+				}
 			}
 		}
 	}

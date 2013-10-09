@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 11-abr-2012 15:51:55 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,7 +39,6 @@ public class RedoQuestionValue implements java.io.Serializable {
 
 	private long id;
 	private String value;
-	private Set<Test> tests = new HashSet<Test>(0);
 
 	public RedoQuestionValue() {
 	}
@@ -51,12 +46,6 @@ public class RedoQuestionValue implements java.io.Serializable {
 	public RedoQuestionValue(long id, String value) {
 		this.id = id;
 		this.value = value;
-	}
-
-	public RedoQuestionValue(long id, String value, Set<Test> tests) {
-		this.id = id;
-		this.value = value;
-		this.tests = tests;
 	}
 
 	@Id
@@ -79,19 +68,10 @@ public class RedoQuestionValue implements java.io.Serializable {
 		this.value = value;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "redoQuestion")
-	public Set<Test> getTests() {
-		return this.tests;
-	}
-
-	public void setTests(Set<Test> tests) {
-		this.tests = tests;
-	}
-
 	/**
-	 * Set the fields of this available value of property 'redoQuestion' with the values from fields from other 
-	 * available value of property 'redoQuestion'.
-	 * @param otherRedoQuestion Other available value of property 'redoQuestion'
+	 * Set the fields of this available value for property 'redoQuestion' with the values from fields from other 
+	 * available value for property 'redoQuestion'.
+	 * @param otherRedoQuestion Other available value for property 'redoQuestion'
 	 */
 	@Transient
 	public void setFromOtherRedoQuestionValue(RedoQuestionValue otherRedoQuestion)
@@ -101,6 +81,15 @@ public class RedoQuestionValue implements java.io.Serializable {
 			setId(otherRedoQuestion.getId());
 			setValue(otherRedoQuestion.getValue());
 		}
+	}
+	
+	/**
+	 * @return A copy of this available value for property 'redoQuestion'.
+	 */
+	@Transient
+	public RedoQuestionValue getRedoQuestionValueCopy()
+	{
+		return new RedoQuestionValue(getId(),getValue());
 	}
 	
 	@Override

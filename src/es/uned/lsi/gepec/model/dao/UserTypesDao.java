@@ -152,6 +152,34 @@ public class UserTypesDao
 		return userType;
 	}
 	
+	/**
+	 * @param userId User identifier
+	 * @return User type from an user
+	 * @throws DaoException
+	 */
+	public UserType getUserTypeFromUserId(long userId) throws DaoException
+	{
+		UserType userType=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from UserType ut where ut.id = (select u.userType.id from User u where u.id = :userId)");
+			query.setParameter("userId",Long.valueOf(userId),StandardBasicTypes.LONG);
+			userType=(UserType)query.uniqueResult();
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return userType;
+	}
+	
 	//Obtiene la lista de tipos de usuario
 	/**
 	 * @return List of all user types
@@ -179,12 +207,40 @@ public class UserTypesDao
 	}
     
 	/**
+	 * Checks if exists an user type with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists an user type with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkUserTypeId(long id) throws DaoException
+	{
+		boolean userTypeFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(ut) from UserType ut Where ut.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			userTypeFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return userTypeFound;
+	}
+	
+	/**
 	 * Checks if exists an user type with the indicated type
 	 * @param type User type's type
 	 * @return true if exists an user type with the indicated type, false otherwise
 	 * @throws DaoException
 	 */
-	public boolean checkUserType(String type) throws DaoException
+	public boolean checkUserTypeType(String type) throws DaoException
 	{
 		boolean userTypeFound=false;
 		try

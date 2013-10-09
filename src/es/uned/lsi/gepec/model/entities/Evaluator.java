@@ -74,7 +74,7 @@ public class Evaluator implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_test", nullable = false)
+	@JoinColumn(name = "id_test")
 	public Test getTest() {
 		return this.test;
 	}
@@ -84,7 +84,7 @@ public class Evaluator implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_addresstype", nullable = false)
+	@JoinColumn(name = "id_addresstype")
 	public AddressType getAddressType() {
 		return this.addressType;
 	}
@@ -126,6 +126,15 @@ public class Evaluator implements java.io.Serializable {
 			setFilterValue(otherEvaluator.getFilterValue());
 			setEvaluator(otherEvaluator.getEvaluator());
 		}
+	}
+	
+	/**
+	 * @return A copy of this evaluator.
+	 */
+	@Transient
+	public Evaluator getEvaluatorCopy()
+	{
+		return new Evaluator(getId(),getTest(),getAddressType(),getFilterValue(),getEvaluator());
 	}
 	
 	@Override

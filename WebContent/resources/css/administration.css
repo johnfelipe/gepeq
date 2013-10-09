@@ -9,7 +9,11 @@
 }
 
 .ui-messages-error {
-    font-size:85% !important;
+    font-size:90% !important;
+}
+
+.ui-growl-message {
+    font-size:90% !important;
 }
 
 .newUserButton, .newRoleButton {
@@ -162,7 +166,7 @@
 }
 
 .columnRole {
-    width:135px;
+    width:120px;
 }
 
 .columnDescription {

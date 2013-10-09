@@ -65,7 +65,7 @@
               maxlength="80" />
             #{msgs.APPLICATION}
             <h:inputText id="userApplication" value="#{userBean.userApplication}" style="width:310px;"
-              readonly="true" />
+              readonly="true" styleClass="readonlyInput" />
             <h:outputText value="#{msgs.ROLE}" rendered="#{userBean.user.gepeqUser}" />
             <p:selectOneMenu id="userUserType" value="#{userBean.userTypeId}" style="width:310px;" 
               styleClass="combo" rendered="#{userBean.user.gepeqUser}">                
@@ -97,9 +97,9 @@
           </h:panelGroup>
           <p:outputPanel id="userGroupsPanel">
             <p:dataTable id="userGroupsTable" styleClass="userGroupsTable" rowStyleClass="dataRow" 
-              emptyMessage="#{msgs.NO_USER_GROUPS}" value="#{userBean.userGroups}" var="userGroup"
-              paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-              paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+              emptyMessage="#{msgs.NO_USER_GROUPS}" value="#{userBean.userGroups}" var="userGroup" 
+              paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+              rowsPerPageTemplate="5,10,25,50">
               
               <p:column styleClass="columnUserGroup" sortBy="#{userGroup}">
                 <f:facet name="header">#{msgs.USER_GROUP}</f:facet>
@@ -116,7 +116,7 @@
               </p:column>
             </p:dataTable>
           </p:outputPanel>
-          <h:panelGroup layout="block" styleClass="rightAlign" style="margin-top:5px;margin-bottom:-10px;">
+          <h:panelGroup layout="block" styleClass="commonDataUpdateUserButtonsRightAlign">
             <p:commandButton value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
               image="ui-icon ui-icon-disk" action="#{userBean.saveUser}" />
             <p:commandButton value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
@@ -124,11 +124,11 @@
           </h:panelGroup>
         </p:tab>
         <p:tab id="permissions" title="#{msgs.PERMISSIONS}" rendered="#{userBean.user.gepeqUser}">
-          <p:messages id="permissionsMessages" rendered="#{userBean.activeUserTabName=='permissions'}" />        
+          <p:messages id="permissionsMessages" rendered="#{userBean.activeUserTabName=='permissions'}" />
           <p:dataTable id="permissionsTable" styleClass="permissionsTable" rowStyleClass="dataRow" 
             emptyMessage="#{msgs.NO_PERMISSIONS}" value="#{userBean.permissions}" var="permission" 
-            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+            rowsPerPageTemplate="10,25,50">
             
             <p:ajax event="rowEdit" listener="#{userBean.changePermission}" update="permissionStatus" />
             

@@ -90,8 +90,7 @@ public class NavLocationsService implements Serializable
 		// We don't want caller accessing directly to a cached navigation location so we return a copy
 		if (navLocationFromCache!=null)
 		{
-			navLocation=new NavLocation();
-			navLocation.setFromOtherNavLocation(navLocationFromCache);
+			navLocation=navLocationFromCache.getNavLocationCopy();
 		}
 		return navLocation;
 	}
@@ -136,8 +135,7 @@ public class NavLocationsService implements Serializable
 		// We don't want caller accessing directly to a cached navigation location so we return a copy
 		if (navLocationFromCache!=null)
 		{
-			navLocation=new NavLocation();
-			navLocation.setFromOtherNavLocation(navLocationFromCache);
+			navLocation=navLocationFromCache.getNavLocationCopy();
 		}
 		return navLocation;
 	}
@@ -190,8 +188,7 @@ public class NavLocationsService implements Serializable
 			NavLocation navLocation=null;
 			if (navLocationFromCache!=null)
 			{
-				navLocation=new NavLocation();
-				navLocation.setFromOtherNavLocation(navLocationFromCache);
+				navLocation=navLocationFromCache.getNavLocationCopy();
 			}
 			navLocations.add(navLocation);
 		}

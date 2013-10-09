@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -25,8 +26,12 @@ import javax.faces.bean.ManagedBean;
 
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.QuestionOrdersDao;
+import es.uned.lsi.gepec.model.entities.Category;
+import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.QuestionOrder;
 import es.uned.lsi.gepec.model.entities.Section;
+import es.uned.lsi.gepec.model.entities.User;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -64,8 +69,52 @@ public class QuestionOrdersService implements Serializable
 		QuestionOrder questionOrder=null;
 		try
 		{
+			// Get question reference from DB
 			QUESTION_ORDERS_DAO.setOperation(operation);
-			questionOrder=QUESTION_ORDERS_DAO.getQuestionOrder(id,true,true);
+			QuestionOrder questionOrderFromDB=QUESTION_ORDERS_DAO.getQuestionOrder(id,true,true);
+			if (questionOrderFromDB!=null)
+			{
+				questionOrder=questionOrderFromDB.getQuestionOrderCopy();
+				if (questionOrderFromDB.getQuestion()!=null)
+				{
+					Question questionFromDB=questionOrderFromDB.getQuestion();
+					Question question=questionFromDB.getQuestionCopy();
+					if (questionFromDB.getCreatedBy()!=null)
+					{
+						User questionAuthor=questionFromDB.getCreatedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionAuthor.setPassword("");
+						
+						question.setCreatedBy(questionAuthor);
+					}
+					if (questionFromDB.getModifiedBy()!=null)
+					{
+						User questionLastEditor=questionFromDB.getModifiedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionLastEditor.setPassword("");
+						
+						question.setModifiedBy(questionLastEditor);
+					}
+					if (questionFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=questionFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						question.setCategory(category);
+					}
+					questionOrder.setQuestion(question);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -120,8 +169,52 @@ public class QuestionOrdersService implements Serializable
 		QuestionOrder questionOrder=null;
 		try
 		{
+			// Get question reference from DB
 			QUESTION_ORDERS_DAO.setOperation(operation);
-			questionOrder=QUESTION_ORDERS_DAO.getQuestionOrder(sectionId,order,true,true);
+			QuestionOrder questionOrderFromDB=QUESTION_ORDERS_DAO.getQuestionOrder(sectionId,order,true,true);
+			if (questionOrderFromDB!=null)
+			{
+				questionOrder=questionOrderFromDB.getQuestionOrderCopy();
+				if (questionOrderFromDB.getQuestion()!=null)
+				{
+					Question questionFromDB=questionOrderFromDB.getQuestion();
+					Question question=questionFromDB.getQuestionCopy();
+					if (questionFromDB.getCreatedBy()!=null)
+					{
+						User questionAuthor=questionFromDB.getCreatedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionAuthor.setPassword("");
+						
+						question.setCreatedBy(questionAuthor);
+					}
+					if (questionFromDB.getModifiedBy()!=null)
+					{
+						User questionLastEditor=questionFromDB.getModifiedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionLastEditor.setPassword("");
+						
+						question.setModifiedBy(questionLastEditor);
+					}
+					if (questionFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=questionFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						question.setCategory(category);
+					}
+					questionOrder.setQuestion(question);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -150,6 +243,7 @@ public class QuestionOrdersService implements Serializable
 	{
 		try
 		{
+			// Add a new question reference
 			QUESTION_ORDERS_DAO.setOperation(operation);
 			QUESTION_ORDERS_DAO.saveQuestionOrder(questionOrder);
 		}
@@ -177,14 +271,48 @@ public class QuestionOrdersService implements Serializable
 	 */
 	public void updateQuestionOrder(Operation operation,QuestionOrder questionOrder) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get question reference from DB
 			QUESTION_ORDERS_DAO.setOperation(operation);
-			QUESTION_ORDERS_DAO.updateQuestionOrder(questionOrder);
+			QuestionOrder questionOrderFromDB=QUESTION_ORDERS_DAO.getQuestionOrder(questionOrder.getId(),false,false);
+			
+			// Set fields with the updated values
+			questionOrderFromDB.setFromOtherQuestionOrder(questionOrder);
+			
+			// Update question reference
+			QUESTION_ORDERS_DAO.setOperation(operation);
+			QUESTION_ORDERS_DAO.updateQuestionOrder(questionOrderFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -206,14 +334,46 @@ public class QuestionOrdersService implements Serializable
 	 */
 	public void deleteQuestionOrder(Operation operation,QuestionOrder questionOrder) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get question reference from DB
 			QUESTION_ORDERS_DAO.setOperation(operation);
-			QUESTION_ORDERS_DAO.deleteQuestionOrder(questionOrder);
+			QuestionOrder questionOrderFromDB=
+				QUESTION_ORDERS_DAO.getQuestionOrder(questionOrder.getId(),false,false);
+			
+			// Delete question reference
+			QUESTION_ORDERS_DAO.setOperation(operation);
+			QUESTION_ORDERS_DAO.deleteQuestionOrder(questionOrderFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -260,7 +420,55 @@ public class QuestionOrdersService implements Serializable
 		try
 		{
 			QUESTION_ORDERS_DAO.setOperation(operation);
-			questionOrders=QUESTION_ORDERS_DAO.getQuestionOrders(sectionId,true,true);
+			List<QuestionOrder> questionOrdersFromDB=QUESTION_ORDERS_DAO.getQuestionOrders(sectionId,true,true);
+			
+			// We return new referenced question references within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			questionOrders=new ArrayList<QuestionOrder>(questionOrdersFromDB.size());
+			for (QuestionOrder questionOrderFromDB:questionOrdersFromDB)
+			{
+				QuestionOrder questionOrder=questionOrderFromDB.getQuestionOrderCopy();
+				if (questionOrderFromDB.getQuestion()!=null)
+				{
+					Question questionFromDB=questionOrderFromDB.getQuestion();
+					Question question=questionFromDB.getQuestionCopy();
+					if (questionFromDB.getCreatedBy()!=null)
+					{
+						User questionAuthor=questionFromDB.getCreatedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionAuthor.setPassword("");
+						
+						question.setCreatedBy(questionAuthor);
+					}
+					if (questionFromDB.getModifiedBy()!=null)
+					{
+						User questionLastEditor=questionFromDB.getModifiedBy().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						questionLastEditor.setPassword("");
+						
+						question.setModifiedBy(questionLastEditor);
+					}
+					if (questionFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=questionFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						question.setCategory(category);
+					}
+					questionOrder.setQuestion(question);
+				}
+				questionOrders.add(questionOrder);
+			}
 		}
 		catch (DaoException de)
 		{

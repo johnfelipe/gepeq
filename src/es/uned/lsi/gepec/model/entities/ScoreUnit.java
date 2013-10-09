@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 11-abr-2012 15:51:55 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,7 +39,6 @@ public class ScoreUnit implements java.io.Serializable {
 
 	private long id;
 	private String unit;
-	private Set<TestFeedback> testFeedbacks = new HashSet<TestFeedback>(0);
 
 	public ScoreUnit() {
 	}
@@ -52,10 +47,9 @@ public class ScoreUnit implements java.io.Serializable {
 		this.id = id;
 	}
 
-	public ScoreUnit(long id, String unit, Set<TestFeedback> testFeedbacks) {
+	public ScoreUnit(long id, String unit) {
 		this.id = id;
 		this.unit = unit;
-		this.testFeedbacks = testFeedbacks;
 	}
 
 	@Id
@@ -78,15 +72,6 @@ public class ScoreUnit implements java.io.Serializable {
 		this.unit = unit;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "scoreUnit")
-	public Set<TestFeedback> getTestFeedbacks() {
-		return this.testFeedbacks;
-	}
-
-	public void setTestFeedbacks(Set<TestFeedback> testFeedbacks) {
-		this.testFeedbacks = testFeedbacks;
-	}
-
 	/**
 	 * Set the fields of this score unit with the values from fields from other score unit.
 	 * @param otherScoreUnit Other score unit
@@ -99,6 +84,15 @@ public class ScoreUnit implements java.io.Serializable {
 			setId(otherScoreUnit.getId());
 			setUnit(otherScoreUnit.getUnit());
 		}
+	}
+	
+	/**
+	 * @return A copy of this score unit.
+	 */
+	@Transient
+	public ScoreUnit getScoreUnitCopy()
+	{
+		return new ScoreUnit(getId(),getUnit());
 	}
 	
 	@Override

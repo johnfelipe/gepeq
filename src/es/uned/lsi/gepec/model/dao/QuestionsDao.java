@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.model.dao;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import javax.el.ELContext;
@@ -735,6 +736,61 @@ public class QuestionsDao
 			}
 		}
 		return questions;
+	}
+	
+	/**
+	 * Checks if exists a question with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists a question with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkQuestionId(long id) throws DaoException
+	{
+		boolean questionFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(q) from Question q Where q.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			questionFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return questionFound;
+	}
+	
+	/**
+	 * @param id Identifier
+	 * @return Last time the question has been modified
+	 * @throws DaoException
+	 */
+	public Date getTimeModifiedFromQuestionId(long id) throws DaoException
+	{
+		Date timeModified=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select q.timemodified from Question q Where q.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			timeModified=(Date)query.uniqueResult();
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return timeModified;
 	}
 	
     //Inicia una sesión e inicia una transacción contra el dbms

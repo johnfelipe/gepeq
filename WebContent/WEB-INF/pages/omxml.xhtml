@@ -171,7 +171,7 @@
         <h:panelGroup layout="block"  styleClass="rightAlignTopAccordion">
           <p:commandButton id="reSortResources" value="#{msgs.RE_SORT}" image="ui-icon ui-icon-triangle-2-n-s" 
             styleClass="rightButton" immediate="true" actionListener="#{questionBean.showReSortResources}" 
-            update="resortResourcesDialog questionForm:resourcesMessages" 
+            update="@this resortResourcesDialog questionForm:questionResourcesPanel questionForm:resourcesMessages" 
             disabled="#{!questionBean.enabledReSortResources}" />
           <p:commandButton value="#{msgs.ADD_RESOURCE}" image="ui-icon ui-icon-plus" styleClass="rightButton" 
             actionListener="#{questionBean.addResource}" immediate="true" 
@@ -210,8 +210,8 @@
                       rendered="#{questionResource.resource.id!=-1}">
                       
                       <h:panelGroup>
-                        <p:graphicImage id="questionResourceImageThumb" value="#{questionResource.resource.fileName}" 
-                          width="35" height="20" />
+                        <h:graphicImage id="questionResourceImageThumb" value="#{questionResource.resource.fileName}" 
+                          styleClass="graphics" width="35" height="20" />
                         <p:tooltip widgetVar="questionResourceImageTooltip" for="questionResourceImageThumb" 
                           rendered="#{questionBean.isResourceNameAbbreviated(questionResource.resource.name)}">
                           

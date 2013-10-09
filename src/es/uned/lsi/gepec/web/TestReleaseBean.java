@@ -60,6 +60,7 @@ import es.uned.lsi.gepec.model.entities.Test;
 import es.uned.lsi.gepec.model.entities.TestRelease;
 import es.uned.lsi.gepec.model.entities.User;
 import es.uned.lsi.gepec.model.entities.UserType;
+import es.uned.lsi.gepec.model.entities.Visibility;
 import es.uned.lsi.gepec.om.OmHelper;
 import es.uned.lsi.gepec.om.QuestionGenerator;
 import es.uned.lsi.gepec.om.TestGenerator;
@@ -72,6 +73,7 @@ import es.uned.lsi.gepec.web.backbeans.UserGroupBean;
 import es.uned.lsi.gepec.web.services.AddressTypesService;
 import es.uned.lsi.gepec.web.services.AssessementsService;
 import es.uned.lsi.gepec.web.services.CategoriesService;
+import es.uned.lsi.gepec.web.services.CategoryTypesService;
 import es.uned.lsi.gepec.web.services.ConfigurationService;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 import es.uned.lsi.gepec.web.services.NavLocationsService;
@@ -79,6 +81,7 @@ import es.uned.lsi.gepec.web.services.PermissionsService;
 import es.uned.lsi.gepec.web.services.QuestionTypesService;
 import es.uned.lsi.gepec.web.services.QuestionsService;
 import es.uned.lsi.gepec.web.services.RedoQuestionValuesService;
+import es.uned.lsi.gepec.web.services.ServiceException;
 import es.uned.lsi.gepec.web.services.TestReleasesService;
 import es.uned.lsi.gepec.web.services.TestsService;
 import es.uned.lsi.gepec.web.services.UserSessionService;
@@ -117,6 +120,8 @@ public class TestReleaseBean implements Serializable
 	private VisibilitiesService visibilitiesService;
 	@ManagedProperty(value="#{categoriesService}")
 	private CategoriesService categoriesService;
+	@ManagedProperty(value="#{categoryTypesService}")
+	private CategoryTypesService categoryTypesService;
 	@ManagedProperty(value="#{questionsService}")
 	private QuestionsService questionsService;
 	@ManagedProperty(value="#{questionTypesService}")
@@ -146,9 +151,6 @@ public class TestReleaseBean implements Serializable
 	
 	private String activeTestReleaseTabName;
 	
-	private boolean publishAllowed;
-	private String lastErrorMessage;
-	
 	private String version;
 	private Assessement assessement;
 	
@@ -162,6 +164,7 @@ public class TestReleaseBean implements Serializable
 	
 	private List<User> filteredUsersForAddingUsers;
 	private List<User> filteredUsersForAddingAdmins;
+	private Map<String,List<User>> groupUsersMap;
 	private List<User> filteredUsersForAddingSupportContactFilterUsers;
 	private List<User> filteredUsersForAddingEvaluatorFilterUsers;
 	private List<UserType> userTypes;
@@ -195,6 +198,12 @@ public class TestReleaseBean implements Serializable
 	private List<User> testSupportContactFilterUsers;
 	private String supportContactFilterUsersIdsHidden;
 	private DualListModel<User> supportContactFilterUsersDualList;
+	private String supportContactGroup;
+	private List<String> availableSupportContactFilterGroups;
+	private List<String> testSupportContactFilterGroups;
+	private String availableSupportContactFilterGroupsHidden;
+	private String supportContactFilterGroupsHidden;
+	private DualListModel<String> supportContactFilterGroupsDualList;
 	
 	private String filterSupportContactRangeNameLowerLimit;
 	private String filterSupportContactRangeNameUpperLimit;
@@ -209,6 +218,12 @@ public class TestReleaseBean implements Serializable
 	private List<User> testEvaluatorFilterUsers;
 	private String evaluatorFilterUsersIdsHidden;
 	private DualListModel<User> evaluatorFilterUsersDualList;
+	private String evaluatorGroup;
+	private List<String> availableEvaluatorFilterGroups;
+	private List<String> testEvaluatorFilterGroups;
+	private String availableEvaluatorFilterGroupsHidden;
+	private String evaluatorFilterGroupsHidden;
+	private DualListModel<String> evaluatorFilterGroupsDualList;
 	
 	private String filterEvaluatorRangeNameLowerLimit;
 	private String filterEvaluatorRangeNameUpperLimit;
@@ -253,6 +268,7 @@ public class TestReleaseBean implements Serializable
 		restrictFeedbackDate=false;
 		filteredUsersForAddingUsers=null;
 		filteredUsersForAddingAdmins=null;
+		groupUsersMap=null;
 		filteredUsersForAddingSupportContactFilterUsers=null;
 		filteredUsersForAddingEvaluatorFilterUsers=null;
 		userTypes=null;
@@ -293,6 +309,12 @@ public class TestReleaseBean implements Serializable
 		testSupportContactFilterUsers=new ArrayList<User>();
 		supportContactFilterUsersIdsHidden="";
 		supportContactFilterUsersDualList=null;
+		supportContactGroup=null;
+		availableSupportContactFilterGroups=null;
+		testSupportContactFilterGroups=new ArrayList<String>();
+		availableSupportContactFilterGroupsHidden="";
+		supportContactFilterGroupsHidden="";
+		supportContactFilterGroupsDualList=null;
 		evaluatorFilterType="NO_FILTER";
 		evaluatorFilterSubtype=null;
 		evaluatorFilterSubtypes=null;
@@ -301,11 +323,15 @@ public class TestReleaseBean implements Serializable
 		testEvaluatorFilterUsers=new ArrayList<User>();
 		evaluatorFilterUsersIdsHidden="";
 		evaluatorFilterUsersDualList=null;
+		evaluatorGroup=null;
+		availableEvaluatorFilterGroups=null;
+		testEvaluatorFilterGroups=new ArrayList<String>();
+		availableEvaluatorFilterGroupsHidden="";
+		evaluatorFilterGroupsHidden="";
+		evaluatorFilterGroupsDualList=null;
 		letters=null;
 		enabledCheckboxesSetters=true;
 		activeTestReleaseTabName=GENERAL_WIZARD_TAB;
-		publishAllowed=true;
-		lastErrorMessage=null;
 		assessements=null;
 		navLocations=null;
 		redoQuestions=null;
@@ -339,6 +365,11 @@ public class TestReleaseBean implements Serializable
 	public void setCategoriesService(CategoriesService categoriesService)
 	{
 		this.categoriesService=categoriesService;
+	}
+	
+	public void setCategoryTypesService(CategoryTypesService categoryTypesService)
+	{
+		this.categoryTypesService=categoryTypesService;
 	}
 	
 	public void setQuestionsService(QuestionsService questionsService)
@@ -393,51 +424,84 @@ public class TestReleaseBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && testRelease==null)
+    	{
+    		getTestRelease();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
+	private boolean isFilterGlobalTestsEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(
+			getCurrentUserOperation(operation),"PERMISSION_TESTS_GLOBAL_FILTER_ENABLED");
+	}
+    
+	private boolean isFilterOtherUsersTestsEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(
+			getCurrentUserOperation(operation),"PERMISSION_TESTS_OTHER_USERS_FILTER_ENABLED");
+	}
+    
 	private boolean isPublishEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_TESTS_ENABLED");
 	}
 	
-	private boolean isPublishOtherUsersEnabled(Operation operation)
+	private boolean isPublishOtherUsersTestsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_OTHER_USERS_TESTS_ENABLED");
 	}
 	
-	private boolean isPublishAdminsEnabled(Operation operation)
+	private boolean isPublishAdminsTestsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_ADMINS_TESTS_ENABLED");
 	}
 	
-	private boolean isPublishSuperadminsEnabled(Operation operation)
+	private boolean isPublishSuperadminsTestsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_SUPERADMINS_USERS_TESTS_ENABLED");
 	}
 	
-	public TestRelease getTestRelease()
+	private boolean isViewTestsFromOtherUsersPrivateCategoriesEnabled(Operation operation)
 	{
-		return getTestRelease(null);
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_TESTS_VIEW_TESTS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
 	}
 	
-	private TestRelease getTestRelease(Operation operation)
+	private boolean isViewTestsFromAdminsPrivateCategoriesEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_TESTS_VIEW_TESTS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED");
+	}
+	
+	private boolean isViewTestsFromSuperadminsPrivateCategoriesEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_TESTS_VIEW_TESTS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED");
+	}
+	
+	public TestRelease getTestRelease()
 	{
 		if (testRelease==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
     		// We seek parameters
     		FacesContext context=FacesContext.getCurrentInstance();
     		Map<String,String> params=context.getExternalContext().getRequestParameterMap();
     		long testId=Long.parseLong(params.get("testId"));
     		int version=Integer.parseInt(params.get("version"));
 			
-    		// Get current user session Hibernate operation
-    		operation=getCurrentUserOperation(operation);
-    		
     		testRelease=version>0?testReleasesService.getTestRelease(operation,testId,version):null;
     		User currentUser=userSessionService.getCurrentUser(operation);
 			List<Integer> testReleaseVersions=testReleasesService.getTestReleaseVersions(operation,testId);
@@ -513,53 +577,34 @@ public class TestReleaseBean implements Serializable
 	
 	public boolean isAllUsersAllowed()
 	{
-		return isAllUsersAllowed(null);
+		return getTestRelease().isAllUsersAllowed();
 	}
 	
 	public void setAllUsersAllowed(boolean allUsersAllowed)
 	{
-		setAllUsersAllowed(null,allUsersAllowed);
-	}
-	
-	private boolean isAllUsersAllowed(Operation operation)
-	{
-		return getTestRelease(getCurrentUserOperation(operation)).isAllUsersAllowed();
-	}
-	
-	private void setAllUsersAllowed(Operation operation,boolean allUsersAllowed)
-	{
 		if (isEnabledChecboxesSetters())
 		{
-			getTestRelease(getCurrentUserOperation(operation)).setAllUsersAllowed(allUsersAllowed);
+			getTestRelease().setAllUsersAllowed(allUsersAllowed);
 		}
 	}
 	
 	public boolean isAllowAdminReports()
 	{
-		return isAllowAdminReports(null);
+		return getTestRelease().isAllowAdminReports();
 	}
 	
 	public void setAllowAdminReports(boolean allowAdminReports)
 	{
-		setAllowAdminReports(null,allowAdminReports);
-	}
-	
-	private boolean isAllowAdminReports(Operation operation)
-	{
-		return getTestRelease(getCurrentUserOperation(operation)).isAllowAdminReports();
-	}
-	
-	private void setAllowAdminReports(Operation operation,boolean allowAdminReports)
-	{
 		if (isEnabledChecboxesSetters())
 		{
-			getTestRelease(getCurrentUserOperation(operation)).setAllowAdminReports(allowAdminReports);
+			getTestRelease().setAllowAdminReports(allowAdminReports);
 		}
 	}
 	
 	public boolean isRestrictDates()
 	{
-		return isRestrictDates(null);
+		getTestRelease();
+		return restrictDates;
 	}
 	
 	public void setRestrictDates(boolean restrictDates)
@@ -570,15 +615,10 @@ public class TestReleaseBean implements Serializable
 		}
 	}
 	
-	private boolean isRestrictDates(Operation operation)
-	{
-		getTestRelease(getCurrentUserOperation(operation));
-		return restrictDates;
-	}
-	
 	public boolean isRestrictFeedbackDate()
 	{
-		return isRestrictFeedbackDate(null);
+		getTestRelease();
+		return restrictFeedbackDate;
 	}
 	
 	public void setRestrictFeedbackDate(boolean restrictFeedbackDate)
@@ -587,12 +627,6 @@ public class TestReleaseBean implements Serializable
 		{
 			this.restrictFeedbackDate=restrictFeedbackDate;
 		}
-	}
-	
-	private boolean isRestrictFeedbackDate(Operation operation)
-	{
-		getTestRelease(getCurrentUserOperation(operation));
-		return restrictFeedbackDate;
 	}
 	
 	public String getStartDateHidden()
@@ -657,17 +691,7 @@ public class TestReleaseBean implements Serializable
 	
 	public Date getStartDate()
 	{
-		return getStartDate(null);
-	}
-	
-	public void setStartDate(Date startDate)
-	{
-		setStartDate(null,startDate);
-	}
-	
-	private Date getStartDate(Operation operation)
-	{
-		TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+		TestRelease testRelease=getTestRelease();
 		if (getStartDateHidden()!=null && !getStartDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -683,9 +707,9 @@ public class TestReleaseBean implements Serializable
 		return testRelease.getStartDate();
 	}
 	
-	private void setStartDate(Operation operation,Date startDate)
+	public void setStartDate(Date startDate)
 	{
-		getTestRelease(getCurrentUserOperation(operation)).setStartDate(startDate);
+		getTestRelease().setStartDate(startDate);
 	}
 	
 	public void changeStartDate(DateSelectEvent event)
@@ -699,22 +723,12 @@ public class TestReleaseBean implements Serializable
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
 			setStartDateHidden(df.format(event.getDate()));
 		}
-		setStartDate(getCurrentUserOperation(null),event.getDate());
+		setStartDate(event.getDate());
 	}
 	
 	public Date getCloseDate()
 	{
-		return getCloseDate(null);
-	}
-	
-	public void setCloseDate(Date closeDate)
-	{
-		setCloseDate(null,closeDate);
-	}
-	
-	private Date getCloseDate(Operation operation)
-	{
-		TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+		TestRelease testRelease=getTestRelease();
 		if (getCloseDateHidden()!=null && !getCloseDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -730,9 +744,9 @@ public class TestReleaseBean implements Serializable
 		return testRelease.getCloseDate();
 	}
 	
-	private void setCloseDate(Operation operation,Date closeDate)
+	public void setCloseDate(Date closeDate)
 	{
-		getTestRelease(getCurrentUserOperation(operation)).setCloseDate(closeDate);
+		getTestRelease().setCloseDate(closeDate);
 	}
 	
 	public void changeCloseDate(DateSelectEvent event)
@@ -746,22 +760,12 @@ public class TestReleaseBean implements Serializable
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
 			setCloseDateHidden(df.format(event.getDate()));
 		}
-		setCloseDate(getCurrentUserOperation(null),event.getDate());
+		setCloseDate(event.getDate());
 	}
 	
 	public Date getWarningDate()
 	{
-		return getWarningDate(null);
-	}
-	
-	public void setWarningDate(Date warningDate)
-	{
-		setWarningDate(null,warningDate);
-	}
-	
-	private Date getWarningDate(Operation operation)
-	{
-		TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+		TestRelease testRelease=getTestRelease();
 		if (getWarningDateHidden()!=null && !getWarningDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -777,9 +781,9 @@ public class TestReleaseBean implements Serializable
 		return testRelease.getWarningDate();
 	}
 	
-	private void setWarningDate(Operation operation,Date warningDate)
+	public void setWarningDate(Date warningDate)
 	{
-		getTestRelease(getCurrentUserOperation(operation)).setWarningDate(warningDate);
+		getTestRelease().setWarningDate(warningDate);
 	}
 	
 	public void changeWarningDate(DateSelectEvent event)
@@ -793,22 +797,12 @@ public class TestReleaseBean implements Serializable
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
 			setWarningDateHidden(df.format(event.getDate()));
 		}
-		setWarningDate(getCurrentUserOperation(null),event.getDate());
+		setWarningDate(event.getDate());
 	}
 	
 	public Date getFeedbackDate()
 	{
-		return getFeedbackDate(null);
-	}
-	
-	public void setFeedbackDate(Date feedbackDate)
-	{
-		setFeedbackDate(null,feedbackDate);
-	}
-	
-	private Date getFeedbackDate(Operation operation)
-	{
-		TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+		TestRelease testRelease=getTestRelease();
 		if (getFeedbackDateHidden()!=null && !getFeedbackDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -824,9 +818,9 @@ public class TestReleaseBean implements Serializable
 		return testRelease.getFeedbackDate();
 	}
 	
-	private void setFeedbackDate(Operation operation,Date feedbackDate)
+	public void setFeedbackDate(Date feedbackDate)
 	{
-		getTestRelease(getCurrentUserOperation(operation)).setFeedbackDate(feedbackDate);
+		getTestRelease().setFeedbackDate(feedbackDate);
 	}
 	
 	public void changeFeedbackDate(DateSelectEvent event)
@@ -840,22 +834,12 @@ public class TestReleaseBean implements Serializable
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
 			setFeedbackDateHidden(df.format(event.getDate()));
 		}
-		setFeedbackDate(getCurrentUserOperation(null),event.getDate());
+		setFeedbackDate(event.getDate());
 	}
 	
 	public Date getDeleteDate()
 	{
-		return getDeleteDate(null);
-	}
-	
-	public void setDeleteDate(Date deleteDate)
-	{
-		setDeleteDate(null,deleteDate);
-	}
-	
-	private Date getDeleteDate(Operation operation)
-	{
-		TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+		TestRelease testRelease=getTestRelease();
 		if (getDeleteDateHidden()!=null && !getDeleteDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -871,9 +855,9 @@ public class TestReleaseBean implements Serializable
 		return testRelease.getDeleteDate();
 	}
 	
-	private void setDeleteDate(Operation operation,Date deleteDate)
+	public void setDeleteDate(Date deleteDate)
 	{
-		getTestRelease(getCurrentUserOperation(operation)).setDeleteDate(deleteDate);
+		getTestRelease().setDeleteDate(deleteDate);
 	}
 	
 	public void changeDeleteDate(DateSelectEvent event)
@@ -887,23 +871,14 @@ public class TestReleaseBean implements Serializable
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
 			setDeleteDateHidden(df.format(event.getDate()));
 		}
-		setDeleteDate(getCurrentUserOperation(null),event.getDate());
+		setDeleteDate(event.getDate());
 	}
 	
 	public String getVersion()
 	{
-		return getVersion(null);
-	}
-	
-	public void setVersion(String version)
-	{
-	}
-	
-	private String getVersion(Operation operation)
-	{
 		if (version==null)
 		{
-			TestRelease testRelease=getTestRelease(getCurrentUserOperation(operation));
+			TestRelease testRelease=getTestRelease();
 			StringBuffer sVersion=new StringBuffer();
 			if (testRelease.getVersion()<10)
 			{
@@ -913,6 +888,10 @@ public class TestReleaseBean implements Serializable
 			version=sVersion.toString();
 		}
 		return version;
+	}
+	
+	public void setVersion(String version)
+	{
 	}
 	
     /**
@@ -946,27 +925,18 @@ public class TestReleaseBean implements Serializable
     
 	public NavLocation getNavLocation()
 	{
-		return getNavLocation(null);
+		return getTestRelease().getNavLocation();
 	}
 	
 	public void setNavLocation(NavLocation navLocation)
 	{
-		setNavLocation(null,navLocation);
-	}
-	
-	private NavLocation getNavLocation(Operation operation)
-	{
-		return getTestRelease(getCurrentUserOperation(operation)).getNavLocation();
-	}
-	
-	private void setNavLocation(Operation operation,NavLocation navLocation)
-	{
-		getTestRelease(getCurrentUserOperation(operation)).setNavLocation(navLocation);
+		getTestRelease().setNavLocation(navLocation);
 	}
 	
 	public long getNavLocationId()
 	{
-		return getNavLocationId(null);
+		NavLocation navLocation=getNavLocation();
+		return navLocation==null?0L:navLocation.getId();
 	}
 	
 	public void setNavLocationId(long navLocationId)
@@ -974,18 +944,9 @@ public class TestReleaseBean implements Serializable
 		setNavLocationId(null,navLocationId);
 	}
 	
-	private long getNavLocationId(Operation operation)
-	{
-		NavLocation navLocation=getNavLocation(getCurrentUserOperation(operation));
-		return navLocation==null?0L:navLocation.getId();
-	}
-	
 	private void setNavLocationId(Operation operation,long navLocationId)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		setNavLocation(operation,navLocationsService.getNavLocation(operation,navLocationId));
+		setNavLocation(navLocationsService.getNavLocation(getCurrentUserOperation(operation),navLocationId));
 	}
 	
     /**
@@ -1019,38 +980,23 @@ public class TestReleaseBean implements Serializable
 	
 	public RedoQuestionValue getRedoQuestion()
 	{
-		return getRedoQuestion(null);
+		return getTestRelease().getRedoQuestion();
 	}
 	
 	public void setRedoQuestion(RedoQuestionValue redoQuestion)
 	{
-		setRedoQuestion(null,redoQuestion);
-	}
-	
-	private RedoQuestionValue getRedoQuestion(Operation operation)
-	{
-		return getTestRelease(getCurrentUserOperation(operation)).getRedoQuestion();
-	}
-	
-	private void setRedoQuestion(Operation operation,RedoQuestionValue redoQuestion)
-	{
-		getTestRelease(getCurrentUserOperation(operation)).setRedoQuestion(redoQuestion);
+		getTestRelease().setRedoQuestion(redoQuestion);
 	}
 	
 	public long getRedoQuestionId()
 	{
-		return getRedoQuestionId(null);
+		RedoQuestionValue redoQuestion=getRedoQuestion();
+		return redoQuestion==null?0L:redoQuestion.getId();
 	}
 	
 	public void setRedoQuestionId(long redoQuestionId)
 	{
 		setRedoQuestionId(null,redoQuestionId);
-	}
-	
-	private long getRedoQuestionId(Operation operation)
-	{
-		RedoQuestionValue redoQuestion=getRedoQuestion(getCurrentUserOperation(operation));
-		return redoQuestion==null?0L:redoQuestion.getId();
 	}
 	
 	private void setRedoQuestionId(Operation operation,long redoQuestionId)
@@ -1148,29 +1094,17 @@ public class TestReleaseBean implements Serializable
 	
 	public String getScoreType()
 	{
-		return getScoreType(null);
+		return localizationService.getLocalizedMessage(getTestRelease().getTest().getScoreType().getType());
 	}
 	
 	public void setScoreType(String scoreType)
 	{
 	}
 	
-	private String getScoreType(Operation operation)
-	{
-		return localizationService.getLocalizedMessage(
-			getTestRelease(getCurrentUserOperation(operation)).getTest().getScoreType().getType());
-	}
-	
 	public String getScoreTypeTip()
 	{
-		return getScoreTypeTip(null);
-	}
-	
-	private String getScoreTypeTip(Operation operation)
-	{
 		String scoreTypeTip=null;
-		StringBuffer scoreTypeTipLabel=
-			new StringBuffer(getTestRelease(getCurrentUserOperation(operation)).getTest().getScoreType().getType());
+		StringBuffer scoreTypeTipLabel=new StringBuffer(getTestRelease().getTest().getScoreType().getType());
 		scoreTypeTipLabel.append("_TIP");
 		scoreTypeTip=localizationService.getLocalizedMessage(scoreTypeTipLabel.toString());
 		return scoreTypeTip==null?"":scoreTypeTip;
@@ -1320,10 +1254,47 @@ public class TestReleaseBean implements Serializable
 				filteredUsersForAddingSupportContactFilterUsers=usersService.getSortedUsers(operation,
 					getFilterSupportContactFilterUsersUserTypeId(),isFilterSupportContactFilterUsersIncludeOmUsers());
 			}
-			if (!isAllUsersAllowed(operation))
+			if (!isAllUsersAllowed())
 			{
-				List<User> testUsers=getTestRelease(operation).getUsers();
-				List<User> testAdmins=getTestRelease(operation).getAdmins();
+				TestRelease testRelease=getTestRelease();
+				if (groupUsersMap==null)
+				{
+					groupUsersMap=new HashMap<String,List<User>>();
+				}
+				List<User> testUsers=testRelease.getUsers();
+				for (String testUserGroup:testRelease.getUserGroups())
+				{
+					List<User> groupUsers=groupUsersMap.get(testUserGroup);
+					if (groupUsers==null)
+					{
+						groupUsers=usersService.getUsersWithGroup(operation,testUserGroup);
+						groupUsersMap.put(testUserGroup,groupUsers);
+					}
+					for (User groupUser:groupUsers)
+					{
+						if (!testUsers.contains(groupUser))
+						{
+							testUsers.add(groupUser);
+						}
+					}
+				}
+				List<User> testAdmins=testRelease.getAdmins();
+				for (String testAdminGroup:testRelease.getAdminGroups())
+				{
+					List<User> groupAdmins=groupUsersMap.get(testAdminGroup);
+					if (groupAdmins==null)
+					{
+						groupAdmins=usersService.getUsersWithGroup(operation,testAdminGroup);
+						groupUsersMap.put(testAdminGroup,groupAdmins);
+					}
+					for (User groupAdmin:groupAdmins)
+					{
+						if (!testAdmins.contains(groupAdmin))
+						{
+							testAdmins.add(groupAdmin);
+						}
+					}
+				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
 				for (User user:filteredUsersForAddingSupportContactFilterUsers)
 				{
@@ -1360,7 +1331,7 @@ public class TestReleaseBean implements Serializable
 	
 	/**
 	 * @param operation Operation
-	 * @return Filtered users for the "'Add/Edit assessement address" dialog
+	 * @return Filtered users for the "Add/Edit assessement address" dialog
 	 */
 	private List<User> getFilteredUsersForAddingEvaluatorFilterUsers(Operation operation)
 	{
@@ -1380,10 +1351,47 @@ public class TestReleaseBean implements Serializable
 					operation,getFilterEvaluatorFilterUsersUserTypeId(),isFilterEvaluatorFilterUsersIncludeOmUsers());
 			}
 			
-			if (!isAllUsersAllowed(operation))
+			if (!isAllUsersAllowed())
 			{
-				List<User> testUsers=getTestRelease(operation).getUsers();
-				List<User> testAdmins=getTestRelease(operation).getAdmins();
+				TestRelease testRelease=getTestRelease();
+				if (groupUsersMap==null)
+				{
+					groupUsersMap=new HashMap<String,List<User>>();
+				}
+				List<User> testUsers=testRelease.getUsers();
+				for (String testUserGroup:testRelease.getUserGroups())
+				{
+					List<User> groupUsers=groupUsersMap.get(testUserGroup);
+					if (groupUsers==null)
+					{
+						groupUsers=usersService.getUsersWithGroup(operation,testUserGroup);
+						groupUsersMap.put(testUserGroup,groupUsers);
+					}
+					for (User groupUser:groupUsers)
+					{
+						if (!testUsers.contains(groupUser))
+						{
+							testUsers.add(groupUser);
+						}
+					}
+				}
+				List<User> testAdmins=testRelease.getAdmins();
+				for (String testAdminGroup:testRelease.getAdminGroups())
+				{
+					List<User> groupAdmins=groupUsersMap.get(testAdminGroup);
+					if (groupAdmins==null)
+					{
+						groupAdmins=usersService.getUsersWithGroup(operation,testAdminGroup);
+						groupUsersMap.put(testAdminGroup,groupAdmins);
+					}
+					for (User groupAdmin:groupAdmins)
+					{
+						if (!testAdmins.contains(groupAdmin))
+						{
+							testAdmins.add(groupAdmin);
+						}
+					}
+				}
 				List<User> usersNotAllowedToDoTest=new ArrayList<User>();
 				for (User user:filteredUsersForAddingEvaluatorFilterUsers)
 				{
@@ -1445,7 +1453,11 @@ public class TestReleaseBean implements Serializable
 	 */
 	public List<UserGroupBean> getTestUsersGroups()
 	{
-		return getTestUsersGroups(null);
+    	if (testUsersGroups==null)
+    	{
+    		getTestRelease();
+    	}
+    	return testUsersGroups;
 	}
 	
 	/**
@@ -1454,19 +1466,6 @@ public class TestReleaseBean implements Serializable
 	public void setTestUsersGroups(List<UserGroupBean> testUsersGroups)
 	{
 		this.testUsersGroups=testUsersGroups;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users and groups with permission to do this test
-	 */
-	private List<UserGroupBean> getTestUsersGroups(Operation operation)
-	{
-    	if (testUsersGroups==null)
-    	{
-    		getTestRelease(operation);
-    	}
-    	return testUsersGroups;
 	}
 	
 	public long getFilterAdminsUserTypeId()
@@ -1494,7 +1493,11 @@ public class TestReleaseBean implements Serializable
 	 */
 	public List<UserGroupBean> getTestAdminsGroups()
 	{
-		return getTestAdminsGroups(null);
+    	if (testAdminsGroups==null)
+    	{
+    		getTestRelease();
+    	}
+    	return testAdminsGroups;
 	}
 	
 	/**
@@ -1503,19 +1506,6 @@ public class TestReleaseBean implements Serializable
 	public void setTestAdminsGroups(List<UserGroupBean> testAdminsGroups)
 	{
 		this.testAdminsGroups=testAdminsGroups;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users and groups with permission to administrate this test
-	 */
-	private List<UserGroupBean> getTestAdminsGroups(Operation operation)
-	{
-    	if (testAdminsGroups==null)
-    	{
-    		getTestRelease(operation);
-    	}
-    	return testAdminsGroups;
 	}
 	
 	public Boolean getViewQuestionsFromOtherUsersPrivateCategoriesEnabled()
@@ -1620,8 +1610,8 @@ public class TestReleaseBean implements Serializable
 	{
 		if (viewOMEnabled==null)
 		{
-			viewOMEnabled=Boolean.valueOf(
-				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_VIEW_OM_ENABLED"));
+			viewOMEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_VIEW_OM_ENABLED"));
 		}
 		return viewOMEnabled;
 	}
@@ -1791,14 +1781,6 @@ public class TestReleaseBean implements Serializable
     	{
     		ok=USERS_WIZARD_TAB.equals(nextStep) || checkCalendarInputFields();
     	}
-    	else if (CONFIRMATION_WIZARD_TAB.equals(oldStep))
-    	{
-    		if (!publishAllowed)
-    		{
-    			ok=false;
-    			addErrorMessage(lastErrorMessage);
-    		}
-    	}
     	if (!ok)
     	{
     		nextStep=oldStep;
@@ -1823,24 +1805,16 @@ public class TestReleaseBean implements Serializable
     
 	private boolean checkCalendarInputFields()
 	{
-		return checkCalendarInputFields(null);
-	}
-	
-    private boolean checkCalendarInputFields(Operation operation)
-    {
     	boolean ok=true;
     	
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-    	if (isRestrictDates(operation))
+    	if (isRestrictDates())
     	{
     		String startDateHidden=getStartDateHidden();
     		String closeDateHidden=getCloseDateHidden();
     		String warningDateHidden=getWarningDateHidden();
-    		Date startDate=getStartDate(operation);
-    		Date closeDate=getCloseDate(operation);
-    		Date warningDate=getWarningDate(operation);
+    		Date startDate=getStartDate();
+    		Date closeDate=getCloseDate();
+    		Date warningDate=getWarningDate();
     		if (startDate!=null && closeDate!=null && !closeDate.after(startDate))
     		{
    				addErrorMessage("TEST_CLOSE_DATE_NOT_AFTER_START_DATE");
@@ -1859,10 +1833,10 @@ public class TestReleaseBean implements Serializable
     				ok=false;
     			}
     		}
-    		if (isRestrictFeedbackDate(operation))
+    		if (isRestrictFeedbackDate())
     		{
     			String feedbackDateHidden=getFeedbackDateHidden();
-    			Date feedbackDate=getFeedbackDate(operation);
+    			Date feedbackDate=getFeedbackDate();
     			if (feedbackDate!=null)
     			{
     				if (startDate!=null && feedbackDate.before(startDate))
@@ -1883,8 +1857,8 @@ public class TestReleaseBean implements Serializable
     		setWarningDateHidden(warningDateHidden);
     	}
 		return ok;
-    }
-    
+	}
+	
 	public String getUserGroup()
 	{
 		return userGroup;
@@ -1926,13 +1900,12 @@ public class TestReleaseBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		List<User> testReleaseUsers=getTestRelease(operation).getUsers();
+		List<User> testReleaseUsers=getTestRelease().getUsers();
 		for (User user:getFilteredUsersForAddingUsers(operation))
 		{
 			if (!testReleaseUsers.contains(user))
 			{
-				User availableUser=new User();
-				availableUser.setFromOtherUser(user);
+				User availableUser=user.getUserCopy();
 				availableUsers.add(availableUser);
 			}
 		}
@@ -2037,11 +2010,8 @@ public class TestReleaseBean implements Serializable
 	{
 		if (userGroupsDualList==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			List<String> availableUserGroups=usersService.getGroups(operation);
-			for (UserGroupBean userGroup:getTestUsersGroups(operation))
+			List<String> availableUserGroups=usersService.getGroups(getCurrentUserOperation(operation));
+			for (UserGroupBean userGroup:getTestUsersGroups())
 			{
 				if (!userGroup.isTestUser())
 				{
@@ -2099,7 +2069,7 @@ public class TestReleaseBean implements Serializable
 		refreshUserGroupsDualList(operation,event.getComponent());
     	
 		// Add selected groups
-		List<UserGroupBean> testUsersGroups=getTestUsersGroups(operation);
+		List<UserGroupBean> testUsersGroups=getTestUsersGroups();
    		for (String userGroup:getUserGroupsDualList(operation).getTarget())
   		{
   			testUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
@@ -2139,12 +2109,9 @@ public class TestReleaseBean implements Serializable
      */
     public void acceptAddUsers(ActionEvent event)
     {
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	TestRelease testRelease=getTestRelease(operation);
-    	List<UserGroupBean> testUsersGroups=getTestUsersGroups(operation);
-   		for (User user:getUsersDualList(operation).getTarget())
+    	TestRelease testRelease=getTestRelease();
+    	List<UserGroupBean> testUsersGroups=getTestUsersGroups();
+   		for (User user:getUsersDualList(getCurrentUserOperation(null)).getTarget())
   		{
    			testRelease.getUsers().add(user);
    			testUsersGroups.add(new UserGroupBean(user));
@@ -2157,10 +2124,7 @@ public class TestReleaseBean implements Serializable
      */
     public void removeUserGroup(ActionEvent event)
     {
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	TestRelease testRelease=getTestRelease(operation);
+    	TestRelease testRelease=getTestRelease();
     	UserGroupBean userGroup=(UserGroupBean)event.getComponent().getAttributes().get("userGroup");
     	if (userGroup!=null)
     	{
@@ -2172,7 +2136,7 @@ public class TestReleaseBean implements Serializable
     		{
     			testRelease.getUserGroups().remove(userGroup.getGroup());
     		}
-    		getTestUsersGroups(operation).remove(userGroup);
+    		getTestUsersGroups().remove(userGroup);
     	}
 	}
     
@@ -2349,7 +2313,7 @@ public class TestReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				for (UserGroupBean userGroup:getTestUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -2382,7 +2346,7 @@ public class TestReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getTestUsersGroups(operation))
+				for (UserGroupBean userGroup:getTestUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -2443,13 +2407,12 @@ public class TestReleaseBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		List<User> testReleaseAdmins=getTestRelease(operation).getAdmins();
+		List<User> testReleaseAdmins=getTestRelease().getAdmins();
 		for (User admin:getFilteredUsersForAddingAdmins(operation))
 		{
 			if (!testReleaseAdmins.contains(admin))
 			{
-				User availableAdmin=new User();
-				availableAdmin.setFromOtherUser(admin);
+				User availableAdmin=admin.getUserCopy();
 				availableAdmins.add(availableAdmin);
 			}
 		}
@@ -2555,11 +2518,8 @@ public class TestReleaseBean implements Serializable
 	{
 		if (adminGroupsDualList==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			List<String> availableAdminGroups=usersService.getGroups(operation);
-			for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+			List<String> availableAdminGroups=usersService.getGroups(getCurrentUserOperation(operation));
+			for (UserGroupBean adminGroup:getTestAdminsGroups())
 			{
 				if (!adminGroup.isTestUser())
 				{
@@ -2617,7 +2577,7 @@ public class TestReleaseBean implements Serializable
 		refreshAdminGroupsDualList(operation,event.getComponent());
     	
 		// Add selected groups
-		List<UserGroupBean> testAdminsGroups=getTestAdminsGroups(operation);
+		List<UserGroupBean> testAdminsGroups=getTestAdminsGroups();
    		for (String adminGroup:getAdminGroupsDualList(operation).getTarget())
   		{
   			testAdminsGroups.add(new UserGroupBean(usersService,userSessionService,adminGroup));
@@ -2661,12 +2621,9 @@ public class TestReleaseBean implements Serializable
      */
     public void acceptAddAdmins(ActionEvent event)
     {
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	TestRelease testRelease=getTestRelease(operation);
-    	List<UserGroupBean> testAdminsGroups=getTestAdminsGroups(operation);
-   		for (User admin:getAdminsDualList(operation).getTarget())
+    	TestRelease testRelease=getTestRelease();
+    	List<UserGroupBean> testAdminsGroups=getTestAdminsGroups();
+   		for (User admin:getAdminsDualList(getCurrentUserOperation(null)).getTarget())
   		{
    			testRelease.getAdmins().add(admin);
    			testAdminsGroups.add(new UserGroupBean(admin));
@@ -2679,10 +2636,7 @@ public class TestReleaseBean implements Serializable
      */
     public void removeAdminGroup(ActionEvent event)
     {
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	TestRelease testRelease=getTestRelease(operation);
+    	TestRelease testRelease=getTestRelease();
     	UserGroupBean adminGroup=(UserGroupBean)event.getComponent().getAttributes().get("adminGroup");
     	if (adminGroup!=null)
     	{
@@ -2694,7 +2648,7 @@ public class TestReleaseBean implements Serializable
     		{
     			testRelease.getAdminGroups().remove(adminGroup.getGroup());
     		}
-    		getTestAdminsGroups(operation).remove(adminGroup);
+    		getTestAdminsGroups().remove(adminGroup);
     	}
 	}
     
@@ -2799,7 +2753,7 @@ public class TestReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
 				{
 					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
 					{
@@ -2832,7 +2786,7 @@ public class TestReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
 				{
 					if (!adminGroup.isTestUser() && getAdminGroup().equals(adminGroup.getGroup()))
 					{
@@ -2856,42 +2810,22 @@ public class TestReleaseBean implements Serializable
     
 	public List<SupportContactBean> getSupportContacts()
 	{
-		return getSupportContacts(null);
+		return getTestRelease().getSupportContacts();
 	}
 	
 	public void setSupportContacts(List<SupportContactBean> supportContacts)
 	{
-		setSupportContacts(null,supportContacts);
-	}
-	
-	private List<SupportContactBean> getSupportContacts(Operation operation)
-	{
-		return getTestRelease(getCurrentUserOperation(operation)).getSupportContacts();
-	}
-	
-	private void setSupportContacts(Operation operation,List<SupportContactBean> supportContacts)
-	{
-		getTestRelease(getCurrentUserOperation(operation)).setSupportContacts(supportContacts);
+		getTestRelease().setSupportContacts(supportContacts);
 	}
 	
 	public List<EvaluatorBean> getEvaluators()
 	{
-		return getEvaluators(null);
+		return getTestRelease().getEvaluators();
 	}
 	
 	public void setEvaluators(List<EvaluatorBean> evaluators)
 	{
-		setEvaluators(null,evaluators);
-	}
-	
-	private List<EvaluatorBean> getEvaluators(Operation operation)
-	{
-		return getTestRelease(operation).getEvaluators();
-	}
-	
-	private void setEvaluators(Operation operation,List<EvaluatorBean> evaluators)
-	{
-		getTestRelease(getCurrentUserOperation(operation)).setEvaluators(evaluators);
+		getTestRelease().setEvaluators(evaluators);
 	}
 	
 	public SupportContactBean getCurrentSupportContact()
@@ -2952,6 +2886,7 @@ public class TestReleaseBean implements Serializable
 		
 		// Reload filtered users for "Add/Edit tech support address" dialog
 		setFilteredUsersForAddingSupportContactFilterUsers(null);
+		groupUsersMap=null;
 	}
 	
 	private void refreshSupportContactFilterUsersDualList(Operation operation,UIComponent component)
@@ -2997,6 +2932,94 @@ public class TestReleaseBean implements Serializable
 	}
 	
 	/**
+	 * @return Groups for the filter of the "Add/Edit tech support address" dialog as dual list
+	 */
+	public DualListModel<String> getSupportContactFilterGroupsDualList()
+	{
+		return getSupportContactFilterGroupsDualList(null);
+	}
+	
+	public void setSupportContactFilterGroupsDualList(DualListModel<String> supportContactFilterGroupsDualList)
+	{
+		this.supportContactFilterGroupsDualList=supportContactFilterGroupsDualList;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups for the filter of the "Add/Edit tech support address" dialog as dual list
+	 */
+	private DualListModel<String> getSupportContactFilterGroupsDualList(Operation operation)
+	{
+		if (supportContactFilterGroupsDualList==null)
+		{
+			supportContactFilterGroupsDualList=new DualListModel<String>(
+				getAvailableSupportContactFilterGroups(getCurrentUserOperation(operation)),
+				getTestSupportContactFilterGroups());
+		}
+		return supportContactFilterGroupsDualList;
+	}
+	
+	private void refreshSupportContactFilterGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden field with groups
+		if (processSupportContactFilterGroupsHidden(component))
+		{
+			// Fill the list of available groups included within the current group filter of the 
+			// "Add/Edit tech support address" dialog with the information from hidden field
+			List<String> availableSupportContactFilterGroups=
+				getAvailableSupportContactFilterGroups(getCurrentUserOperation(operation));
+			availableSupportContactFilterGroups.clear();
+			if (getAvailableSupportContactFilterGroupsHidden()!=null && 
+				!"".equals(getAvailableSupportContactFilterGroupsHidden()))
+			{
+				for (String group:getAvailableSupportContactFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableSupportContactFilterGroups.add(group);
+				}
+			}
+			
+			// Fill the list of groups included within the current group filter of the 
+			// "Add/Edit tech support address" dialog with the information from hidden field
+			List<String> testSupportContactFilterGroups=getTestSupportContactFilterGroups();
+			testSupportContactFilterGroups.clear();
+			if (getSupportContactFilterGroupsHidden()!=null && !"".equals(getSupportContactFilterGroupsHidden()))
+			{
+				for (String group:getSupportContactFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					testSupportContactFilterGroups.add(group);
+				}
+			}
+			
+			// Reload dual list of filtered groups for "Add/Edit tech support address" dialog
+			setSupportContactFilterGroupsDualList(null);
+		}
+	}
+	
+	private boolean processSupportContactFilterGroupsHidden(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableSupportContactFilterGroupsHiddenInput=(UIInput)component.findComponent(
+			":techSupportAddressDialogForm:availableSupportContactFilterGroupsHidden");
+		availableSupportContactFilterGroupsHiddenInput.processDecodes(context);
+		if (availableSupportContactFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableSupportContactFilterGroupsHidden(
+				(String)availableSupportContactFilterGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput supportContactFilterGroupsHiddenInput=
+			(UIInput)component.findComponent(":techSupportAddressDialogForm:supportContactFilterGroupsHidden");
+		supportContactFilterGroupsHiddenInput.processDecodes(context);
+		if (supportContactFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setSupportContactFilterGroupsHidden((String)supportContactFilterGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
 	 * @return Users for the filter of the "Add/Edit assessement address" dialog as dual list
 	 */
 	public DualListModel<User> getEvaluatorFilterUsersDualList()
@@ -3034,6 +3057,7 @@ public class TestReleaseBean implements Serializable
 		
 		// Reload filtered users for "Add/Edit assessement address" dialog
 		setFilteredUsersForAddingEvaluatorFilterUsers(null);
+		groupUsersMap=null;
 	}
 	
 	private void refreshEvaluatorFilterUsersDualList(Operation operation,UIComponent component)
@@ -3071,6 +3095,93 @@ public class TestReleaseBean implements Serializable
 		if (evaluatorFilterUsersIdsHiddenInput.getSubmittedValue()!=null)
 		{
 			setEvaluatorFilterUsersIdsHidden((String)evaluatorFilterUsersIdsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		return submittedValue;
+	}
+	
+	/**
+	 * @return Groups for the filter of the "Add/Edit assessement address" dialog as dual list
+	 */
+	public DualListModel<String> getEvaluatorFilterGroupsDualList()
+	{
+		return getEvaluatorFilterGroupsDualList(null);
+	}
+	
+	public void setEvaluatorFilterGroupsDualList(DualListModel<String> evaluatorFilterGroupsDualList)
+	{
+		this.evaluatorFilterGroupsDualList=evaluatorFilterGroupsDualList;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups for the filter of the "Add/Edit assessement address" dialog as dual list
+	 */
+	private DualListModel<String> getEvaluatorFilterGroupsDualList(Operation operation)
+	{
+		if (evaluatorFilterGroupsDualList==null)
+		{
+			evaluatorFilterGroupsDualList=new DualListModel<String>(
+				getAvailableEvaluatorFilterGroups(getCurrentUserOperation(operation)),
+				getTestEvaluatorFilterGroups());
+		}
+		return evaluatorFilterGroupsDualList;
+	}
+	
+	private void refreshEvaluatorFilterGroupsDualList(Operation operation,UIComponent component)
+	{
+		// Process hidden field with groups
+		if (processEvaluatorFilterGroupsHidden(component))
+		{
+			// Fill the list of available groups included within the current group filter of the 
+			// "Add/Edit assessement address" dialog with the information from hidden field
+			List<String> availableEvaluatorFilterGroups=
+				getAvailableEvaluatorFilterGroups(getCurrentUserOperation(operation));
+			availableEvaluatorFilterGroups.clear();
+			if (getAvailableEvaluatorFilterGroupsHidden()!=null && !"".equals(getAvailableEvaluatorFilterGroupsHidden()))
+			{
+				for (String group:getAvailableEvaluatorFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					availableEvaluatorFilterGroups.add(group);
+				}
+			}
+			
+			// Fill the list of groups included within the current group filter of the 
+			// "Add/Edit assessement address" dialog with the information from hidden field
+			List<String> testEvaluatorFilterGroups=getTestEvaluatorFilterGroups();
+			testEvaluatorFilterGroups.clear();
+			if (getEvaluatorFilterGroupsHidden()!=null && !"".equals(getEvaluatorFilterGroupsHidden()))
+			{
+				for (String group:getEvaluatorFilterGroupsHidden().split(Pattern.quote(",")))
+				{
+					testEvaluatorFilterGroups.add(group);
+				}
+			}
+			
+			// Reload dual list of filtered groups for "Add/Edit assessement address" dialog
+			setEvaluatorFilterGroupsDualList(null);
+		}
+	}
+	
+	private boolean processEvaluatorFilterGroupsHidden(UIComponent component)
+	{
+		boolean submittedValue=false;
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput availableEvaluatorFilterGroupsHiddenInput=(UIInput)component.findComponent(
+			":assessementAddressDialogForm:availableEvaluatorFilterGroupsHidden");
+		availableEvaluatorFilterGroupsHiddenInput.processDecodes(context);
+		if (availableEvaluatorFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setAvailableEvaluatorFilterGroupsHidden(
+				(String)availableEvaluatorFilterGroupsHiddenInput.getSubmittedValue());
+			submittedValue=true;
+		}
+		UIInput evaluatorFilterGroupsHiddenInput=
+			(UIInput)component.findComponent(":assessementAddressDialogForm:evaluatorFilterGroupsHidden");
+		evaluatorFilterGroupsHiddenInput.processDecodes(context);
+		if (evaluatorFilterGroupsHiddenInput.getSubmittedValue()!=null)
+		{
+			setEvaluatorFilterGroupsHidden((String)evaluatorFilterGroupsHiddenInput.getSubmittedValue());
 			submittedValue=true;
 		}
 		return submittedValue;
@@ -3253,8 +3364,7 @@ public class TestReleaseBean implements Serializable
 		{
 			if (!testSupportContactFilterUsers.contains(user))
 			{
-				User availableSupportContactFilterUser=new User();
-				availableSupportContactFilterUser.setFromOtherUser(user);
+				User availableSupportContactFilterUser=user.getUserCopy();
 				availableSupportContactFilterUsers.add(availableSupportContactFilterUser);
 			}
 		}
@@ -3299,6 +3409,132 @@ public class TestReleaseBean implements Serializable
 	public void setFilterSupportContactRangeSurnameUpperLimit(String filterSupportContactRangeSurnameUpperLimit)
 	{
 		this.filterSupportContactRangeSurnameUpperLimit=filterSupportContactRangeSurnameUpperLimit;
+	}
+	
+	public String getSupportContactGroup()
+	{
+		return supportContactGroup;
+	}
+	
+	public void setSupportContactGroup(String supportContactGroup)
+	{
+		this.supportContactGroup=supportContactGroup;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	public List<String> getTestSupportContactFilterGroups()
+	{
+		return testSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @param testSupportContactFilterGroups Groups included within the current group filter of the 
+	 * "Add/Edit tech support address" dialog
+	 */
+	public void setTestSupportContactFilterGroups(List<String> testSupportContactFilterGroups)
+	{
+		this.testSupportContactFilterGroups=testSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @return Available groups included within the current group filter of the "Add/Edit tech support address" 
+	 * dialog as a string with the groups separated by commas
+	 */
+	public String getAvailableSupportContactFilterGroupsHidden()
+	{
+		return availableSupportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param availableSupportContactFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit tech support address" dialog as a string with the groups separated by commas
+	 */
+	public void setAvailableSupportContactFilterGroupsHidden(String availableSupportContactFilterGroupsHidden)
+	{
+		this.availableSupportContactFilterGroupsHidden=availableSupportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit tech support address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getSupportContactFilterGroupsHidden()
+	{
+		return supportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param supportContactFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit tech support address" dialog as a string with the groups separated by commas
+	 */
+	public void setSupportContactFilterGroupsHidden(String supportContactFilterGroupsHidden)
+	{
+		this.supportContactFilterGroupsHidden=supportContactFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups not included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	public List<String> getAvailableSupportContactFilterGroups()
+	{
+		return getAvailableSupportContactFilterGroups(null);
+	}
+	
+	/**
+	 * Set groups not included within the current group filter of the "Add/Edit tech support address" dialog 
+	 * @param availableSupportContactFilterGroups Groups not included within the current group filter of the 
+	 * "Add/Edit tech support address" dialog
+	 */
+	public void setAvailableSupportContactFilterGroups(List<String> availableSupportContactFilterGroups)
+	{
+		this.availableSupportContactFilterGroups=availableSupportContactFilterGroups;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups not included within the current group filter of the "Add/Edit tech support address" dialog
+	 */
+	private List<String> getAvailableSupportContactFilterGroups(Operation operation)
+	{
+		if (availableSupportContactFilterGroups==null)
+		{
+			availableSupportContactFilterGroups=new ArrayList<String>();
+
+			if (isAllUsersAllowed())
+			{
+				for (String group:usersService.getGroups(getCurrentUserOperation(operation)))
+				{
+					if (!getTestSupportContactFilterGroups().contains(group))
+					{
+						availableSupportContactFilterGroups.add(group);
+					}
+				}
+			}
+			else
+			{
+				for (UserGroupBean userGroup:getTestUsersGroups())
+				{
+					if (!userGroup.isTestUser() && 
+						!getTestSupportContactFilterGroups().contains(userGroup.getGroup()) && 
+						!availableSupportContactFilterGroups.contains(userGroup.getGroup()))
+					{
+						availableSupportContactFilterGroups.add(userGroup.getGroup());
+					}
+				}
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
+				{
+					if (!adminGroup.isTestUser() && 
+						!getTestSupportContactFilterGroups().contains(adminGroup.getGroup()) && 
+						!availableSupportContactFilterGroups.contains(adminGroup.getGroup()))
+					{
+						availableSupportContactFilterGroups.add(adminGroup.getGroup());
+					}
+				}
+			}
+		}
+		return availableSupportContactFilterGroups;
 	}
 	
 	public String getEvaluatorFilterType()
@@ -3472,8 +3708,7 @@ public class TestReleaseBean implements Serializable
 		{
 			if (!testEvaluatorFilterUsers.contains(user))
 			{
-				User availableEvaluatorFilterUser=new User();
-				availableEvaluatorFilterUser.setFromOtherUser(user);
+				User availableEvaluatorFilterUser=user.getUserCopy();
 				availableEvaluatorFilterUsers.add(availableEvaluatorFilterUser);
 			}
 		}
@@ -3518,6 +3753,131 @@ public class TestReleaseBean implements Serializable
 	public void setFilterEvaluatorRangeSurnameUpperLimit(String filterEvaluatorRangeSurnameUpperLimit)
 	{
 		this.filterEvaluatorRangeSurnameUpperLimit=filterEvaluatorRangeSurnameUpperLimit;
+	}
+	
+	public String getEvaluatorGroup()
+	{
+		return evaluatorGroup;
+	}
+	
+	public void setEvaluatorGroup(String evaluatorGroup)
+	{
+		this.evaluatorGroup=evaluatorGroup;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	public List<String> getTestEvaluatorFilterGroups()
+	{
+		return testEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @param testEvaluatorFilterGroups Groups included within the current group filter of the 
+	 * "Add/Edit assessement address" dialog
+	 */
+	public void setTestEvaluatorFilterGroups(List<String> testEvaluatorFilterGroups)
+	{
+		this.testEvaluatorFilterGroups=testEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @return Available groups included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getAvailableEvaluatorFilterGroupsHidden()
+	{
+		return availableEvaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param availableEvaluatorFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit assessement address" dialog as a string with the groups separated by commas
+	 */
+	public void setAvailableEvaluatorFilterGroupsHidden(String availableEvaluatorFilterGroupsHidden)
+	{
+		this.availableEvaluatorFilterGroupsHidden=availableEvaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * as a string with the groups separated by commas
+	 */
+	public String getEvaluatorFilterGroupsHidden()
+	{
+		return evaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @param evaluatorFilterGroupsHidden Groups included within the current group filter 
+	 * of the "Add/Edit assessement address" dialog as a string with the groups separated by commas
+	 */
+	public void setEvaluatorFilterGroupsHidden(String evaluatorFilterGroupsHidden)
+	{
+		this.evaluatorFilterGroupsHidden=evaluatorFilterGroupsHidden;
+	}
+	
+	/**
+	 * @return Groups not included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	public List<String> getAvailableEvaluatorFilterGroups()
+	{
+		return getAvailableEvaluatorFilterGroups(null);
+	}
+	
+	/**
+	 * Set groups not included within the current group filter of the "Add/Edit assessement address" dialog 
+	 * @param availableEvaluatorFilterGroups Groups not included within the current group filter of the 
+	 * "Add/Edit assessement address" dialog
+	 */
+	public void setAvailableEvaluatorFilterGroups(List<String> availableEvaluatorFilterGroups)
+	{
+		this.availableEvaluatorFilterGroups=availableEvaluatorFilterGroups;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @return Groups not included within the current group filter of the "Add/Edit assessement address" dialog
+	 */
+	private List<String> getAvailableEvaluatorFilterGroups(Operation operation)
+	{
+		if (availableEvaluatorFilterGroups==null)
+		{
+			availableEvaluatorFilterGroups=new ArrayList<String>();
+
+			if (isAllUsersAllowed())
+			{
+				for (String group:usersService.getGroups(getCurrentUserOperation(operation)))
+				{
+					if (!getTestEvaluatorFilterGroups().contains(group))
+					{
+						availableEvaluatorFilterGroups.add(group);
+					}
+				}
+			}
+			else
+			{
+				for (UserGroupBean userGroup:getTestUsersGroups())
+				{
+					if (!userGroup.isTestUser() && !getTestEvaluatorFilterGroups().contains(userGroup.getGroup()) && 
+						!availableEvaluatorFilterGroups.contains(userGroup.getGroup()))
+					{
+						availableEvaluatorFilterGroups.add(userGroup.getGroup());
+					}
+				}
+				for (UserGroupBean adminGroup:getTestAdminsGroups())
+				{
+					if (!adminGroup.isTestUser() && 
+						!getTestEvaluatorFilterGroups().contains(adminGroup.getGroup()) && 
+						!availableEvaluatorFilterGroups.contains(adminGroup.getGroup()))
+					{
+						availableEvaluatorFilterGroups.add(adminGroup.getGroup());
+					}
+				}
+			}
+		}
+		return availableEvaluatorFilterGroups;
 	}
 	
 	public String getSupportContact()
@@ -3587,11 +3947,16 @@ public class TestReleaseBean implements Serializable
 		setSupportContactFilterSubtype("");
 	   	getTestSupportContactFilterUsers().clear();
 	   	setFilteredUsersForAddingSupportContactFilterUsers(null);
+		groupUsersMap=null;
 	   	setSupportContactFilterUsersDualList(null);
 	   	setFilterSupportContactRangeNameLowerLimit("A");
 	   	setFilterSupportContactRangeNameUpperLimit("Z");
 	   	setFilterSupportContactRangeSurnameLowerLimit("A");
 	   	setFilterSupportContactRangeSurnameUpperLimit("Z");
+   		setSupportContactGroup("");
+   		setAvailableSupportContactFilterGroups(null);	   		
+   		getTestSupportContactFilterGroups().clear();
+   		setSupportContactFilterGroupsDualList(null);
 	   	setSupportContact("");
 	   	setSupportContactDialogDisplayed(true);
 		
@@ -3618,11 +3983,16 @@ public class TestReleaseBean implements Serializable
 		setSupportContactFilterSubtypes(null);
 		getTestSupportContactFilterUsers().clear();
 		setFilteredUsersForAddingSupportContactFilterUsers(null);
+		groupUsersMap=null;
 		setSupportContactFilterUsersDualList(null);
 		setFilterSupportContactRangeNameLowerLimit("A");
 		setFilterSupportContactRangeNameUpperLimit("Z");
 		setFilterSupportContactRangeSurnameLowerLimit("A");
 		setFilterSupportContactRangeSurnameUpperLimit("Z");
+   		setSupportContactGroup("");
+   		setAvailableSupportContactFilterGroups(null);	   		
+	   	getTestSupportContactFilterGroups().clear();
+	   	setSupportContactFilterGroupsDualList(null);
 		if (filterValue!=null && !"".equals(filterValue) && "USER_FILTER".equals(filterType))
 		{
 			if ("USERS_SELECTION".equals(filterSubtype))
@@ -3677,6 +4047,16 @@ public class TestReleaseBean implements Serializable
 				}
 			}
 		}
+	   	else if (filterValue!=null && !"".equals(filterValue) && "GROUP_FILTER".equals(filterType))
+	   	{
+   			for (String authId:filterValue.split(Pattern.quote(",")))
+   			{
+   				if (!getTestSupportContactFilterGroups().contains(authId))
+   				{
+   					getTestSupportContactFilterGroups().add(authId);
+   				}
+   			}
+	   	}
 		setSupportContact(getCurrentSupportContact().getSupportContact());
 		setSupportContactDialogDisplayed(true);
 		
@@ -3684,6 +4064,25 @@ public class TestReleaseBean implements Serializable
 		rq.execute("addTechSupportAddressDialog.show()");
 	}
     
+    /**
+     * Adds a group as filter for a support contact.
+     * @param event Action event
+     */
+	public void addSupportContactGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add/Edit tech support addresses" dialog
+		refreshSupportContactFilterGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddSupportContactGroup(operation,true))
+		{
+			getSupportContactFilterGroupsDualList(operation).getTarget().add(getSupportContactGroup());
+		}
+	}
+	
     /**
      * Adds a support contact.
      * @param event Action event
@@ -3730,17 +4129,29 @@ public class TestReleaseBean implements Serializable
 					filterValue.append(getFilterSupportContactRangeSurnameUpperLimit());
 				}
 			}
+			else if ("GROUP_FILTER".equals(filterType))
+			{
+				refreshSupportContactFilterGroupsDualList(operation,event.getComponent());
+				for (String supportedGroup:getTestSupportContactFilterGroups())
+				{
+					if (filterValue.length()>0)
+					{
+						filterValue.append(',');
+					}
+					filterValue.append(supportedGroup);
+				}
+			}
 			SupportContactBean currentSupportContact=getCurrentSupportContact();
 			if (currentSupportContact==null)
 			{
 				// Add a new support contact
-				getSupportContacts(operation).add(
+				getSupportContacts().add(
 					new SupportContactBean(getSupportContact(),filterType,filterSubtype,filterValue.toString()));
 			}
 			else
 			{
 				SupportContactBean supportContact=null;
-				for (SupportContactBean s:getSupportContacts(operation))
+				for (SupportContactBean s:getSupportContacts())
 				{
 					if (currentSupportContact.equals(s))
 					{
@@ -3777,8 +4188,82 @@ public class TestReleaseBean implements Serializable
 	 */
 	public void removeSupportContact(ActionEvent event)
 	{
-		getSupportContacts(
-			getCurrentUserOperation(null)).remove(event.getComponent().getAttributes().get("supportContact"));
+		getSupportContacts().remove(event.getComponent().getAttributes().get("supportContact"));
+	}
+	
+	/**
+	 * @return true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup()
+	{
+		return isEnabledAddSupportContactGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(Operation operation)
+	{
+		return isEnabledAddSupportContactGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(boolean displayErrors)
+	{
+		return isEnabledAddSupportContactGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return  true if group entered by user for a support contact is valid, false otherwise
+	 */
+	public boolean isEnabledAddSupportContactGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getSupportContactGroup()==null || getSupportContactGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getSupportContactGroup(),true))
+			{
+				DualListModel<String> supportContactFilterGroupsDualList=
+					getSupportContactFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (supportContactFilterGroupsDualList.getSource().contains(getSupportContactGroup()) || 
+					supportContactFilterGroupsDualList.getTarget().contains(getSupportContactGroup()))
+				{
+					addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+					ok=false;
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getSupportContactGroup()!=null && !getSupportContactGroup().equals("") && 
+				checkUserGroup(getSupportContactGroup(),false);
+			if (ok)
+			{
+				DualListModel<String> supportContactFilterGroupsDualList=
+					getSupportContactFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (supportContactFilterGroupsDualList.getSource().contains(getSupportContactGroup()) || 
+					supportContactFilterGroupsDualList.getTarget().contains(getSupportContactGroup()))
+				{
+					ok=false;
+				}
+			}
+		}
+		return ok;
 	}
 	
 	/**
@@ -3858,11 +4343,16 @@ public class TestReleaseBean implements Serializable
 		setEvaluatorFilterSubtype("");
 		getTestEvaluatorFilterUsers().clear();
 		setFilteredUsersForAddingEvaluatorFilterUsers(null);
+		groupUsersMap=null;
 		setEvaluatorFilterUsersDualList(null);
 		setFilterEvaluatorRangeNameLowerLimit("A");
 		setFilterEvaluatorRangeNameUpperLimit("Z");
 		setFilterEvaluatorRangeSurnameLowerLimit("A");
 		setFilterEvaluatorRangeSurnameUpperLimit("Z");
+   		setEvaluatorGroup("");
+   		setAvailableEvaluatorFilterGroups(null);	   		
+   		getTestEvaluatorFilterGroups().clear();
+   		setEvaluatorFilterGroupsDualList(null);
 		setEvaluator("");
 		setEvaluatorDialogDisplayed(true);
 		
@@ -3889,11 +4379,16 @@ public class TestReleaseBean implements Serializable
 		setEvaluatorFilterSubtypes(null);
 		getTestEvaluatorFilterUsers().clear();
 		setFilteredUsersForAddingEvaluatorFilterUsers(null);
+		groupUsersMap=null;
 		setEvaluatorFilterUsersDualList(null);
 		setFilterEvaluatorRangeNameLowerLimit("A");
 		setFilterEvaluatorRangeNameUpperLimit("Z");
 		setFilterEvaluatorRangeSurnameLowerLimit("A");
 		setFilterEvaluatorRangeSurnameUpperLimit("Z");
+   		setEvaluatorGroup("");
+   		setAvailableEvaluatorFilterGroups(null);	   		
+	   	getTestEvaluatorFilterGroups().clear();
+	   	setEvaluatorFilterGroupsDualList(null);
 		if (filterValue!=null && !"".equals(filterValue) && "USER_FILTER".equals(filterType))
 		{
 			if ("USERS_SELECTION".equals(filterSubtype))
@@ -3948,11 +4443,40 @@ public class TestReleaseBean implements Serializable
 				}
 			}
 		}
+	   	else if (filterValue!=null && !"".equals(filterValue) && "GROUP_FILTER".equals(filterType))
+	   	{
+   			for (String authId:filterValue.split(Pattern.quote(",")))
+   			{
+   				if (!getTestEvaluatorFilterGroups().contains(authId))
+   				{
+   					getTestEvaluatorFilterGroups().add(authId);
+   				}
+   			}
+	   	}
 		setEvaluator(getCurrentEvaluator().getEvaluator());
 		setEvaluatorDialogDisplayed(true);
 		
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("addAssessementAddressDialog.show()");
+	}
+	
+    /**
+     * Adds a group as filter for an evaluator.
+     * @param event Action event
+     */
+	public void addEvaluatorGroup(ActionEvent event)
+	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		// Refresh dual list of user groups for "Add/Edit assessement addresses" dialog
+		refreshEvaluatorFilterGroupsDualList(operation,event.getComponent());
+		
+		// Check group before adding it to dual list
+		if (isEnabledAddEvaluatorGroup(operation,true))
+		{
+			getEvaluatorFilterGroupsDualList(operation).getTarget().add(getEvaluatorGroup());
+		}
 	}
 	
     /**
@@ -4001,17 +4525,28 @@ public class TestReleaseBean implements Serializable
 					filterValue.append(getFilterEvaluatorRangeSurnameUpperLimit());
 				}
 			}
+			else if ("GROUP_FILTER".equals(filterType))
+			{
+				refreshEvaluatorFilterGroupsDualList(operation,event.getComponent());
+				for (String assessedGroup:getTestEvaluatorFilterGroups())
+				{
+					if (filterValue.length()>0)
+					{
+						filterValue.append(',');
+					}
+					filterValue.append(assessedGroup);
+				}
+			}
 			EvaluatorBean currentEvaluator=getCurrentEvaluator();
 			if (currentEvaluator==null)
 			{
 				// Add a new evaluator
-				getEvaluators(operation).add(
-					new EvaluatorBean(getEvaluator(),filterType,filterSubtype,filterValue.toString()));
+				getEvaluators().add(new EvaluatorBean(getEvaluator(),filterType,filterSubtype,filterValue.toString()));
 			}
 			else
 			{
 				EvaluatorBean evaluator=null;
-				for (EvaluatorBean e:getEvaluators(operation))
+				for (EvaluatorBean e:getEvaluators())
 				{
 					if (currentEvaluator.equals(e))
 					{
@@ -4049,7 +4584,82 @@ public class TestReleaseBean implements Serializable
 	 */
 	public void removeEvaluator(ActionEvent event)
 	{
-		getEvaluators(getCurrentUserOperation(null)).remove(event.getComponent().getAttributes().get("evaluator"));
+		getEvaluators().remove(event.getComponent().getAttributes().get("evaluator"));
+	}
+	
+	/**
+	 * @return true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup()
+	{
+		return isEnabledAddEvaluatorGroup(null);
+	}
+    
+	/**
+	 * @param operation Operation
+	 * @return true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(Operation operation)
+	{
+		return isEnabledAddEvaluatorGroup(operation,false);
+	}
+	
+	/**
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return true true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(boolean displayErrors)
+	{
+		return isEnabledAddEvaluatorGroup(null,displayErrors);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param displayErrors true to display error messages, false otherwise
+	 * @return  true if group entered by user for an evaluator is valid, false otherwise
+	 */
+	public boolean isEnabledAddEvaluatorGroup(Operation operation,boolean displayErrors)
+	{
+		boolean ok=true;
+		if (displayErrors)
+		{
+			if (getEvaluatorGroup()==null || getEvaluatorGroup().equals(""))
+			{
+				addErrorMessage("INCORRECT_OPERATION","USER_GROUP_REQUIRED");
+				ok=false;
+			}
+			else if (checkUserGroup(getEvaluatorGroup(),true))
+			{
+				DualListModel<String> evaluatorFilterGroupsDualList=
+					getEvaluatorFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (evaluatorFilterGroupsDualList.getSource().contains(getEvaluatorGroup()) || 
+					evaluatorFilterGroupsDualList.getTarget().contains(getEvaluatorGroup()))
+				{
+					addErrorMessage("INCORRECT_OPERATION","USER_GROUP_ALREADY_DECLARED");
+					ok=false;
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		else
+		{
+			ok=getEvaluatorGroup()!=null && !getEvaluatorGroup().equals("") && 
+				checkUserGroup(getEvaluatorGroup(),false);
+			if (ok)
+			{
+				DualListModel<String> evaluatorFilterGroupsDualList=
+					getEvaluatorFilterGroupsDualList(getCurrentUserOperation(operation));
+				if (evaluatorFilterGroupsDualList.getSource().contains(getEvaluatorGroup()) || 
+					evaluatorFilterGroupsDualList.getTarget().contains(getEvaluatorGroup()))
+				{
+					ok=false;
+				}
+			}
+		}
+		return ok;
 	}
 	
 	/**
@@ -4122,16 +4732,6 @@ public class TestReleaseBean implements Serializable
      */
     public String getSectionName(Section section)
     {
-    	return getSectionName(null,section);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param section Section
-     * @return Section's name
-     */
-    private String getSectionName(Operation operation,Section section)
-    {
     	StringBuffer sectionName=new StringBuffer();
     	sectionName.append(localizationService.getLocalizedMessage("SECTION"));
     	sectionName.append(' ');
@@ -4139,27 +4739,26 @@ public class TestReleaseBean implements Serializable
     	if ((section.getName()!=null && !section.getName().equals("")))
     	{
     		sectionName.append(": ");
-    		sectionName.append(getNumberedSectionName(getCurrentUserOperation(operation),section));
+    		sectionName.append(getNumberedSectionName(section));
     	}
     	return sectionName.toString();
     }
     
     /**
-     * @param operation Operation
      * @param section Section
      * @return Section's name with a number appended if it is needed to distinguish sections with the same name
      */
-    private String getNumberedSectionName(Operation operation,Section section)
+    private String getNumberedSectionName(Section section)
     {
     	StringBuffer sectionName=new StringBuffer();
     	if (section!=null)
     	{
         	if (section.getName()!=null && !section.getName().equals(""))
         	{
-        		
+        		TestRelease testRelease=getTestRelease();
         		sectionName.append(section.getName());
         		int itNumber=1;
-        		for (Section s:getTestRelease(getCurrentUserOperation(operation)).getTest().getSections())
+        		for (Section s:testRelease.getTest().getSections())
         		{
         			if (s.getOrder()<section.getOrder() && section.getName().equals(s.getName()))
         			{
@@ -4188,16 +4787,7 @@ public class TestReleaseBean implements Serializable
      */
     public boolean isSectionsWeightsDisplayed()
     {
-    	return isSectionsWeightsDisplayed(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if input boxes for sections weights are displayed, false otherwise
-     */
-    private boolean isSectionsWeightsDisplayed(Operation operation)
-    {
-    	ScoreType scoreType=getTestRelease(getCurrentUserOperation(operation)).getTest().getScoreType();
+    	ScoreType scoreType=getTestRelease().getTest().getScoreType();
     	return scoreType!=null && "SCORE_TYPE_SECTIONS".equals(scoreType.getType());
     }
     
@@ -4224,7 +4814,7 @@ public class TestReleaseBean implements Serializable
      */
     public void resetStartDate(ActionEvent event)
     {
-    	setStartDate(getCurrentUserOperation(null),null);
+    	setStartDate(null);
     	setStartDateHidden("");
     	
     	// We need to update manually 'startDateHidden' hidden input field
@@ -4241,7 +4831,7 @@ public class TestReleaseBean implements Serializable
      */
     public void resetCloseDate(ActionEvent event)
     {
-    	setCloseDate(getCurrentUserOperation(null),null);
+    	setCloseDate(null);
     	setCloseDateHidden("");
     	
     	// We need to update manually 'closeDateHidden' hidden input field
@@ -4258,7 +4848,7 @@ public class TestReleaseBean implements Serializable
      */
     public void resetWarningDate(ActionEvent event)
     {
-    	setWarningDate(getCurrentUserOperation(null),null);
+    	setWarningDate(null);
     	setWarningDateHidden("");
     	
     	// We need to update manually 'warningDateHidden' hidden input field
@@ -4275,7 +4865,7 @@ public class TestReleaseBean implements Serializable
      */
     public void resetFeedbackDate(ActionEvent event)
     {
-    	setFeedbackDate(getCurrentUserOperation(null),null);
+    	setFeedbackDate(null);
     	setFeedbackDateHidden("");
     	
     	// We need to update manually 'feedbackDateHidden' hidden input field
@@ -4292,7 +4882,7 @@ public class TestReleaseBean implements Serializable
      */
     public void resetDeleteDate(ActionEvent event)
     {
-    	setDeleteDate(getCurrentUserOperation(null),null);
+    	setDeleteDate(null);
     	setDeleteDateHidden("");
     	
     	// We need to update manually 'deleteDateHidden' hidden input field
@@ -4450,9 +5040,104 @@ public class TestReleaseBean implements Serializable
 	    return null;
 	}
 	
-	public boolean isPublishAllowed()
+	/**
+	 * @param operation Operation
+	 * @param category Category
+	 * @return true if a category is usable by current user, false otherwise
+	 */
+    private boolean checkCategory(Operation operation,Category category)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	// Check category type
+    	boolean ok=category!=null && categoryTypesService.isDerivedFrom(operation,
+    		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_TESTS"),
+    		categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+    	
+    	// Check visibility
+    	if (ok)
+    	{
+    		ok=false;
+    		Test test=getTestRelease().getTest();
+    		User testAuthor=test.getCreatedBy();
+    		Visibility categoryVisibility=visibilitiesService.getVisibilityFromCategoryId(operation,category.getId());
+    		if (categoryVisibility.isGlobal())	
+    		{
+    			ok=isFilterGlobalTestsEnabled(operation);
+    		}
+    		else if (testAuthor.equals(category.getUser()))
+    		{
+    			if (testAuthor.getId()==userSessionService.getCurrentUserId())
+    			{
+    				ok=true;
+    			}
+    			else if (isFilterOtherUsersTestsEnabled(operation)) 
+    			{
+    				if (categoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+    					operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    				{
+    					ok=isViewTestsFromOtherUsersPrivateCategoriesEnabled(operation) && 
+    						(!isAdmin(operation,testAuthor) || 
+    						isViewTestsFromAdminsPrivateCategoriesEnabled(operation)) && 
+    						(!isSuperadmin(operation,testAuthor) || 
+    						isViewTestsFromSuperadminsPrivateCategoriesEnabled(operation));
+    				}
+    				else
+    				{
+    					ok=true;
+    				}
+    			}
+    		}
+    	}
+    	return ok;
+    }
+    
+	/**
+	 * @param operation Operation
+	 * @return true if current category of the test we are publishing is usable by current user, false otherwise
+	 */
+    private boolean checkCurrentCategory(Operation operation)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(
+    		operation,categoriesService.getCategoryFromTestId(operation,getTestRelease().getTest().getId()));
+    }
+	
+	private boolean checkPublishTest(Operation operation)
 	{
-		return publishAllowed;
+		boolean ok=false;
+		
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		Test test=getTestRelease().getTest();
+		if (isPublishEnabled(operation))
+		{
+			User testAuthor=test.getCreatedBy();
+			if (testAuthor.getId()==userSessionService.getCurrentUserId())
+			{
+				ok=true;
+			}
+			else
+			{
+				ok=isPublishOtherUsersTestsEnabled(operation) && 
+					(!isAdmin(operation,testAuthor) || isPublishAdminsTestsEnabled(operation)) && 
+					(!isSuperadmin(operation,testAuthor) || isPublishSuperadminsTestsEnabled(operation));
+			}
+		}
+		return ok;
+	}
+	
+	private boolean checkTestNotChanged(Operation operation)
+	{
+		Test test=getTestRelease().getTest();
+		Date timeModified=test.getTimeModified();
+		Date timeModifiedFromDB=
+			testsService.getTimeModifiedFromTestId(getCurrentUserOperation(operation),test.getId());
+		return timeModified.equals(timeModifiedFromDB);
 	}
 	
 	/**
@@ -4462,83 +5147,78 @@ public class TestReleaseBean implements Serializable
 	public String publishTest()
 	{
 		String nextView="publication?faces-redirect=true";
-		TestRelease testRelease=null;
-		Date startDateAux=null;
-		Date closeDateAux=null;
-		Date warningDateAux=null;
-		Date feedbackDateAux=null;
-		User currentUser=null;
 		
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		if (isPublishEnabled(operation))
-		{
-			// Get test release
-			testRelease=getTestRelease(operation);
-			User testAuthor=testRelease.getTest().getCreatedBy();
-			currentUser=userSessionService.getCurrentUser(operation);			
-			
-			if (!currentUser.equals(testAuthor) && !isPublishOtherUsersEnabled(operation) && 
-				(isAdmin(operation,testAuthor) || !isPublishAdminsEnabled(operation)) &&
-				(isSuperadmin(operation,testAuthor) || !isPublishSuperadminsEnabled(operation)))
-			{
-				addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-				nextView=null;
-			}
-			else
-			{
-				startDateAux=testRelease.getStartDate();
-				closeDateAux=testRelease.getCloseDate();
-				warningDateAux=testRelease.getWarningDate();
-				feedbackDateAux=testRelease.getFeedbackDate();
-				if (!isRestrictDates(operation))
-				{
-					testRelease.setStartDate(null);
-					testRelease.setCloseDate(null);
-					testRelease.setWarningDate(null);
-				}
-				if (!isRestrictFeedbackDate(operation))
-				{
-					testRelease.setFeedbackDate(null);
-				}
-				testRelease.getUsers().clear();
-				testRelease.getUserGroups().clear();
-				for (UserGroupBean userGroup:getTestUsersGroups(operation))
-				{
-					if (userGroup.isTestUser())
-					{
-						testRelease.getUsers().add(userGroup.getUser());
-					}
-					else
-					{
-						testRelease.getUserGroups().add(userGroup.getGroup());
-					}
-				}
-				testRelease.getAdmins().clear();
-				testRelease.getAdminGroups().clear();
-				for (UserGroupBean adminGroup:getTestAdminsGroups(operation))
-				{
-					if (adminGroup.isTestUser())
-					{
-						testRelease.getAdmins().add(adminGroup.getUser());
-					}
-					else
-					{
-						testRelease.getAdminGroups().add(adminGroup.getGroup());
-					}
-				}
-			}
-		}
+		Date startDateAux=null;
+		Date closeDateAux=null;
+		Date warningDateAux=null;
+		Date feedbackDateAux=null;
+		TestRelease testRelease=getTestRelease();
+		Test test=testRelease.getTest();
+		User currentUser=userSessionService.getCurrentUser(operation);
+		long testId=test.getId();
 		
-		if (!checkTest(operation,testRelease.getTest()))
+		if (!testsService.checkTestId(operation,testId))
 		{
-			publishAllowed=false;
 			nextView=null;
+			displayErrorPage(
+				"TEST_PUBLISH_NOT_FOUND_ERROR","The test you are trying to publish no longer exists.");
 		}
-		
-		if (nextView!=null)
+		else if (!checkPublishTest(operation) || !checkCurrentCategory(operation))
 		{
+			nextView=null;
+	    	displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
+		}
+		else if(!checkTestNotChanged(operation))
+		{
+			nextView=null;
+			displayErrorPage("TEST_PUBLISH_CHANGED_ERROR","The test you are trying to publish has been modified.");
+		}
+		else
+		{
+			startDateAux=testRelease.getStartDate();
+			closeDateAux=testRelease.getCloseDate();
+			warningDateAux=testRelease.getWarningDate();
+			feedbackDateAux=testRelease.getFeedbackDate();
+			if (!isRestrictDates())
+			{
+				testRelease.setStartDate(null);
+				testRelease.setCloseDate(null);
+				testRelease.setWarningDate(null);
+			}
+			if (!isRestrictFeedbackDate())
+			{
+				testRelease.setFeedbackDate(null);
+			}
+			testRelease.getUsers().clear();
+			testRelease.getUserGroups().clear();
+			for (UserGroupBean userGroup:getTestUsersGroups())
+			{
+				if (userGroup.isTestUser())
+				{
+					testRelease.getUsers().add(userGroup.getUser());
+				}
+				else
+				{
+					testRelease.getUserGroups().add(userGroup.getGroup());
+				}
+			}
+			testRelease.getAdmins().clear();
+			testRelease.getAdminGroups().clear();
+			for (UserGroupBean adminGroup:getTestAdminsGroups())
+			{
+				if (adminGroup.isTestUser())
+				{
+					testRelease.getAdmins().add(adminGroup.getUser());
+				}
+				else
+				{
+					testRelease.getAdminGroups().add(adminGroup.getGroup());
+				}
+			}
+			
 			// Get destination path
 			String path=configurationService.getOmQuestionsPath();
 			
@@ -4554,7 +5234,6 @@ public class TestReleaseBean implements Serializable
 			catch (Exception e)
 			{
 				addErrorMessage("PUBLISH_TEST_ALREADY_PUBLISHED_ERROR");
-				publishAllowed=false;
 				nextView=null;
 			}
 			if (nextView!=null)
@@ -4691,7 +5370,7 @@ public class TestReleaseBean implements Serializable
 				}
 			}
 		}
-		if (nextView==null && testRelease!=null)
+		if (nextView==null)
 		{
 			testRelease.setStartDate(startDateAux);
 			testRelease.setCloseDate(closeDateAux);
@@ -4699,28 +5378,6 @@ public class TestReleaseBean implements Serializable
 			testRelease.setFeedbackDate(feedbackDateAux);
 		}
 		return nextView;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param test Test
-	 * @return true if test hast not been modified nor deleted while publishing it
-	 */
-	private boolean checkTest(Operation operation,Test test)
-	{
-		boolean ok=true;
-		Test testFromDB=testsService.getTest(getCurrentUserOperation(operation),test.getId());
-		if (testFromDB==null)
-		{
-			ok=false;
-			addErrorMessage("PUBLISH_TEST_DELETED_ERROR");
-		}
-		else if (!testFromDB.getTimeModified().equals(test.getTimeModified()))
-		{
-			ok=false;
-			addErrorMessage("PUBLISH_TEST_CHANGED_ERROR");
-		}
-		return ok;
 	}
 	
 	/**
@@ -4881,52 +5538,9 @@ public class TestReleaseBean implements Serializable
 	 */
 	public void showConfirmCancelPublishTestDialog(ActionEvent event)
 	{
-		String target=(String)event.getComponent().getAttributes().get("target");
-		if (isPublishAllowed())
-		{
-			setCancelPublishTestTarget(target);
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("confirmCancelPublishTestDialog.show()");
-		}
-		else
-		{
-	        FacesContext context=FacesContext.getCurrentInstance();
-	        if ("logout".equals(target))
-	        {
-				LoginBean loginBean=null;
-				try
-				{
-					loginBean=(LoginBean)context.getApplication().getELResolver().getValue(
-						context.getELContext(),null,"loginBean");
-				}
-				catch (Exception e)
-				{
-					loginBean=null;
-					target=null;
-				}
-				if (loginBean!=null)
-				{
-					target=loginBean.logout();
-				}
-	        }
-	        if (target!=null)
-	        {
-		        ExternalContext externalContext=context.getExternalContext();
-		        StringBuffer targetXhtml=new StringBuffer("/pages/");
-		        targetXhtml.append(target);
-		        targetXhtml.append(".xhtml");
-		        String url=externalContext.encodeActionURL(
-		        	context.getApplication().getViewHandler().getActionURL(context,targetXhtml.toString()));
-		        try 
-		        {
-		        	externalContext.redirect(url);
-		        }
-		        catch (IOException ioe)
-		        {
-		            throw new FacesException(ioe);
-		        }
-	        }
-		}
+		setCancelPublishTestTarget((String)event.getComponent().getAttributes().get("target"));
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("confirmCancelPublishTestDialog.show()");
 	}
 	
 	/**
@@ -4979,7 +5593,6 @@ public class TestReleaseBean implements Serializable
 	 */
 	private void addErrorMessage(String title,String message)
 	{
-		lastErrorMessage=message==null?title:message;
 		FacesContext context=FacesContext.getCurrentInstance();
 		context.addMessage(null,new FacesMessage(FacesMessage.SEVERITY_ERROR,
 			localizationService.getLocalizedMessage(title),
@@ -4993,6 +5606,42 @@ public class TestReleaseBean implements Serializable
 	{
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("window.scrollTo(0,0)");
+	}
+	
+	/**
+	 * Displays the error page with the indicated message.<br/><br/>
+	 * Be careful that this method can only be invoked safely from non ajax actions.
+	 * @param errorCode Error message (before localization)
+	 * @param plainMessage Plain error message (used if it is not possible to localize error message)
+	 */
+	private void displayErrorPage(String errorCode,String plainMessage)
+	{
+		FacesContext context=FacesContext.getCurrentInstance();
+		ExternalContext externalContext=context.getExternalContext();
+		Map<String,Object> requestMap=externalContext.getRequestMap();
+		requestMap.put("errorCode",errorCode);
+		requestMap.put("plainMessage",plainMessage);
+		try
+		{
+			externalContext.dispatch("/pages/error");
+		}
+		catch (IOException ioe)
+		{
+			String errorMessage=null;
+			try
+			{
+				errorMessage=localizationService.getLocalizedMessage(errorCode);
+			}
+			catch (ServiceException se)
+			{
+				errorMessage=null;
+			}
+			if (errorMessage==null)
+			{
+				errorMessage=plainMessage;
+			}
+			throw new FacesException(errorMessage,ioe);
+		}
 	}
 	
 	/**

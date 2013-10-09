@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -28,6 +29,7 @@ import es.uned.lsi.gepec.model.dao.UserPermissionsDao;
 import es.uned.lsi.gepec.model.entities.Permission;
 import es.uned.lsi.gepec.model.entities.User;
 import es.uned.lsi.gepec.model.entities.UserPermission;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -65,8 +67,37 @@ public class UserPermissionsService implements Serializable
 		UserPermission userPermission=null;
 		try
 		{
+			// Get permission of user from DB
 			USER_PERMISSIONS_DAO.setOperation(operation);
-			userPermission=USER_PERMISSIONS_DAO.getUserPermission(id,true,true);
+			UserPermission userPermissionFromDB=USER_PERMISSIONS_DAO.getUserPermission(id,true,true);
+			if (userPermissionFromDB!=null)
+			{
+				userPermission=userPermissionFromDB.getUserPermissionCopy();
+				if (userPermissionFromDB.getUser()!=null)
+				{
+					User userFromDB=userPermissionFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					userPermission.setUser(user);
+				}
+				if (userPermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userPermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userPermission.setPermission(permission);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -169,8 +200,38 @@ public class UserPermissionsService implements Serializable
 		UserPermission userPermission=null;
 		try
 		{
+			// Get permission of user from DB
 			USER_PERMISSIONS_DAO.setOperation(operation);
-			userPermission=USER_PERMISSIONS_DAO.getUserPermission(userId,permissionId,true,true);
+			UserPermission userPermissionFromDB=
+				USER_PERMISSIONS_DAO.getUserPermission(userId,permissionId,true,true);
+			if (userPermissionFromDB!=null)
+			{
+				userPermission=userPermissionFromDB.getUserPermissionCopy();
+				if (userPermissionFromDB.getUser()!=null)
+				{
+					User userFromDB=userPermissionFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					userPermission.setUser(user);
+				}
+				if (userPermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userPermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userPermission.setPermission(permission);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -199,6 +260,7 @@ public class UserPermissionsService implements Serializable
 	{
 		try
 		{
+			// Add a new permission of user
 			USER_PERMISSIONS_DAO.setOperation(operation);
 			USER_PERMISSIONS_DAO.saveUserPermission(userPermission);
 		}
@@ -226,14 +288,49 @@ public class UserPermissionsService implements Serializable
 	 */
 	public void updateUserPermission(Operation operation,UserPermission userPermission) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get permission of user from DB
 			USER_PERMISSIONS_DAO.setOperation(operation);
-			USER_PERMISSIONS_DAO.updateUserPermission(userPermission);
+			UserPermission userPermissionFromDB=
+				USER_PERMISSIONS_DAO.getUserPermission(userPermission.getId(),false,false);
+			
+			// Set fields with the updated values
+			userPermissionFromDB.setFromOtherUserPermission(userPermission);
+			
+			// Update permission of user
+			USER_PERMISSIONS_DAO.setOperation(operation);
+			USER_PERMISSIONS_DAO.updateUserPermission(userPermissionFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -255,14 +352,46 @@ public class UserPermissionsService implements Serializable
 	 */
 	public void deleteUserPermission(Operation operation,UserPermission userPermission) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get permission of user from DB
 			USER_PERMISSIONS_DAO.setOperation(operation);
-			USER_PERMISSIONS_DAO.deleteUserPermission(userPermission);
+			UserPermission userPermissionFromDB=
+				USER_PERMISSIONS_DAO.getUserPermission(userPermission.getId(),false,false);
+			
+			// Delete permission of user
+			USER_PERMISSIONS_DAO.setOperation(operation);
+			USER_PERMISSIONS_DAO.deleteUserPermission(userPermissionFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -280,8 +409,44 @@ public class UserPermissionsService implements Serializable
 		List<UserPermission> userPermissions=null;
 		try
 		{
+			// We get permissions of an user from DB
 			USER_PERMISSIONS_DAO.setOperation(operation);
-			userPermissions=USER_PERMISSIONS_DAO.getUserPermissions(userId,sortedByUser,true,true);
+			List<UserPermission> userPermissionsFromDB=
+				USER_PERMISSIONS_DAO.getUserPermissions(userId,sortedByUser,true,true);
+			
+			// We return new referenced permissions of an user (or all permissions of any user if user==0) 
+			// within a new list to avoid shared collection references or object references 
+			// to unsaved transient instances
+			userPermissions=new ArrayList<UserPermission>(userPermissionsFromDB.size());
+			for (UserPermission userPermissionFromDB:userPermissionsFromDB)
+			{
+				UserPermission userPermission=userPermissionFromDB.getUserPermissionCopy();
+				if (userPermissionFromDB.getUser()!=null)
+				{
+					User userFromDB=userPermissionFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					userPermission.setUser(user);
+				}
+				if (userPermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userPermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userPermission.setPermission(permission);
+				}
+				userPermissions.add(userPermission);
+			}
 		}
 		catch (DaoException de)
 		{

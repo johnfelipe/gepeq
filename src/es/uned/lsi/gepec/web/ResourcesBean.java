@@ -48,6 +48,7 @@ import es.uned.lsi.gepec.web.services.CategoryTypesService;
 import es.uned.lsi.gepec.web.services.CopyrightsService;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 import es.uned.lsi.gepec.web.services.PermissionsService;
+import es.uned.lsi.gepec.web.services.ResourceDeleteConstraintServiceException;
 import es.uned.lsi.gepec.web.services.ResourcesService;
 import es.uned.lsi.gepec.web.services.ServiceException;
 import es.uned.lsi.gepec.web.services.UserSessionService;
@@ -173,7 +174,7 @@ public class ResourcesBean implements Serializable
 	
 	private List<Resource> resources;									// Resources list
 	private Resource currentResource;									// Current resource
-	private Long resourceId;													// Identifier of current resource
+	private Long resourceId;											// Current resource identifier	
 	
 	private Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap;
 	private SpecialCategoryFilter allCategories;
@@ -336,25 +337,15 @@ public class ResourcesBean implements Serializable
 		return getCurrentResource(null);
 	}
 	
-	public void setCurrentResource(Resource resource)
+	public void setCurrentResource(Resource currentResource)
 	{
-		this.currentResource=resource;
+		this.currentResource=currentResource;
+		setResourceId(Long.valueOf(currentResource==null?0L:currentResource.getId()));
 	}
 	
 	private Resource getCurrentResource(Operation operation)
 	{
-		if (currentResource==null)
-		{
-			if (getResourceId()>0L)
-			{
-				currentResource=resourcesService.getResource(getCurrentUserOperation(operation),getResourceId());
-			}
-			else if (getResourceId()==-1L)
-			{
-				currentResource=getNoResource();
-			}
-		}
-		return currentResource;
+		return currentResource==null?getNoResource():currentResource;
 	}
 	
 	public String getCurrentResourceName()
@@ -482,18 +473,16 @@ public class ResourcesBean implements Serializable
 	
 	public List<Resource> getResources()
 	{
-		return getResources(null);
-	}
-	
-	private List<Resource> getResources(Operation operation)
-	{
 		if (resources==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+    		
 			try
 			{
-				// Get current user session Hibernate operation
-				operation=getCurrentUserOperation(operation);
-				
 				if (checkResourcesFilterPermission(operation,null))
 				{
 					long filterCategoryId=getFilterCategoryId(operation);
@@ -566,20 +555,6 @@ public class ResourcesBean implements Serializable
 			}
 		}
 		return resources;
-	}
-	
-	private Resource getResource(Operation operation,long resourceId)
-	{
-		Resource resource=null;
-		for (Resource res:getResources(getCurrentUserOperation(operation)))
-		{
-			if (res.getId()==resourceId)
-			{
-				resource=res;
-				break;
-			}
-		}
-		return resource;
 	}
 	
 	private void initializeFilterCategoryId(Operation operation)
@@ -796,8 +771,8 @@ public class ResourcesBean implements Serializable
 	{
 		if (editEnabled==null)
 		{
-			editEnabled=Boolean.valueOf(
-				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_ENABLED"));
+			editEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_ENABLED"));
 		}
 		return editEnabled;
 	}
@@ -1174,22 +1149,17 @@ public class ResourcesBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				allowed=getEditEnabled(operation).booleanValue() && (currentUser.equals(resourceUser) || 
-					(getEditOtherUsersResourcesEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,resourceUser) || getEditAdminsResourcesEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,resourceUser) || 
-					getEditSuperadminsResourcesEnabled(operation).booleanValue())));
-				*/
 				
-				User resourceUser=getResource(operation,resourceId).getUser();
+				Resource resource=resourcesService.getResource(operation,resourceId);
+				User resourceUser=resource.getUser();
 				allowed=getEditEnabled(operation).booleanValue() && 
 					(resourceUser.getId()==userSessionService.getCurrentUserId() || 
 					(getEditOtherUsersResourcesEnabled(operation).booleanValue() && 
 					(!isAdmin(operation,resourceUser) || getEditAdminsResourcesEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,resourceUser) || 
-					getEditSuperadminsResourcesEnabled(operation).booleanValue())));
+					getEditSuperadminsResourcesEnabled(operation).booleanValue()))) && 
+					checkResourcesFilterPermission(operation,categoriesService.getCategoryFromResourceId(
+					operation,resourceId));
 				
 				editResourcesAllowed.put(Long.valueOf(resourceId),Boolean.valueOf(allowed));
 			}
@@ -1234,22 +1204,17 @@ public class ResourcesBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				allowed=getDeleteEnabled(operation).booleanValue() && (currentUser.equals(resourceUser) || 
-					(getDeleteOtherUsersResourcesEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,resourceUser) || getDeleteAdminsResourcesEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,resourceUser) || 
-					getDeleteSuperadminsResourcesEnabled(operation).booleanValue())));
-				*/
-				
-				User resourceUser=getResource(operation,resourceId).getUser();
+				Resource resource=resourcesService.getResource(operation,resourceId);
+				User resourceUser=resource.getUser();
 				allowed=getDeleteEnabled(operation).booleanValue() && 
 					(resourceUser.getId()==userSessionService.getCurrentUserId() || 
 					(getDeleteOtherUsersResourcesEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,resourceUser) || getDeleteAdminsResourcesEnabled(operation).booleanValue()) && 
+					(!isAdmin(operation,resourceUser) || 
+					getDeleteAdminsResourcesEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,resourceUser) || 
-					getDeleteSuperadminsResourcesEnabled(operation).booleanValue())));
+					getDeleteSuperadminsResourcesEnabled(operation).booleanValue()))) && 
+					checkResourcesFilterPermission(operation,categoriesService.getCategoryFromResourceId(
+					operation,resourceId));
 				
 				deleteResourcesAllowed.put(Long.valueOf(resourceId),Boolean.valueOf(allowed));
 			}
@@ -1809,11 +1774,83 @@ public class ResourcesBean implements Serializable
 		return resourcesService.getImageDimensionsString(getCurrentUserOperation(operation),resource.getId());
 	}
 	
-    public void view(ActionEvent event)
+	/**
+	 * Displays a preview of a resource. 
+	 * @param event Action event
+	 */
+    public void viewResource(ActionEvent event)
     {
-    	currentResource=(Resource)event.getComponent().getAttributes().get("resource");
-		RequestContext rq=RequestContext.getCurrentInstance();
-    	rq.execute("resourceDialog.show()");
+    	boolean ok=false;
+    	
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+    	
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+    	setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+    	setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+    	
+    	Resource resource=(Resource)event.getComponent().getAttributes().get("resource");
+    	long resourceId=resource.getId();
+    	if (!resourcesService.checkResourceId(operation,resourceId))
+    	{
+   			addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_VIEW_NOT_FOUND_ERROR");
+    	}
+    	else if (checkResourcesFilterPermission(
+    		operation,categoriesService.getCategoryFromResourceId(operation,resource.getId())))
+    	{
+    		ok=true;
+    		setCurrentResource(resource);
+    		RequestContext rq=RequestContext.getCurrentInstance();
+        	rq.execute("resourceDialog.show()");
+    	}
+    	else
+    	{
+   			addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+    	}
+    	if (!ok)
+    	{
+    		setAddEnabled(null);
+			setEditEnabled(null);
+			setDeleteEnabled(null);
+			setDeleteEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			setEditOtherUsersResourcesEnabled(null);
+			setEditAdminsResourcesEnabled(null);
+			setEditSuperadminsResourcesEnabled(null);
+			resetEditResourcesAllowed();
+			setDeleteOtherUsersResourcesEnabled(null);
+			setDeleteAdminsResourcesEnabled(null);
+			setDeleteSuperadminsResourcesEnabled(null);
+			resetDeleteResourcesAllowed();
+    		
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and resources from DB
+   			specialCategoryFiltersMap=null;
+   			specialCategoriesFilters=null;
+   			resourcesCategories=null;
+			resources=null;
+    	}
     }
     
 	/**
@@ -1829,7 +1866,7 @@ public class ResourcesBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	long filterCategoryId=getFilterCategoryId(operation);
+    	long filterCategoryId=filterCategory==null?getFilterCategoryId(operation):filterCategory.getId();
     	Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap=getSpecialCategoryFiltersMap();
 		if (specialCategoryFiltersMap.containsKey(Long.valueOf(filterCategoryId)))
 		{
@@ -1847,41 +1884,17 @@ public class ResourcesBean implements Serializable
 		else
 		{
 			// Check permissions needed for selected special category filter
-			if (filterCategory==null)
-			{
-				// If we have not received filter category as argument we need to get it from DB
-				filterCategory=categoriesService.getCategory(operation,filterCategoryId);	
-			}
-			if (filterCategory.getVisibility().isGlobal())
+			filterCategory=categoriesService.getCategory(operation,filterCategoryId);	
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterCategoryId);
+			if (filterCategoryVisibility.isGlobal())
 			{
 				// This is a global category, so we check that current user has permissions to filter
 				// resources by global categories
-				if (getFilterGlobalResourcesEnabled(operation).booleanValue())
-				{
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User categoryUser=filterCategory.getUser();
-					ok=currentUser.equals(categoryUser) || 
-						getFilterOtherUsersResourcesEnabled(operation).booleanValue();
-					*/
-					
-					// Moreover we need to check that the category is owned by current user or 
-					// that current user has permission to filter by categories of other users 
-					ok=filterCategory.getUser().getId()==userSessionService.getCurrentUserId() || 
-						getFilterOtherUsersResourcesEnabled(operation).booleanValue();
-				}
-				else
-				{
-					ok=false;
-				}
+				ok=getFilterGlobalResourcesEnabled(operation).booleanValue();
 			}
 			else
 			{
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				if (!currentUser.equals(categoryUser))
-				*/
-				
 				// First we have to see if the category is owned by current user, 
 				// if that is not the case we will need to perform aditional checks  
 				User categoryUser=filterCategory.getUser();
@@ -1896,19 +1909,21 @@ public class ResourcesBean implements Serializable
 						// But private categories need aditional permissions
 						Visibility privateVisibility=
 							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-						if (filterCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
 						{
 							// Finally we need to check that current user has permission to view resources 
 							// from private categories of other users, and aditionally we need to check 
-							// that current user has permission to see private categories of administrators 
-							// if the owner of the category is an administrator and to check that current
-							// user has permission to see private categories of users with permission to 
-							// improve permissions over its owned ones if the owner of the category has 
-							// that permission (superadmin)
+							// that current user has permission to view resources from private categories 
+							// of administrators if the owner of the category is an administrator and 
+							// to check that current user has permission to view resources from private categories 
+							// of users with permission to improve permissions over its owned ones if the owner 
+							// of the category has that permission (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
 							ok=getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-								((!isAdmin(operation,categoryUser) || 
+								((!isAdmin || 
 								getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-								(!isSuperadmin(operation,categoryUser) || 
+								(!isSuperadmin || 
 								getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue()));
 						}
 					}
@@ -1928,65 +1943,164 @@ public class ResourcesBean implements Serializable
      */
     public void applyResourcesFilter(ActionEvent event)
     {
+    	boolean filterCategoryNotFound=false;
+    	boolean filterCategoryInvalid=false;
+    	
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
        	setFilterGlobalResourcesEnabled(null);
        	setFilterOtherUsersResourcesEnabled(null);
+     	setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+       	setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+       	
        	Category filterCategory=null;
        	long filterCategoryId=getFilterCategoryId(operation);
        	if (filterCategoryId>0L)
        	{
-       		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-       		resetAdminFromCategoryAllowed(filterCategory);
-       		resetSuperadminFromCategoryAllowed(filterCategory);
-       	}
-       	setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-       	setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-       	setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-       	
-       	if (checkResourcesFilterPermission(operation,filterCategory))
-       	{
-       		// Reload resources from DB
-           	resources=null;
+       		if (categoriesService.checkCategoryId(operation,filterCategoryId))
+       		{
+       			filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+       			resetAdminFromCategoryAllowed(filterCategory);
+       			resetSuperadminFromCategoryAllowed(filterCategory);
+       		}
+       		else
+       		{
+       			filterCategoryNotFound=true;
+       		}
        	}
        	else
        	{
-       		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-       		setAddEnabled(null);
-       		setEditEnabled(null);
-       		setDeleteEnabled(null);
-       		resetAdmins();
-       		resetSuperadmins();
-       		resetEditResourcesAllowed();
-       		setEditOtherUsersResourcesEnabled(null);
-       		setEditAdminsResourcesEnabled(null);
-       		setEditSuperadminsResourcesEnabled(null);
-       		resetDeleteResourcesAllowed();
-       		setDeleteOtherUsersResourcesEnabled(null);
-       		setDeleteAdminsResourcesEnabled(null);
-       		setDeleteSuperadminsResourcesEnabled(null);
-   			
-   			// Reload categories from DB
-   			resourcesCategories=null;
-   			
-   			if (!getResourcesCategories(operation).contains(filterCategory))
-   			{
-   				// Reload resources from DB
-   				resources=null;
-   			}
+       		filterCategory=new Category();
+       		filterCategory.setId(filterCategoryId);
        	}
+       	if (!filterCategoryNotFound)
+       	{
+       		filterCategoryInvalid=!checkResourcesFilterPermission(operation,filterCategory);
+       	}
+       	
+   		if (filterCategoryNotFound)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","RESOURCES_FILTER_CATEGORY_NOT_FOUND_ERROR");
+			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+   		else if (filterCategoryInvalid)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+       	
+   		// Reload resources from DB
+       	resources=null;
+       	
+   		setAddEnabled(null);
+   		setEditEnabled(null);
+   		setDeleteEnabled(null);
+   		resetAdmins();
+   		resetSuperadmins();
+   		resetEditResourcesAllowed();
+   		setEditOtherUsersResourcesEnabled(null);
+   		setEditAdminsResourcesEnabled(null);
+   		setEditSuperadminsResourcesEnabled(null);
+   		resetDeleteResourcesAllowed();
+   		setDeleteOtherUsersResourcesEnabled(null);
+   		setDeleteAdminsResourcesEnabled(null);
+   		setDeleteSuperadminsResourcesEnabled(null);
+			
+		// Always reload categories from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		resourcesCategories=null;
+		if (resources==null)
+		{
+           	getResources();
+           	
+        	// Get current user session Hibernate operation
+        	operation=getCurrentUserOperation(null);
+		}
+		getResourcesCategories(operation);
+		getFilterCategoryId(operation);
     }
     
 	// ActionListener para la confirmación de la eliminación de un recurso
     /**
      * Shows a dialog to confirm resource deletion.
-     * @param event Action event
+     * @param resource Resource to delete
      */
-	public void confirm(ActionEvent event)
-	{
-		RequestContext rq=RequestContext.getCurrentInstance();
-		rq.execute("confirmDialog.show()");
+    public void confirmDelete(Resource resource)
+    {
+    	boolean ok=false;
+    	
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+    	
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersResourcesEnabled(null);
+		setDeleteAdminsResourcesEnabled(null);
+		setDeleteSuperadminsResourcesEnabled(null);
+		resetDeleteResourceAllowed(resource);
+		resetAdminFromResourceAllowed(resource);
+		resetSuperadminFromResourceAllowed(resource);
+		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long resourceId=resource.getId();
+		if (!resourcesService.checkResourceId(operation,resourceId))
+		{
+			addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_DELETE_NOT_FOUND_ERROR");
+		}
+		else if (isDeleteResourceAllowed(operation,resourceId))
+    	{
+			ok=true;
+    		setCurrentResource(resource);
+    		RequestContext rq=RequestContext.getCurrentInstance();
+    		rq.execute("confirmDialog.show()");
+    	}
+		else
+		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+		}
+    	if (!ok)
+    	{
+    		setAddEnabled(null);
+			setEditEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			setEditOtherUsersResourcesEnabled(null);
+			setEditAdminsResourcesEnabled(null);
+			setEditSuperadminsResourcesEnabled(null);
+			resetEditResourcesAllowed();
+			resetDeleteResourcesAllowed();
+    		
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and resources from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			resourcesCategories=null;
+			resources=null;
+    	}
 	}
 	
 	/**
@@ -1996,8 +2110,12 @@ public class ResourcesBean implements Serializable
 	public String addResource()
 	{
 		String newView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
 		setAddEnabled(null);
-		if (getAddEnabled(getCurrentUserOperation(null)).booleanValue())
+		if (getAddEnabled(operation).booleanValue())
 		{
 			newView="resource";
 		}
@@ -2018,9 +2136,34 @@ public class ResourcesBean implements Serializable
 			setDeleteAdminsResourcesEnabled(null);
 			setDeleteSuperadminsResourcesEnabled(null);
 			resetDeleteResourcesAllowed();
+			setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+			setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
 			
-			// Reload categories from DB
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and resources from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
 			resourcesCategories=null;
+			resources=null;
 		}
 		return newView;
 	}
@@ -2032,7 +2175,13 @@ public class ResourcesBean implements Serializable
 	 */
 	public String editResource(Resource resource)
 	{
-		String newView=null;
+		String updateView="resource";
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
 		setEditEnabled(null);
 		setEditOtherUsersResourcesEnabled(null);
 		setEditAdminsResourcesEnabled(null);
@@ -2040,15 +2189,23 @@ public class ResourcesBean implements Serializable
 		resetEditResourceAllowed(resource);
 		resetAdminFromResourceAllowed(resource);
 		resetSuperadminFromResourceAllowed(resource);
-		if (isEditResourceAllowed(resource))
+		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long resourceId=resource.getId();
+		if (!resourcesService.checkResourceId(operation,resourceId))
 		{
-			newView="resource";
+			updateView=null;
+    		addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_UPDATE_NOT_FOUND_ERROR");
 		}
-		else
+		else if (!isEditResourceAllowed(operation,resourceId))
 		{
+			updateView=null;
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalResourcesEnabled(null);
-			setFilterOtherUsersResourcesEnabled(null);
+		}
+		if (updateView==null)
+		{
     		setAddEnabled(null);
 			setDeleteEnabled(null);
 			resetAdmins();
@@ -2059,10 +2216,32 @@ public class ResourcesBean implements Serializable
 			setDeleteSuperadminsResourcesEnabled(null);
 			resetDeleteResourcesAllowed();
 			
-			// Reload categories from DB
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and resources from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
 			resourcesCategories=null;
+			resources=null;
 		}
-		return newView;
+		return updateView;
 	}
 	
 	// ActionListener para la eliminación de un recurso
@@ -2072,73 +2251,165 @@ public class ResourcesBean implements Serializable
 	 */
 	public void deleteResource(ActionEvent event)
 	{
-		try
+		boolean ok=false;
+		boolean resourceNotFound=false;
+		ServiceException serviceException=null;
+		
+		Resource resource=getCurrentResource();
+		
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersResourcesEnabled(null);
+		setDeleteAdminsResourcesEnabled(null);
+		setDeleteSuperadminsResourcesEnabled(null);
+		resetDeleteResourceAllowed(resource);
+		resetAdminFromResourceAllowed(resource);
+		resetSuperadminFromResourceAllowed(resource);
+		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long resourceId=resource.getId();
+		if (!resourcesService.checkResourceId(operation,resourceId))
 		{
-			// Get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
-			// Check permission to delete resource
-			setDeleteEnabled(null);
-			setDeleteOtherUsersResourcesEnabled(null);
-			setDeleteAdminsResourcesEnabled(null);
-			setDeleteSuperadminsResourcesEnabled(null);
-			Resource resource=getResource(operation,getResourceId());
-			resetDeleteResourceAllowed(resource);
-			resetAdminFromResourceAllowed(resource);
-			resetSuperadminFromResourceAllowed(resource);
-			if (isDeleteResourceAllowed(operation,getResourceId()))
+			resourceNotFound=true;
+		}
+		else if (isDeleteResourceAllowed(operation,resourceId))
+		{
+			try
 			{
-				try
-				{
-					// Delete resource
-					resourcesService.deleteResource(getResourceId());
-				}
-				finally
-				{
-					// We force to reload resources from DB
-					resources=null;
-					
-					// End current user session Hibernate operation
-					userSessionService.endCurrentUserOperation();
-				}
+				// Delete resource
+				resourcesService.deleteResource(resource.getId());
+				ok=true;
+			}
+			catch (ServiceException se)
+			{
+				serviceException=se;
+			}
+			finally
+			{
+				// We force to reload resources from DB
+				resources=null;
+				
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+		}
+		if (!ok)
+		{
+			if (serviceException==null)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			}
+			else if (resourceNotFound)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_DELETE_NOT_FOUND_ERROR");
+			}
+			else if (serviceException instanceof ResourceDeleteConstraintServiceException)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_DELETE_CONSTRAINT_ERROR");
 			}
 			else
 			{
-				addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-				setAddEnabled(null);
-				setEditEnabled(null);
-				resetAdmins();
-				resetSuperadmins();
-				setEditOtherUsersResourcesEnabled(null);
-				setEditAdminsResourcesEnabled(null);
-				setEditSuperadminsResourcesEnabled(null);
-				resetEditResourcesAllowed();
-				resetDeleteResourcesAllowed();
-				
-				// Reload categories from DB
-				resourcesCategories=null;
+				addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_DELETE_UNKNOWN_ERROR");
 			}
-		}
-		catch (ServiceException se)
-		{
-			addErrorMessage(true,"INCORRECT_OPERATION","RESOURCE_DELETE_ERROR");
 			setAddEnabled(null);
 			setEditEnabled(null);
-			setDeleteEnabled(null);
 			resetAdmins();
 			resetSuperadmins();
 			setEditOtherUsersResourcesEnabled(null);
 			setEditAdminsResourcesEnabled(null);
 			setEditSuperadminsResourcesEnabled(null);
 			resetEditResourcesAllowed();
-			setDeleteOtherUsersResourcesEnabled(null);
-			setDeleteAdminsResourcesEnabled(null);
-			setDeleteSuperadminsResourcesEnabled(null);
-			resetDeleteResourcesAllowed();
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
 			
 			// Reload categories from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
 			resourcesCategories=null;
 		}
+		
+		// Always reload resources from DB
+		resources=null;
+	}
+	
+	/**
+	 * Cancels deletion of a resource.
+	 * @param event Action event
+	 */
+	public void cancelDeleteResource(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+		setAddEnabled(null);
+		setEditEnabled(null);
+		setDeleteEnabled(null);
+		resetAdmins();
+		resetSuperadmins();
+		setEditOtherUsersResourcesEnabled(null);
+		setEditAdminsResourcesEnabled(null);
+		setEditSuperadminsResourcesEnabled(null);
+		resetEditResourcesAllowed();
+		setDeleteOtherUsersResourcesEnabled(null);
+		setDeleteAdminsResourcesEnabled(null);
+		setDeleteSuperadminsResourcesEnabled(null);
+		resetDeleteResourcesAllowed();
+		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		Category filterCategory=null;
+		long filterCategoryId=getFilterCategoryId();
+		if (filterCategoryId>0L)
+		{
+			if (categoriesService.checkCategoryId(operation,filterCategoryId))
+			{
+				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+			}
+		}
+		else
+		{
+			filterCategory=new Category();
+			filterCategory.setId(filterCategoryId);
+		}
+		if (filterCategory==null || !checkResourcesFilterPermission(operation,filterCategory))
+		{
+			setFilterCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload categories and resources from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		resourcesCategories=null;
+		resources=null;
 	}
 	
 	/**

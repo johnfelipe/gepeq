@@ -86,8 +86,7 @@ public class ScoreUnitsService implements Serializable
 		// We don't want caller accessing directly to a cached score unit so we return a copy
 		if (scoreUnitFromCache!=null)
 		{
-			scoreUnit=new ScoreUnit();
-			scoreUnit.setFromOtherScoreUnit(scoreUnitFromCache);
+			scoreUnit=scoreUnitFromCache.getScoreUnitCopy();
 		}
 		return scoreUnit;
 	}
@@ -132,8 +131,7 @@ public class ScoreUnitsService implements Serializable
 		// We don't want caller accessing directly to a cached score unit so we return a copy
 		if (scoreUnitFromCache!=null)
 		{
-			scoreUnit=new ScoreUnit();
-			scoreUnit.setFromOtherScoreUnit(scoreUnitFromCache);
+			scoreUnit=scoreUnitFromCache.getScoreUnitCopy();
 		}
 		return scoreUnit;
 	}

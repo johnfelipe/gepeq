@@ -22,19 +22,14 @@ import javax.faces.component.html.HtmlSelectOneMenu;
 import javax.faces.context.FacesContext;
 import javax.faces.component.UINamingContainer;
 import javax.el.ValueExpression;
-import javax.el.MethodExpression;
-import javax.faces.render.Renderer;
-import java.io.IOException;
 import javax.faces.component.UIComponent;
-import javax.faces.event.AbortProcessingException;
 import javax.faces.application.ResourceDependencies;
 import javax.faces.application.ResourceDependency;
+
 import java.util.List;
 import java.util.ArrayList;
+
 import org.primefaces.component.column.Column;
-import java.util.List;
-import java.util.ArrayList;
-import javax.faces.component.UIComponent;
 
 @ResourceDependencies({
 	@ResourceDependency(library="primefaces", name="primefaces.css"),
@@ -60,7 +55,10 @@ public class SelectOneMenu extends HtmlSelectOneMenu implements org.primefaces.c
 		//                                 allowing to define a custom style class and/or style for the panel of a 
 		//                                 <p:selectonemenu> component
 		,panelStyleClass
-		,panelStyle;
+		,panelStyle
+		// UNED: 26-08-2013 - dballestin - Added support for a new attribute: 'disabledValueValidation' allowing
+		//                                 to disable value validation for a <p:selectonemenu> component
+		,disabledValueValidation;
 
 		String toString;
 
@@ -145,6 +143,19 @@ public class SelectOneMenu extends HtmlSelectOneMenu implements org.primefaces.c
 	//                                 allowing to define a custom style class and/or style for the panel of a 
 	//                                 <p:selectonemenu> component
 
+
+	// UNED: 26-08-2013 - dballestin - Added support for a new attribute: 'disabledValueValidation' allowing
+	//                                 to disable value validation for a <p:selectonemenu> component
+	public boolean isDisabledValueValidation() {
+		return (java.lang.Boolean) getStateHelper().eval(PropertyKeys.disabledValueValidation, false);
+	}
+	public void setDisabledValueValidation(boolean _disabledValueValidation) {
+		getStateHelper().put(PropertyKeys.disabledValueValidation, _disabledValueValidation);
+		handleAttribute("disabledValueValidation", _disabledValueValidation);
+	}
+	// UNED: 26-08-2013 - dballestin - END - Added support for a new attribute: 'disabledValueValidation' allowing
+	//                                 to disable value validation for a <p:selectonemenu> component
+	
     public final static String STYLE_CLASS = "ui-selectonemenu ui-widget ui-state-default ui-corner-all ui-helper-clearfix";
     public final static String LABEL_CONTAINER_CLASS = "ui-selectonemenu-label-container";
     public final static String LABEL_CLASS = "ui-selectonemenu-label ui-corner-all";
@@ -181,6 +192,7 @@ public class SelectOneMenu extends HtmlSelectOneMenu implements org.primefaces.c
 			return "widget_" + getClientId(context).replaceAll("-|" + UINamingContainer.getSeparatorChar(context), "_");
 	}
 
+	@SuppressWarnings("unchecked")
 	public void handleAttribute(String name, Object value) {
 		List<String> setAttributes = (List<String>) this.getAttributes().get("javax.faces.component.UIComponentBase.attributesThatAreSet");
 		if(setAttributes == null) {
@@ -199,6 +211,14 @@ public class SelectOneMenu extends HtmlSelectOneMenu implements org.primefaces.c
 					setAttributes.add(name);
 				}
 			}
+		}
+	}
+
+	@Override
+	protected void validateValue(FacesContext context, Object value) {
+		if (!isDisabledValueValidation())
+		{
+			super.validateValue(context, value);
 		}
 	}
 }

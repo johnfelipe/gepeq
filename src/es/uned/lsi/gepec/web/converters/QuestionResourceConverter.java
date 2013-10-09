@@ -39,7 +39,7 @@ public class QuestionResourceConverter implements Converter
 		int position=Integer.parseInt(newValue);
 		QuestionBean questionBean=(QuestionBean)context.getApplication().getELResolver().getValue(
 			context.getELContext(),null,"questionBean");
-		Question question=questionBean.getQuestion(questionBean.getCurrentUserOperation(null));
+		Question question=questionBean.getQuestion();
 		if (question!=null)
 		{
 			questionResource=question.getQuestionResource(position);

@@ -74,7 +74,7 @@ public class SupportContact implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_test", nullable = false)
+	@JoinColumn(name = "id_test")
 	public Test getTest() {
 		return this.test;
 	}
@@ -84,7 +84,7 @@ public class SupportContact implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_addresstype", nullable = false)
+	@JoinColumn(name = "id_addresstype")
 	public AddressType getAddressType() {
 		return this.addressType;
 	}
@@ -126,6 +126,15 @@ public class SupportContact implements java.io.Serializable {
 			setFilterValue(otherSupportContact.getFilterValue());
 			setSupportContact(otherSupportContact.getSupportContact());
 		}
+	}
+	
+	/**
+	 * @return A copy of this support contact.
+	 */
+	@Transient
+	public SupportContact getSupportContactCopy()
+	{
+		return new SupportContact(getId(),getTest(),getAddressType(),getFilterValue(),getSupportContact());
 	}
 	
 	@Override

@@ -102,6 +102,8 @@ public class UserBean implements Serializable
 	private User user;							// Current user
 	private String confirmPassword;				// Password confirmation (must match with password)
 	
+	private long initialUserTypeId;
+	
 	private List<PermissionBean> permissions;
 	
 	private List<PermissionBean> currentPermissions;
@@ -129,7 +131,9 @@ public class UserBean implements Serializable
 	
 	public UserBean()
 	{
+		user=null;
 		confirmPassword="";
+		initialUserTypeId=0L;
 		changePassword=false;
 		displayUserPermissions=false;
 		activeUserTabName=GENERAL_WIZARD_TAB;
@@ -188,6 +192,11 @@ public class UserBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && user==null)
+    	{
+    		getUser();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
@@ -201,22 +210,14 @@ public class UserBean implements Serializable
      */
 	public User getUser()
 	{
-		return getUser(null);
-	}
-	
-    /**
-     * Returns a new user if we are creating one or an existing user from DB if we are updating one.<br/><br/>
-     * Once question is instantiated (or readed from DB) next calls to this method will return that instance.
-     * <br/><br/>
-     * If you need to instantiate user again (or read it again from DB) you can set user to null, 
-     * but be careful with possible side effects.
-     * @param operation Operation
-     * @return A new user if we are creating one or an existing user from DB if we are editing one
-     */
-	private User getUser(Operation operation)
-	{
 		if (user==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
     		// We seek parameters
     		FacesContext context=FacesContext.getCurrentInstance();
     		Map<String,String> params=context.getExternalContext().getRequestParameterMap();
@@ -224,15 +225,13 @@ public class UserBean implements Serializable
     		// Check if we are creating a new user or editing an existing one
     		if (params.containsKey("userId"))
     		{
-    			// Get current user session Hibernate operation
-    			operation=getCurrentUserOperation(operation);
-    				
     			long userId=Long.parseLong(params.get("userId"));
         		user=usersService.getUser(operation,userId);
         		UserType userType=user.getUserType();
         		if (userType!=null)
         		{
         			user.setUserType(userTypesService.getUserType(operation,userType.getId()));
+        			initialUserTypeId=userType.getId();
         		}
         		setUserGroups(new ArrayList<String>());
         		if (user.getGroups()!=null && !"".equals(user.getGroups()))
@@ -289,7 +288,7 @@ public class UserBean implements Serializable
 			operation=getCurrentUserOperation(operation);
 			
 			List<Permission> rawPermissions=permissionsService.getPermissions(operation);
-			User user=getUser(operation);
+			User user=getUser();
 			if (user.getId()==0L)
 			{
 				if (user.getUserType()==null)
@@ -641,7 +640,7 @@ public class UserBean implements Serializable
 			operation=getCurrentUserOperation(operation);
 			
 			List<Permission> rawPermissions=permissionsService.getPermissions(operation);
-			User user=getUser(operation);
+			User user=getUser();
 			List<UserPermission> userPermissions=user.getUserPermissions();
 			if (user.getUserType()==null)
 			{
@@ -736,7 +735,8 @@ public class UserBean implements Serializable
 	
 	public long getUserTypeId()
 	{
-		return getUserTypeId(null);
+		UserType userType=getUser().getUserType();
+		return userType==null?0L:userType.getId();
 	}
 	
 	public void setUserTypeId(long userTypeId)
@@ -744,28 +744,15 @@ public class UserBean implements Serializable
 		setUserTypeId(null,userTypeId);
 	}
 	
-	private long getUserTypeId(Operation operation)
-	{
-		UserType userType=getUser(getCurrentUserOperation(operation)).getUserType();
-		return userType==null?0L:userType.getId();
-	}
-	
 	private void setUserTypeId(Operation operation,long userTypeId)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		getUser(operation).setUserType(userTypeId>0L?userTypesService.getUserType(operation,userTypeId):null);
+		getUser().setUserType(
+			userTypeId>0L?userTypesService.getUserType(getCurrentUserOperation(operation),userTypeId):null);
 	}
 	
 	public String getUserTypeDescription()
 	{
-		return getUserTypeDescription(null);
-	}
-	
-	private String getUserTypeDescription(Operation operation)
-	{
-		UserType userType=getUser(getCurrentUserOperation(operation)).getUserType();
+		UserType userType=getUser().getUserType();
 		return userType==null?"":userType.getDescription();
 	}
 	
@@ -905,7 +892,7 @@ public class UserBean implements Serializable
 	}
 	
 	/**
-	 * Reset a permission of current user-
+	 * Reset a permission of current user.
 	 * @param permission Permission
 	 */
 	private void resetCurrentUserPermission(Permission permission)
@@ -1004,7 +991,7 @@ public class UserBean implements Serializable
 	private boolean checkUserTypeAllowed(Operation operation,UserType userType)
 	{
 		boolean ok=true;
-		if (userType!=null)
+		if (userType!=null && (initialUserTypeId==0L || userType.getId()!=initialUserTypeId))
 		{
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
@@ -1197,17 +1184,7 @@ public class UserBean implements Serializable
 	 */
 	public String getUserApplication()
 	{
-		return getUserApplication(null);
-	}
-	
-	/**
-	 * @param operation
-	 * @return Localized user's application
-	 */
-	private String getUserApplication(Operation operation)
-	{
-		return localizationService.getLocalizedMessage(
-			getUser(getCurrentUserOperation(operation)).isGepeqUser()?"APPLICATION_GEPEQ":"APPLICATION_OM");
+		return localizationService.getLocalizedMessage(getUser().isGepeqUser()?"APPLICATION_GEPEQ":"APPLICATION_OM");
 	}
 	
 	/**
@@ -1338,10 +1315,9 @@ public class UserBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * Process general tab input fields.
 	 */
-	private void processGeneralInputFields(Operation operation,UIComponent component)
+	private void processGeneralInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String userLoginId=null;
@@ -1351,7 +1327,7 @@ public class UserBean implements Serializable
 		String userNameId=null;
 		String userSurnameId=null;
 		
-		User user=getUser(getCurrentUserOperation(operation));
+		User user=getUser();
 		if (user.getId()==0L)
 		{
 			userLoginId=":userForm:userLogin";
@@ -1426,7 +1402,7 @@ public class UserBean implements Serializable
 	public void changePassword(AjaxBehaviorEvent event)
 	{
 		// We reset password and confir password fields
-		getUser(getCurrentUserOperation(null)).setPassword("");
+		getUser().setPassword("");
 		setConfirmPassword("");
 	}
 	
@@ -1436,13 +1412,10 @@ public class UserBean implements Serializable
 	 */
 	public void changeApplication(AjaxBehaviorEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// We need to process some input fields
-		processGeneralInputFields(operation,event.getComponent());
+		processGeneralInputFields(event.getComponent());
 		
-		getUser(operation).setUserType(null);
+		getUser().setUserType(null);
 		setDisplayUserPermissions(false);
 		
 		//TODO ¿Realmente hace falta? Al cambiar a la página de permisos siempre vamos a tener que volver a leerlos de BD por si otro administrador los hubiera modificado, así que no tengo muy claro que sentido tiene hacerlo aquí también
@@ -1477,7 +1450,7 @@ public class UserBean implements Serializable
 		else
 		{
 			// We need to process some input fields
-			processGeneralInputFields(getCurrentUserOperation(null),event.getComponent());
+			processGeneralInputFields(event.getComponent());
 			
 			// Set submitted value for the checkbox for displaying/hiding user permissions advanced
 			setEnabledCheckboxesSetters(true);
@@ -1580,7 +1553,7 @@ public class UserBean implements Serializable
 	private boolean checkUnusedForUserLogin(Operation operation,String userLogin)
 	{
     	boolean ok=true;
-    	if (usersService.checkUser(getCurrentUserOperation(operation),userLogin))
+    	if (usersService.checkUserLogin(getCurrentUserOperation(operation),userLogin))
 		{
 			addErrorMessage("USER_LOGIN_ALREADY_DECLARED");
 			ok=false;
@@ -2007,7 +1980,7 @@ public class UserBean implements Serializable
 		operation=getCurrentUserOperation(operation);
 		
 		// Note that it is not possible to modify login so we only need to check it when creating a new user
-		User user=getUser(operation);
+		User user=getUser();
 		if (user.getId()==0L)
 		{
 			if (!checkUserLogin(operation,user.getLogin()))
@@ -2021,7 +1994,7 @@ public class UserBean implements Serializable
 				// If password checking fails we reset "Password" and "Confirm password" fields 
 	    		user.setPassword("");
 	    		setConfirmPassword("");
-	    		updatePasswordsTextFields(operation,component);
+	    		updatePasswordsTextFields(component);
 				ok=false;
 			}
 		}
@@ -2046,15 +2019,14 @@ public class UserBean implements Serializable
 	 * Update password text fields.<br/><br/>
 	 * This is needed after some operations because password text fields are not always being updated correctly 
 	 * on page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void updatePasswordsTextFields(Operation operation,UIComponent component)
+	private void updatePasswordsTextFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String userPasswordId=null;
 		String confirmPasswordId=null;
-		User user=getUser(getCurrentUserOperation(operation));
+		User user=getUser();
 		if (user.getId()>0L)
 		{
 			userPasswordId=":userForm:userFormTabs:userPassword";
@@ -2103,7 +2075,7 @@ public class UserBean implements Serializable
         			ok=false;
         		}
         		
-        		User user=getUser(operation);
+        		User user=getUser();
         		if (!checkUserTypeAllowed(operation,user.getUserType()))
         		{
         			user.setUserType(null);
@@ -2154,13 +2126,8 @@ public class UserBean implements Serializable
 	
     public String getActiveUserTabName()
     {
-    	return getActiveUserTabName(null);
-    }
-    
-    private String getActiveUserTabName(Operation operation)
-    {
     	String activeUserTabName=null;
-    	if (getUser(getCurrentUserOperation(operation)).getId()>0L)
+    	if (getUser().getId()>0L)
     	{
     		switch (activeUserTabIndex)
     		{
@@ -2196,7 +2163,7 @@ public class UserBean implements Serializable
         	if (activeUserTabIndex==GENERAL_TABVIEW_TAB)
         	{
         		// We need to process some input fields
-        		processGeneralInputFields(operation,userFormTab);
+        		processGeneralInputFields(userFormTab);
         		
         		setCurrentPermissions(null);
         		currentPermissions=getCurrentPermissions(operation);
@@ -2205,7 +2172,7 @@ public class UserBean implements Serializable
         		{
         			ok=false;
         		}
-        		User user=getUser(operation);
+        		User user=getUser();
         		if (!checkUserTypeAllowed(operation,user.getUserType()))
         		{
         			user.setUserType(null);
@@ -2325,7 +2292,7 @@ public class UserBean implements Serializable
 	public void showAddUserGroups(ActionEvent event)
 	{
 		// We need to process some input fields
-		processGeneralInputFields(getCurrentUserOperation(null),event.getComponent());
+		processGeneralInputFields(event.getComponent());
 		
 		setUserGroupsDualList(null);
 		setUserGroup("");
@@ -2395,7 +2362,7 @@ public class UserBean implements Serializable
 	public void removeUserGroup(ActionEvent event)
 	{
 		// We need to process some input fields
-		processGeneralInputFields(getCurrentUserOperation(null),event.getComponent());		
+		processGeneralInputFields(event.getComponent());		
 		
 		getUserGroups().remove(event.getComponent().getAttributes().get("userGroup"));
 	}
@@ -2661,7 +2628,7 @@ public class UserBean implements Serializable
     	PermissionBean permission=(PermissionBean)event.getObject();
     	if (checkPermissionValueAllowed(operation,permission))
     	{
-    		User user=getUser(operation);
+    		User user=getUser();
         	UserPermission userPermission=null;
         	for (UserPermission userPerm:user.getUserPermissions())
         	{
@@ -2703,7 +2670,7 @@ public class UserBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	User user=getUser(operation);
+    	User user=getUser();
     	UserPermission userPermission=null;
     	for (UserPermission userPerm:user.getUserPermissions())
     	{
@@ -2812,7 +2779,7 @@ public class UserBean implements Serializable
     		if ("true".equals(getCurrentUserPermission(operation,rawUsersAdministrationPermission).getValue()))
     		{
         		Permission rawAddOrEditUserAllowedPermission=null;
-        		if (getUser(operation).getId()>0L)
+        		if (getUser().getId()>0L)
         		{
         			rawAddOrEditUserAllowedPermission=
         				permissionsService.getPermission(operation,"PERMISSION_ADMINISTRATION_EDIT_USER_ENABLED");
@@ -2842,7 +2809,7 @@ public class UserBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	User user=getUser(operation);
+    	User user=getUser();
     	if (user.getId()>0L || isDisplayUserPermissions())
     	{
     		for (UserPermission userPermission:userPermissions)
@@ -2898,7 +2865,7 @@ public class UserBean implements Serializable
     		if (checkGeneralInputFields(operation,FacesContext.getCurrentInstance().getViewRoot()))
     		{
         		setCurrentPermissions(null);
-        		User user=getUser(operation);
+        		User user=getUser();
         		
         		// Set user groups
         		StringBuffer sGroups=new StringBuffer();
@@ -2921,10 +2888,27 @@ public class UserBean implements Serializable
         				updateOk=false;
         				rollbackPermissionsConfirmedValues(operation);
         			}
+        			if (updateOk)
+        			{
+        				UserType userTypeFromDB=userTypesService.getUserTypeFromUserId(operation,user.getId());
+        				if (initialUserTypeId!=0L)
+        				{
+        					if (userTypeFromDB==null)
+        					{
+        						initialUserTypeId=0L;
+        					}
+        					else
+        					{
+            					initialUserTypeId=userTypeFromDB.getId();
+        					}
+        				}
+        			}
         			if (updateOk && !checkUserTypeAllowed(operation,user.getUserType()))
         			{
        					updateOk=false;
        					addErrorMessage("USER_ROLE_RAISE_PERMISSIONS_ERROR");
+       					setUserTypes(null);
+       					user.setUserType(null);
         			}
         			if (updateOk && !checkPermissionsValuesAllowed(operation,true))
         			{
@@ -2939,9 +2923,6 @@ public class UserBean implements Serializable
             			// Set user permissions to save
             			user.setUserPermissions(getUserPermissionsToSave(operation,userPermissions));
             			
-            			// Set tests of user (as they are on DB)
-            			user.setUserTests(testUsersService.getUserTests(operation,user));
-            			
             			// Edit user (including user permissions)
         				try
         				{
@@ -2950,6 +2931,8 @@ public class UserBean implements Serializable
         				}
         				catch (ServiceException se)
         				{
+            				se.printStackTrace();
+            				
             				// Restore user permissions backup (user interface)
             				user.setUserPermissions(userPermissions);
             				
@@ -2993,6 +2976,8 @@ public class UserBean implements Serializable
             			}
             			catch (ServiceException se)
             			{
+            				se.printStackTrace();
+            				
             				// Restore user permissions backup (user interface)
             				user.setUserPermissions(userPermissions);
             				
@@ -3087,7 +3072,7 @@ public class UserBean implements Serializable
 	 */
 	public void changeLocale(ActionEvent event)
 	{
-		if (getUser(getCurrentUserOperation(null)).getId()==0L)
+		if (getUser().getId()==0L)
 		{
 			setEnabledCheckboxesSetters(false);
 		}

@@ -124,6 +124,14 @@ public class DragDropAnswer extends Answer {
 	
 	@Transient
 	@Override
+	public Answer getAnswerCopy()
+	{
+		return new DragDropAnswer(getId(),getQuestion(),getResource(),getResourceWidth(),getResourceHeight(),getText(),
+			getCorrect(),getFixed(),getPosition(),getName(),isDraggable(),getGroup(),getRightAnswer());
+	}
+	
+	@Transient
+	@Override
 	public String getOmId()
 	{
 		StringBuffer omId=new StringBuffer(isDraggable()?"draggableitem":"answer");

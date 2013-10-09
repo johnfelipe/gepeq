@@ -175,8 +175,7 @@ public class QuestionsBean implements Serializable
 	private String selectedQuestionTypeName;			// Selected question's type name
 	private QuestionType selectedQuestionType;  		// Selected question's type
 	private Question selectedQuestion;					// Selected question
-	private Long questionId;							// Selected question's identifier
-	
+	private Long questionId;							// Selected question identifier
 	
 	private Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap;
 	private SpecialCategoryFilter allCategories;
@@ -220,6 +219,7 @@ public class QuestionsBean implements Serializable
 	
 	public QuestionsBean()
 	{
+		questionId=0L;
 		selectedQuestionTypeName=null;
 		selectedQuestionType=null;
 		filterCategoryId=Long.MIN_VALUE;
@@ -331,16 +331,6 @@ public class QuestionsBean implements Serializable
     	return userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_NAVIGATION_QUESTIONS");
     }
     
-	public Long getQuestionId()
-	{
-		return questionId;
-	}
-	
-	public void setQuestionId(Long questionId)
-	{
-		this.questionId=questionId;
-	}
-	
 	private void initializeFilterCategoryId(Operation operation)
 	{
 		boolean found=false;
@@ -1051,22 +1041,17 @@ public class QuestionsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				allowed=getEditEnabled(operation).booleanValue() && (currentUser.equals(questionAuthor) || 
-					(getEditOtherUsersQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || getEditAdminsQuestionsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,questionAuthor) || 
-					getEditSuperadminsQuestionsEnabled(operation).booleanValue())));
-				 */
-				
-				User questionAuthor=questionsService.getQuestion(operation,questionId).getCreatedBy();
+				Question question=questionsService.getQuestion(operation,questionId);
+				User questionAuthor=question.getCreatedBy();
 				allowed=getEditEnabled(operation).booleanValue() && 
 					(questionAuthor.getId()==userSessionService.getCurrentUserId() || 
 					(getEditOtherUsersQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || getEditAdminsQuestionsEnabled(operation).booleanValue()) && 
+					(!isAdmin(operation,questionAuthor) || 
+					getEditAdminsQuestionsEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,questionAuthor) || 
-					getEditSuperadminsQuestionsEnabled(operation).booleanValue())));
+					getEditSuperadminsQuestionsEnabled(operation).booleanValue()))) && 
+					checkQuestionsFilterPermission(operation,categoriesService.getCategoryFromQuestionId(
+					operation,questionId));
 				
 				editQuestionsAllowed.put(Long.valueOf(questionId),Boolean.valueOf(allowed));
 			}
@@ -1111,26 +1096,22 @@ public class QuestionsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				allowed=getAddEnabled(operation).booleanValue() && getCreateCopyEnabled(operation).booleanValue() && 
-					(currentUser.equals(questionAuthor) || isEditQuestionAllowed(operation,questionId) || 
-					(getCreateCopyOtherUsersNonEditableQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || 
-					getCreateCopyAdminsNonEditableQuestionsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,questionAuthor) || 
-					getCreateCopySuperadminsNonEditableQuestionsEnabled(operation).booleanValue())));
-				*/
-				
-				User questionAuthor=questionsService.getQuestion(operation,questionId).getCreatedBy();
-				allowed=getAddEnabled(operation).booleanValue() && getCreateCopyEnabled(operation).booleanValue() && 
+				Question question=questionsService.getQuestion(operation,questionId);
+				User questionAuthor=question.getCreatedBy();
+				boolean isAdmin=isAdmin(operation,questionAuthor);
+				boolean isSuperadmin=isSuperadmin(operation,questionAuthor);
+				allowed=getCreateCopyEnabled(operation).booleanValue() && 
 					(questionAuthor.getId()==userSessionService.getCurrentUserId() || 
-					isEditQuestionAllowed(operation,questionId) || 
+					(getEditEnabled(operation).booleanValue() && 
+					getEditOtherUsersQuestionsEnabled(operation).booleanValue() && 
+					(!isAdmin || getEditAdminsQuestionsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin || getEditSuperadminsQuestionsEnabled(operation).booleanValue())) || 
 					(getCreateCopyOtherUsersNonEditableQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || 
-					getCreateCopyAdminsNonEditableQuestionsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,questionAuthor) || 
-					getCreateCopySuperadminsNonEditableQuestionsEnabled(operation).booleanValue())));
+					(!isAdmin || getCreateCopyAdminsNonEditableQuestionsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin || 
+					getCreateCopySuperadminsNonEditableQuestionsEnabled(operation).booleanValue()))) && 
+					checkQuestionsFilterPermission(operation,categoriesService.getCategoryFromQuestionId(
+					operation,questionId));
 				
 				createCopyQuestionsAllowed.put(Long.valueOf(questionId),Boolean.valueOf(allowed));
 			}
@@ -1175,24 +1156,18 @@ public class QuestionsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				allowed=getDeleteEnabled(operation).booleanValue() && (currentUser.equals(questionAuthor) || 
-					(getDeleteOtherUsersQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || 
-					getDeleteAdminsQuestionsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,questionAuthor) || 
-					getDeleteSuperadminsQuestionsEnabled(operation).booleanValue())));
-				*/
+				Question question=questionsService.getQuestion(operation,questionId);
+				User questionAuthor=question.getCreatedBy();
 				
-				User questionAuthor=questionsService.getQuestion(operation,questionId).getCreatedBy();
 				allowed=getDeleteEnabled(operation).booleanValue() && 
 					(questionAuthor.getId()==userSessionService.getCurrentUserId() || 
 					(getDeleteOtherUsersQuestionsEnabled(operation).booleanValue() && 
 					(!isAdmin(operation,questionAuthor) || 
 					getDeleteAdminsQuestionsEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,questionAuthor) || 
-					getDeleteSuperadminsQuestionsEnabled(operation).booleanValue())));
+					getDeleteSuperadminsQuestionsEnabled(operation).booleanValue()))) && 
+					checkQuestionsFilterPermission(operation,categoriesService.getCategoryFromQuestionId(
+					operation,questionId));
 				
 				deleteQuestionsAllowed.put(Long.valueOf(questionId),Boolean.valueOf(allowed));
 			}
@@ -1242,6 +1217,17 @@ public class QuestionsBean implements Serializable
 	public void setSelectedQuestion(Question question)
 	{
 		this.selectedQuestion=question;
+		setQuestionId(Long.valueOf(question==null?0L:question.getId()));
+	}
+	
+	public Long getQuestionId()
+	{
+		return questionId;
+	}
+	
+	public void setQuestionId(Long questionId)
+	{
+		this.questionId=questionId;
 	}
 	
     /**
@@ -1355,18 +1341,16 @@ public class QuestionsBean implements Serializable
     
 	public List<Question> getQuestions()
 	{
-		return getQuestions(null);
-	}
-		
-	private List<Question> getQuestions(Operation operation)
-	{
 		if (questions==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
 			try
 			{
-				// Get current user session Hibernate operation
-				operation=getCurrentUserOperation(operation);
-				
 				if (checkQuestionsFilterPermission(operation,null))
 				{
 					long filterCategoryId=getFilterCategoryId(operation);
@@ -1440,7 +1424,7 @@ public class QuestionsBean implements Serializable
 		}
 		return questions;
 	}
-	
+		
 	public void setQuestions(List<Question> questions)
 	{
 		this.questions=questions;
@@ -1632,6 +1616,34 @@ public class QuestionsBean implements Serializable
     	return iQT1>iQT2?1:iQT1<iQT2?-1:0;
     }
     
+    public void removeOldCategories(Operation operation)
+    {
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(operation);
+    	
+		if (questionsCategories!=null)
+		{
+			long filterCategoryId=getFilterCategoryId(operation);
+			List<Category> questionsCategoriesToRemove=new ArrayList<Category>();
+			for (Category questionCategory:questionsCategories)
+			{
+				long questionCategoryId=questionCategory.getId();
+				if (questionCategoryId>0L && !categoriesService.checkCategoryId(operation,questionCategoryId))
+				{
+					questionsCategoriesToRemove.add(questionCategory);
+					if (filterCategoryId==questionCategoryId)
+					{
+						setFilterCategoryId(Long.MIN_VALUE);
+					}
+				}
+			}
+			for (Category questionCategoryToRemove:questionsCategoriesToRemove)
+			{
+				questionsCategories.remove(questionCategoryToRemove);
+			}
+		}
+    }
+    
 	/**
 	 * @param operation Operation
 	 * @param filterCategory Filter category can be optionally passed as argument
@@ -1644,7 +1656,7 @@ public class QuestionsBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
 		
-    	long filterCategoryId=getFilterCategoryId(operation);
+    	long filterCategoryId=filterCategory==null?getFilterCategoryId(operation):filterCategory.getId();
     	if (getSpecialCategoryFiltersMap().containsKey(Long.valueOf(filterCategoryId)))
 		{
 			SpecialCategoryFilter filter=getSpecialCategoryFiltersMap().get(Long.valueOf(filterCategoryId));
@@ -1660,41 +1672,17 @@ public class QuestionsBean implements Serializable
 		else
 		{
 			// Check permissions needed for selected category
-			if (filterCategory==null)
-			{
-				// If we have not received filter category as argument we need to get it from DB
-				filterCategory=categoriesService.getCategory(operation,filterCategoryId);	
-			}
-			if (filterCategory.getVisibility().isGlobal())
+			filterCategory=categoriesService.getCategory(operation,filterCategoryId);	
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterCategoryId);
+			if (filterCategoryVisibility.isGlobal())
 			{
 				// This is a global category, so we check that current user has permissions to filter
 				// questions by global categories
-				if (getFilterGlobalQuestionsEnabled(operation).booleanValue())
-				{
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User categoryUser=filterCategory.getUser();
-					ok=currentUser.equals(categoryUser) || 
-						getFilterOtherUsersQuestionsEnabled(operation).booleanValue();
-					*/
-					
-					// Moreover we need to check that the category is owned by current user or 
-					// that current user has permission to filter by categories of other users 
-					ok=filterCategory.getUser().getId()==userSessionService.getCurrentUserId() || 
-						getFilterOtherUsersQuestionsEnabled(operation).booleanValue();
-				}
-				else
-				{
-					ok=false;
-				}
+				ok=getFilterGlobalQuestionsEnabled(operation).booleanValue();
 			}
 			else
 			{
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				if (!currentUser.equals(categoryUser))
-				*/
-				
 				// First we have to see if the category is owned by current user, 
 				// if that is not the case we will need to perform aditional checks  
 				User categoryUser=filterCategory.getUser();
@@ -1708,7 +1696,7 @@ public class QuestionsBean implements Serializable
 						// But private categories need aditional permissions
 						Visibility privateVisibility=
 							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-						if (filterCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
 						{
 							// Finally we need to check that current user has permission to view questions 
 							// from private categories of other users, and aditionally we need to check 
@@ -1718,10 +1706,12 @@ public class QuestionsBean implements Serializable
 							// private categories of users with permission to improve permissions 
 							// over its owned ones if the owner of the category has that permission 
 							// (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
 							ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).
-								booleanValue() && (!isAdmin(operation,categoryUser) || 
+								booleanValue() && (!isAdmin || 
 								getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
-								(!isSuperadmin(operation,categoryUser) || 
+								(!isSuperadmin || 
 								getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
 						}
 					}
@@ -1741,62 +1731,175 @@ public class QuestionsBean implements Serializable
      */
     public void applyQuestionsFilter(ActionEvent event)
     {
+    	boolean filterCategoryNotFound=false;
+    	boolean filterCategoryInvalid=false;
+    	
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
     	setFilterGlobalQuestionsEnabled(null);
     	setFilterOtherUsersQuestionsEnabled(null);
+       	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+       	
         Category filterCategory=null;
         long filterCategoryId=getFilterCategoryId(operation);
         if (filterCategoryId>0L)
         {
-        	filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-        	resetAdminFromCategoryAllowed(filterCategory);
-        	resetSuperadminFromCategoryAllowed(filterCategory);
-        }
-    	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-    	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-    	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-        if (checkQuestionsFilterPermission(operation,filterCategory))
-        {
-        	// Reload questions from DB
-        	setQuestions(null);
+        	if (categoriesService.checkCategoryId(operation,filterCategoryId))
+        	{
+        		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+        		resetAdminFromCategoryAllowed(filterCategory);
+        		resetSuperadminFromCategoryAllowed(filterCategory);
+        	}
+        	else
+        	{
+        		filterCategoryNotFound=true;
+        	}
         }
         else
         {
-        	addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-        	setAddEnabled(null);
-        	setEditEnabled(null);
-        	setCreateCopyEnabled(null);
-        	setDeleteEnabled(null);
-        	resetAdmins();
-        	resetSuperadmins();
-        	resetEditQuestionsAllowed();
-        	setEditOtherUsersQuestionsEnabled(null);
-        	setEditAdminsQuestionsEnabled(null);
-        	setEditSuperadminsQuestionsEnabled(null);
-        	resetCreateCopyQuestionsAllowed();
-        	setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
-        	setCreateCopyAdminsNonEditableQuestionsEnabled(null);
-        	setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
-        	resetDeleteQuestionsAllowed();
-        	setDeleteOtherUsersQuestionsEnabled(null);
-        	setDeleteAdminsQuestionsEnabled(null);
-        	setDeleteSuperadminsQuestionsEnabled(null);
+        	filterCategory=new Category();
+        	filterCategory.setId(filterCategoryId);
         }
+        if (!filterCategoryNotFound)
+        {
+        	filterCategoryInvalid=!checkQuestionsFilterPermission(operation,filterCategory);
+        }
+        
+   		if (filterCategoryNotFound)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","QUESTIONS_FILTER_CATEGORY_NOT_FOUND_ERROR");
+			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+   		else if (filterCategoryInvalid)
+   		{
+   			addErrorMessage(true, "INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+        
+    	// Reload questions from DB
+    	setQuestions(null);
+        
+    	setAddEnabled(null);
+    	setEditEnabled(null);
+    	setCreateCopyEnabled(null);
+    	setDeleteEnabled(null);
+    	resetAdmins();
+    	resetSuperadmins();
+    	resetEditQuestionsAllowed();
+    	setEditOtherUsersQuestionsEnabled(null);
+    	setEditAdminsQuestionsEnabled(null);
+    	setEditSuperadminsQuestionsEnabled(null);
+    	resetCreateCopyQuestionsAllowed();
+    	setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
+    	setCreateCopyAdminsNonEditableQuestionsEnabled(null);
+    	setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
+    	resetDeleteQuestionsAllowed();
+    	setDeleteOtherUsersQuestionsEnabled(null);
+    	setDeleteAdminsQuestionsEnabled(null);
+    	setDeleteSuperadminsQuestionsEnabled(null);
+    	
+		// Always reload categories from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		questionsCategories=null;
+		
+		getQuestions();
+		
+        // Get current user session Hibernate operation
+        operation=getCurrentUserOperation(null);
+        
+		getQuestionsCategories(operation);
+		getFilterCategoryId(operation);
     }
     
     //ActionListener para la confirmación de la eliminación de un recurso
-	/**
-	 * Action listener to confirm question deletion.
-	 * @param event Action event
-	 */
-	public void confirm(ActionEvent event)
-	{
-		RequestContext rq=RequestContext.getCurrentInstance();
-		rq.execute("confirmDialog.show()");
-	}
-	
+    /**
+     * Shows a dialog to confirm question deletion.
+     * @param question Question to delete
+     */
+    public void confirmDelete(Question question)
+    {
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+    	
+    	boolean ok=false;
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersQuestionsEnabled(null);
+		setDeleteAdminsQuestionsEnabled(null);
+		setDeleteSuperadminsQuestionsEnabled(null);
+		resetDeleteQuestionAllowed(question);
+		resetAdminFromQuestionAllowed(question);
+		resetSuperadminFromQuestionAllowed(question);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long questionId=question.getId();
+		if (!questionsService.checkQuestionId(operation,questionId))
+		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_DELETE_NOT_FOUND_ERROR");
+		}
+		else if (isDeleteQuestionAllowed(operation,questionId))
+    	{
+			ok=true;
+    		setSelectedQuestion(question);
+    		RequestContext rq=RequestContext.getCurrentInstance();
+    		rq.execute("confirmDialog.show()");
+    	}
+		else
+		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+		}
+    	if (!ok)
+    	{
+    		setAddEnabled(null);
+			setEditEnabled(null);
+			setCreateCopyEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			setEditOtherUsersQuestionsEnabled(null);
+			setEditAdminsQuestionsEnabled(null);
+			setEditSuperadminsQuestionsEnabled(null);
+			resetEditQuestionsAllowed();
+			setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
+			setCreateCopyAdminsNonEditableQuestionsEnabled(null);
+			setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
+			resetCreateCopyQuestionsAllowed();
+			resetDeleteQuestionsAllowed();
+    		
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and questions from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			questionsCategories=null;
+			setQuestions(null);
+    	}
+    }
+    
 	// Obtiene la siguiente vista en función del tipo de pregunta seleccionado
 	/**
 	 * Adds a new question (based on the selected question type).
@@ -1849,22 +1952,38 @@ public class QuestionsBean implements Serializable
 	public String editQuestion(Question question)
 	{
 		String updateView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
 		setEditEnabled(null);
-		resetAdminFromQuestionAllowed(question);
-		resetSuperadminFromQuestionAllowed(question);
-		resetEditQuestionAllowed(question);
 		setEditOtherUsersQuestionsEnabled(null);
 		setEditAdminsQuestionsEnabled(null);
 		setEditSuperadminsQuestionsEnabled(null);
-		if (isEditQuestionAllowed(question))
+		resetEditQuestionAllowed(question);
+		resetAdminFromQuestionAllowed(question);
+		resetSuperadminFromQuestionAllowed(question);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long questionId=question.getId();
+		if (!questionsService.checkQuestionId(operation,questionId))
+		{
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_UPDATE_NOT_FOUND_ERROR");
+		}
+		else if (isEditQuestionAllowed(operation,questionId))
 		{
 			updateView=questionTypesService.getQuestionType(question.getType()).getUpdateView();
 		}
 		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalQuestionsEnabled(null);
-			setFilterOtherUsersQuestionsEnabled(null);
+		}
+		if (updateView==null)
+		{
 			setAddEnabled(null);
 			setCreateCopyEnabled(null);
 			setDeleteEnabled(null);
@@ -1880,9 +1999,31 @@ public class QuestionsBean implements Serializable
 			setDeleteOtherUsersQuestionsEnabled(null);
 			setDeleteAdminsQuestionsEnabled(null);
 			setDeleteSuperadminsQuestionsEnabled(null);
-			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and questions from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			questionsCategories=null;
+			setQuestions(null);
 		}
 		return updateView;
 	}
@@ -1893,29 +2034,45 @@ public class QuestionsBean implements Serializable
 	 */
 	public String addQuestionCopy(Question question)
 	{
-		String newView=null;
+		String createCopyView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
 		setAddEnabled(null);
 		setEditEnabled(null);
-		setCreateCopyEnabled(null);
-		resetAdminFromQuestionAllowed(question);
-		resetSuperadminFromQuestionAllowed(question);
-		resetEditQuestionAllowed(question);
 		setEditOtherUsersQuestionsEnabled(null);
 		setEditAdminsQuestionsEnabled(null);
 		setEditSuperadminsQuestionsEnabled(null);
-		resetCreateCopyQuestionAllowed(question);
+		resetEditQuestionAllowed(question);
+		setCreateCopyEnabled(null);
 		setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
 		setCreateCopyAdminsNonEditableQuestionsEnabled(null);
 		setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
-		if (isCreateCopyQuestionAllowed(question))
+		resetCreateCopyQuestionAllowed(question);
+		resetAdminFromQuestionAllowed(question);
+		resetSuperadminFromQuestionAllowed(question);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long questionId=question.getId();
+		if (!questionsService.checkQuestionId(operation,questionId))
 		{
-			newView=questionTypesService.getQuestionType(question.getType()).getNewView();
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_CREATE_COPY_NOT_FOUND_ERROR");
+		}
+		else if (isCreateCopyQuestionAllowed(operation,questionId))
+		{
+			createCopyView=questionTypesService.getQuestionType(question.getType()).getNewView();
 		}
 		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalQuestionsEnabled(null);
-			setFilterOtherUsersQuestionsEnabled(null);
+		}
+		if (createCopyView==null)
+		{
 			setDeleteEnabled(null);
 			setViewOMEnabled(null);
 			resetAdmins();
@@ -1926,11 +2083,33 @@ public class QuestionsBean implements Serializable
 			setDeleteOtherUsersQuestionsEnabled(null);
 			setDeleteAdminsQuestionsEnabled(null);
 			setDeleteSuperadminsQuestionsEnabled(null);
-			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and questions from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			questionsCategories=null;
+			setQuestions(null);
 		}
-		return newView;
+		return createCopyView;
 	}
 	
 	//ActionListener para la eliminación de una pregunta
@@ -1940,119 +2119,208 @@ public class QuestionsBean implements Serializable
 	 */
 	public void deleteQuestion(ActionEvent event)
 	{
-		Question question=null;
-		String errorTitle="INCORRECT_OPERATION";
-		String errorMessage="NON_AUTHORIZED_ACTION_ERROR";
-		boolean criticalError=false;
-		try
+		boolean ok=false;
+		ServiceException serviceException=null;
+		
+		boolean questionNotFoundError=false;
+		boolean questionPublishedError=false;
+		
+		Question question=getSelectedQuestion();
+		
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersQuestionsEnabled(null);
+		setDeleteAdminsQuestionsEnabled(null);
+		setDeleteSuperadminsQuestionsEnabled(null);
+		resetDeleteQuestionAllowed(question);
+		resetAdminFromQuestionAllowed(question);
+		resetSuperadminFromQuestionAllowed(question);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long questionId=question.getId();
+		if (!questionsService.checkQuestionId(operation,questionId))
 		{
-			// Get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
-			// Get question to delete
-			question=questionsService.getQuestion(operation,getQuestionId());
-			
-			setDeleteEnabled(null);
-			resetAdminFromQuestionAllowed(question);
-			resetSuperadminFromQuestionAllowed(question);
-			resetDeleteQuestionAllowed(question);
-			setDeleteOtherUsersQuestionsEnabled(null);
-			setDeleteAdminsQuestionsEnabled(null);
-			setDeleteSuperadminsQuestionsEnabled(null);
-			if (isDeleteQuestionAllowed(operation,getQuestionId()))
+			questionNotFoundError=true;
+		}
+		else if (isDeleteQuestionAllowed(operation,questionId))
+		{
+			if (questionReleasesService.getQuestionRelease(operation,question.getId())!=null)
 			{
-				if (questionReleasesService.getQuestionRelease(operation,question.getId())!=null)
+				questionPublishedError=true;
+			}
+			else
+			{
+				try
 				{
-					question=null;
-					errorMessage="QUESTION_DELETE_PUBLISHED_ERROR";
+					// Delete question
+					questionsService.deleteQuestion(questionId);
+					
+					// Get package's name
+					String packageName=question.getPackage();
+					
+					// Get OM Developer and OM Test Navigator URLs
+					String omURL=configurationService.getOmUrl();
+					String omTnURL=configurationService.getOmTnUrl();
+					
+					// Delete <OmQuestionsFolder>/u<id_user>/q<id_question> folder
+					deleteQuestionFolder(packageName);
+					
+					// Delete question from OM Developer and OM Test Navigator web applications
+					try
+					{
+						QuestionGenerator.deleteQuestion(packageName,omURL,omTnURL);
+					}
+					catch (Exception e)
+					{
+						// Ignore delete error
+						//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+					}
+					
+					ok=true;
+				}
+				catch (ServiceException se)
+				{
+					serviceException=se;
+				}
+			}
+			
+			// We force to reload questions from DB
+			setQuestions(null);
+			
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+			
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(null);
+		}
+		if (!ok)
+		{
+			if (questionPublishedError)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_DELETE_PUBLISHED_ERROR");
+			}
+			else if (questionNotFoundError)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_DELETE_NOT_FOUND_ERROR");
+			}
+			else if (serviceException==null)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			}
+			else if (serviceException instanceof QuestionDeleteConstraintServiceException)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_DELETE_CONSTRAINT_ERROR");
+			}
+			else
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_DELETE_UNKNOWN_ERROR");
+			}
+			setAddEnabled(null);
+			setEditEnabled(null);
+			setCreateCopyEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			setEditOtherUsersQuestionsEnabled(null);
+			setEditAdminsQuestionsEnabled(null);
+			setEditSuperadminsQuestionsEnabled(null);
+			resetEditQuestionsAllowed();
+			setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
+			setCreateCopyAdminsNonEditableQuestionsEnabled(null);
+			setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
+			resetCreateCopyQuestionsAllowed();
+			resetDeleteQuestionsAllowed();
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
 				}
 			}
 			else
 			{
-				question=null;
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
 			}
-		}
-		catch (ServiceException se)
-		{
-			question=null;
-			errorTitle="UNEXPECTED_ERROR";
-			errorMessage="QUESTION_DELETE_UNKNOWN_ERROR";
-			criticalError=true;
-			setDeleteEnabled(null);
-			setDeleteOtherUsersQuestionsEnabled(null);
-			setDeleteAdminsQuestionsEnabled(null);
-			setDeleteSuperadminsQuestionsEnabled(null);
+			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			questionsCategories=null;
 		}
 		
-		if (question==null)
+		// Always reload questions from DB
+		setQuestions(null);
+	}
+	
+	/**
+	 * Cancels deletion of a question.
+	 * @param event Action event
+	 */
+	public void cancelDeleteQuestion(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setAddEnabled(null);
+		setEditEnabled(null);
+		setEditOtherUsersQuestionsEnabled(null);
+		setEditAdminsQuestionsEnabled(null);
+		setEditSuperadminsQuestionsEnabled(null);
+		setCreateCopyEnabled(null);
+		setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
+		setCreateCopyAdminsNonEditableQuestionsEnabled(null);
+		setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersQuestionsEnabled(null);
+		setDeleteAdminsQuestionsEnabled(null);
+		setDeleteSuperadminsQuestionsEnabled(null);
+		setViewOMEnabled(null);
+		resetDeleteQuestionsAllowed();
+		resetAdmins();
+		resetSuperadmins();
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		Category filterCategory=null;
+		long filterCategoryId=getFilterCategoryId();
+		if (filterCategoryId>0L)
 		{
-			addErrorMessage(criticalError,errorTitle,errorMessage);
-			setFilterGlobalQuestionsEnabled(null);
-			setFilterOtherUsersQuestionsEnabled(null);
-			setAddEnabled(null);
-			setEditEnabled(null);
-			setCreateCopyEnabled(null);
-			setViewOMEnabled(null);
-			resetAdmins();
-			resetSuperadmins();
-			resetEditQuestionsAllowed();
-			setEditOtherUsersQuestionsEnabled(null);
-			setEditAdminsQuestionsEnabled(null);
-			setEditSuperadminsQuestionsEnabled(null);
-			resetCreateCopyQuestionsAllowed();
-			setCreateCopyOtherUsersNonEditableQuestionsEnabled(null);
-			setCreateCopyAdminsNonEditableQuestionsEnabled(null);
-			setCreateCopySuperadminsNonEditableQuestionsEnabled(null);
-			resetDeleteQuestionsAllowed();
-			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			if (categoriesService.checkCategoryId(operation,filterCategoryId))
+			{
+				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+			}
 		}
 		else
 		{
-			try
-			{
-				// Delete question from DB
-				questionsService.deleteQuestion(getQuestionId());
-				
-				// Get package's name
-				String packageName=question.getPackage();
-				
-				// Get OM Developer and OM Test Navigator URLs
-				String omURL=configurationService.getOmUrl();
-				String omTnURL=configurationService.getOmTnUrl();
-				
-				// Delete <OmQuestionsFolder>/u<id_user>/q<id_question> folder
-				deleteQuestionFolder(packageName);
-				
-				// Delete question from OM Developer and OM Test Navigator web applications
-				try
-				{
-					QuestionGenerator.deleteQuestion(packageName,omURL,omTnURL);
-				}
-				catch (Exception e)
-				{
-					// Ignore delete error
-					//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
-				}
-				
-				// Reload questions from DB
-				setQuestions(null);
-			}
-			catch (QuestionDeleteConstraintServiceException qdcse)
-			{
-				addErrorMessage(false,"INCORRECT_OPERATION","QUESTION_DELETE_CONSTRAINT_ERROR");
-			}
-			catch (ServiceException se)
-			{
-				addErrorMessage(false,"UNEXPECTED_ERROR","QUESTION_DELETE_UNKNOWN_ERROR");
-			}
-			finally
-			{
-				// End current user session Hibernate operation
-				userSessionService.endCurrentUserOperation();
-			}
+			filterCategory=new Category();
+			filterCategory.setId(filterCategoryId);
 		}
+		if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+		{
+			setFilterCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload categories and questions from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		questionsCategories=null;
+		setQuestions(null);
 	}
 	
 	/**
@@ -2093,14 +2361,23 @@ public class QuestionsBean implements Serializable
 		Question question=null;
 		
 		setViewOMEnabled(null);
-		if (getViewOMEnabled(operation).booleanValue())
+		
+		if (!questionsService.checkQuestionId(operation,questionId))
+		{
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_PREVIEW_NOT_FOUND_ERROR");
+		}
+		else if (getViewOMEnabled(operation).booleanValue() && checkQuestionsFilterPermission(
+			operation,categoriesService.getCategoryFromQuestionId(operation,questionId)))
 		{
 			// Get question
 			question=questionsService.getQuestion(operation,questionId);
 		}
-		if (question==null)
+		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+		}
+		if (question==null)
+		{
 			setFilterGlobalQuestionsEnabled(null);
 			setFilterOtherUsersQuestionsEnabled(null);
 			setAddEnabled(null);
@@ -2125,6 +2402,31 @@ public class QuestionsBean implements Serializable
 			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
 			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
     		
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkQuestionsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and questions from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			questionsCategories=null;
+			setQuestions(null);
+			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
 		}

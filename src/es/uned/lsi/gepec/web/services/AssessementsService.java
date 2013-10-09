@@ -89,8 +89,7 @@ public class AssessementsService implements Serializable
 		// We don't want caller accessing directly to a cached assessement so we return a copy
 		if (assessementFromCache!=null)
 		{
-			assessement=new Assessement();
-			assessement.setFromOtherAssessement(assessementFromCache);
+			assessement=assessementFromCache.getAssessementCopy();
 		}
 		return assessement;
 	}
@@ -189,8 +188,7 @@ public class AssessementsService implements Serializable
 			Assessement assessement=null;
 			if (assessementFromCache!=null)
 			{
-				assessement=new Assessement();
-				assessement.setFromOtherAssessement(assessementFromCache);
+				assessement=assessementFromCache.getAssessementCopy();
 			}
 			assessements.add(assessement);
 		}

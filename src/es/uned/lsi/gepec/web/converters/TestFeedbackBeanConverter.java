@@ -26,7 +26,6 @@ import javax.faces.convert.FacesConverter;
 
 import es.uned.lsi.gepec.web.TestBean;
 import es.uned.lsi.gepec.web.backbeans.TestFeedbackBean;
-import es.uned.lsi.gepec.web.services.UserSessionService;
 
 /**
  * JSF 2 converter for test feedbacks beans.
@@ -45,14 +44,11 @@ public class TestFeedbackBeanConverter implements Converter
 		// Get EL resolver
 		ELResolver resolver=context.getApplication().getELResolver();
 		
-		// We get UserSessionService from EL resolver
-		UserSessionService userSessionService=(UserSessionService)resolver.getValue(elContext,null,"userSessionService");
-		
 		// We get TestBean from EL resolver
 		TestBean testBean=(TestBean)resolver.getValue(elContext,null,"testBean");
 		
 		TestFeedbackBean testFeedbackBean=null;
-		for (TestFeedbackBean tfb:testBean.getFeedbacks(userSessionService.getCurrentUserOperation()))
+		for (TestFeedbackBean tfb:testBean.getFeedbacks())
 		{
 			if (tfb.getPosition()==testFeedbackPos)
 			{

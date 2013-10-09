@@ -14,14 +14,14 @@ requests for this file, so your database password should be safe.
 <config>
 
 	<!-- Database information. The following database plugins are available:
-			 om.tnavigator.db.postgres.uned.PostgreSQL - Postgres 8.x
+			 om.tnavigator.db.postgres.PostgreSQL - Postgres 8.x
 			 om.tnavigator.db.sqlserver.SQLServer - SQL Server 2000+
 	-->
 	<database plugin="om.tnavigator.db.postgres.uned.PostgreSQL">
 		<!-- Database details -->
 		<server>localhost</server>
-		<name>om-tn</name>
-		<prefix>pre_</prefix>
+		<name>openmark</name>
+		<prefix>prefix_</prefix>
 		<!-- Login details. (This user must have full access.) -->
 		<username></username>
 		<password></password>
@@ -45,7 +45,7 @@ requests for this file, so your database password should be safe.
 
 	<!-- IP addresses from which you can run system reports. -->
 	<secureaddresses>
-        <address>127.0.0.1</address>
+		<address>127.0.0.1</address>
 	</secureaddresses>
 
 	<!-- Authentication plugin. At present only a very simple authentication
@@ -80,7 +80,7 @@ requests for this file, so your database password should be safe.
 			 om2.example.com for the next. This would cause unexpected behaviour. -->
 	<testnavigators>
 		<!-- Must mark the current server (only!) with this="yes". -->
-        <url this="yes">http://localhost:8080/om-tn/</url>
+		<url this="yes">http://localhost:8080/om-tn/</url>
 		<!-- Add other test navigators here. A small number is recommended (we
 				 have only tested up to two although it should probably scale to
 				 at least, say, five or so). -->
@@ -96,7 +96,7 @@ requests for this file, so your database password should be safe.
 	<!-- Targets for email sent when a server error occurs -->
 	<alertmail>
 		<from></from>
-		
+		<to></to>
 		<!-- You can add additional <to> and <cc> entries here. -->
 	</alertmail>
 
@@ -126,14 +126,16 @@ requests for this file, so your database password should be safe.
             <password></password>
         </login-db>
         <!-- Salted password used to decrypt some messages received from GEPEQ -->
-        <!-- <gepeq-decryption-password></gepeq-decryption-password> -->
+        <!--
+        <gepeq-decryption-password></gepeq-decryption-password>
+        -->
         
         <!-- By default user session duration is 15 minutes (time without user activity)-->
-        <!-- Uncomment it if you want to set a different user session duration. -->
-        <!-- <auth-session-expiry>15m</auth-session-expiry> -->
+        <!-- If you want to change user session duration, remove next commented property. -->
+        <!-- <auth-session-expiry>30s</auth-session-expiry> -->
         <!-- [Important] Be careful that test sessions will be marked to be cleaned after 15 minutes even if 
              user session duration is longer. -->
-        <!-- [Important] Moreover this setting only works with PreviewAuth and GepeqAuth 
+        <!-- [Important] Moreover this setting only work with PreviewAuth and GepeqAuth 
              authentication plugins. -->
     </security>
     
@@ -152,11 +154,11 @@ requests for this file, so your database password should be safe.
       
       <!-- Username for mail authentication. Can be encrypted if a private key has been provided.
            Comment it if your mail server doesn't use authentication. -->
-      <!-- <username></username> -->
+      <username></username>
       
       <!-- Password for mail authentication. Can be encrypted if a private key has been provided.
            Comment it if your mail server doesn't use authenticaton (or to use the empty string as password). -->
-      <!-- <password></password> -->
+      <password></password>
       
       <!-- Mail server host name.
            Note that you can leave this property commented if you use one of the default mail configurations 
@@ -164,7 +166,7 @@ requests for this file, so your database password should be safe.
            Take care that the old 'smtpserver' property only will be used if you are not using this property 
            and moreover you are not using any of the default configurations provided. 
       -->
-      <!-- <hostname>smtp.gmail.com</hostname> -->
+      <!--<hostname>smtp.gmail.com</hostname>-->
       
       <!-- Mail server port.
           By default port 25 is used, except if you use Hotmail default configuration
@@ -182,11 +184,11 @@ requests for this file, so your database password should be safe.
           By default false, except if you use Hotmail default configuration
           in which case is set as true if you leave it uncommented.
       -->
-      <!-- <start-tls>false</start-tls> -->
+      <!--<start-tls>false</start-tls>-->
       
       <!-- Debug mode. 
            By default false. 
-           Uncomment it if you have problems with mail and you want to get debug traces. -->
+           Unccomment it if you have problems with mail and you want to get debug traces. -->
       <!-- <debug>true</debug> -->
     </mail>
     

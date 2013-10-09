@@ -49,7 +49,7 @@
             </p:selectOneMenu>
             <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
               actionListener="#{testsBean.applyTestsFilter}" process="testsForm:testsFilterPanel" 
-              update="testsForm:messages testsForm:testsTable" />
+              update="testsForm:testsFilterPanel testsForm:messages testsForm:testsTable" />
           </h:panelGrid>
           <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow" 
             columnClasses="includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn" 
@@ -67,9 +67,8 @@
             disabled="#{!testsBean.isAddEnabled()}" />
 	    </h:panelGroup>
 	    
-        <p:dataTable id="testsTable" styleClass="testsTable" rowStyleClass="dataRow" 
-          emptyMessage="#{msgs.NO_TEST}" value="#{testsBean.tests}" var="test" 
-          paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+        <p:dataTable id="testsTable" styleClass="testsTable" rowStyleClass="dataRow" emptyMessage="#{msgs.NO_TEST}" 
+          value="#{testsBean.tests}" var="test" paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" 
           paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
           
           <p:column styleClass="columnName" sortBy="#{test.name}">
@@ -95,44 +94,46 @@
             </h:outputText>
           </p:column>
           <p:column styleClass="columnEdit">
-            <h:commandLink action="#{testsBean.editTest(test)}" rendered="#{testsBean.isEditTestAllowed(test)}">
+            <h:commandLink action="#{testsBean.editTest(test)}" rendered="#{testsBean.isEditTestAllowed(test)}"
+              onclick="editTestTooltip.hide();">
+              
               <f:param name="testId" value="#{test.id}"/>
               <h:graphicImage id="editTestImage" styleClass="links" value="#{resource['images:edit16.png']}" />
-              <p:tooltip for="editTestImage">
+              <p:tooltip widgetVar="editTestTooltip" for="editTestImage">
                 #{msgs.EDIT_TEST}
               </p:tooltip>
             </h:commandLink>
           </p:column>
           <p:column styleClass="columnCreateCopy">
             <h:commandLink action="#{testsBean.addTestCopy(test)}" 
-              rendered="#{testsBean.isCreateCopyTestAllowed(test)}">
+              rendered="#{testsBean.isCreateCopyTestAllowed(test)}" onclick="createCopyTestTooltip.hide();">
               
               <f:param name="testCopyId" value="#{test.id}" />
               <h:graphicImage id="createCopyTestImage" styleClass="links" 
                 value="#{resource['images:copyto16.png']}" />
-              <p:tooltip for="createCopyTestImage">
+              <p:tooltip widgetVar="createCopyTestTooltip" for="createCopyTestImage">
                 #{msgs.CREATE_COPY_TEST}
               </p:tooltip>
             </h:commandLink>
           </p:column>
           <p:column styleClass="columnDelete">
-            <p:commandLink update="@form" actionListener="#{testsBean.confirm}" 
-              rendered="#{testsBean.isDeleteTestAllowed(test)}">
+            <p:commandLink update="@form" actionListener="#{testsBean.confirmDelete(test)}" 
+              rendered="#{testsBean.isDeleteTestAllowed(test)}" onclick="deleteTestTooltip.hide();">
               
-              <f:setPropertyActionListener value="#{test.id}" target="#{testsBean.testId}" />
               <h:graphicImage id="deleteTestImage" styleClass="links" value="#{resource['images:delete.png']}" />
-              <p:tooltip for="deleteTestImage">
+              <p:tooltip widgetVar="deleteTestTooltip" for="deleteTestImage">
                 #{msgs.DELETE_TEST}
               </p:tooltip>
             </p:commandLink>
           </p:column>
           <p:column styleClass="columnOM">
             <p:commandLink process=":testsForm" update="@form" action="#{testsBean.viewOM(test.id)}" 
-              onstart="buildingDialog.show()" oncomplete="buildingDialog.hide();viewTest(xhr,status,args)" 
+              onstart="viewOMTestTooltip.hide();buildingDialog.show()" 
+              oncomplete="buildingDialog.hide();viewTest(xhr,status,args)" 
               rendered="#{testsBean.isViewOMEnabled()}">
               
               <h:graphicImage id="viewOMTestImage" styleClass="links" value="#{resource['images:om16.png']}" />
-              <p:tooltip for="viewOMTestImage">
+              <p:tooltip widgetVar="viewOMTestTooltip" for="viewOMTestImage">
                 #{msgs.OM_PREVIEW}
               </p:tooltip>
             </p:commandLink>
@@ -160,7 +161,9 @@
             <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
               actionListener="#{testsBean.deleteTest}" 
               update="testsForm:messages testsForm:newTestButton testsForm:testsTable" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{testsBean.cancelDeleteTest}" 
+              oncomplete="confirmDialog.hide();" 
+              update="testsForm:testsFilterPanel testsForm:messages testsForm:newTestButton testsForm:testsTable" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>

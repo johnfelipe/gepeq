@@ -83,7 +83,7 @@ public class TestFeedback implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_test", nullable = false)
+	@JoinColumn(name = "id_test")
 	public Test getTest() {
 		return this.test;
 	}
@@ -166,6 +166,16 @@ public class TestFeedback implements java.io.Serializable {
 			setMaxvalue(otherTestFeedback.getMaxvalue());
 			setPosition(otherTestFeedback.getPosition());
 		}
+	}
+	
+	/**
+	 * @return A copy of this test feedback.
+	 */
+	@Transient
+	public TestFeedback getTestFeedbackCopy()
+	{
+		return new TestFeedback(
+			getId(),getTest(),getScoreUnit(),getSection(),getText(),getMinvalue(),getMaxvalue(),getPosition());
 	}
 	
 	@Override

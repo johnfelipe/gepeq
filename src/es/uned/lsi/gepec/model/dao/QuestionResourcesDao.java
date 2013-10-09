@@ -178,6 +178,11 @@ public class QuestionResourcesDao
 				query.setParameter("questionId",Long.valueOf(questionId),StandardBasicTypes.LONG);
 			}
 			questionResources=query.list();
+			for (QuestionResource questionResource:questionResources)
+			{
+				Hibernate.initialize(questionResource.getQuestion());
+				Hibernate.initialize(questionResource.getResource());
+			}
 		}
 		catch (HibernateException he)
 		{

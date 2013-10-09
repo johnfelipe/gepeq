@@ -149,6 +149,7 @@ public class SupportContactsDao
 			supportContact=(SupportContact)operation.session.get(SupportContact.class,id);
 			if (supportContact!=null)
 			{
+				Hibernate.initialize(supportContact.getTest());
 				if (includeAddressType)
 				{
 					Hibernate.initialize(supportContact.getAddressType());
@@ -196,7 +197,15 @@ public class SupportContactsDao
 			{
 				for (SupportContact supportContact:supportContacts)
 				{
+					Hibernate.initialize(supportContact.getTest());
 					Hibernate.initialize(supportContact.getAddressType());
+				}
+			}
+			else
+			{
+				for (SupportContact supportContact:supportContacts)
+				{
+					Hibernate.initialize(supportContact.getTest());
 				}
 			}
 		}

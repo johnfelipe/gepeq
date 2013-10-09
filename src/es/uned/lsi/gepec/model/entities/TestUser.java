@@ -70,7 +70,7 @@ public class TestUser implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_test", nullable = false)
+	@JoinColumn(name = "id_test")
 	public Test getTest() {
 		return this.test;
 	}
@@ -80,7 +80,7 @@ public class TestUser implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_user", nullable = false)
+	@JoinColumn(name = "id_user")
 	public User getUser() {
 		return this.user;
 	}
@@ -123,7 +123,16 @@ public class TestUser implements java.io.Serializable {
 			setOmAdmin(otherTestUser.isOmAdmin());
 		}
 	}
-
+	
+	/**
+	 * @return A copy of this user of a test.
+	 */
+	@Transient
+	public TestUser getTestUserCopy()
+	{
+		return new TestUser(getId(),getTest(),getUser(),isOmUser(),isOmAdmin());
+	}
+	
 	@Override
 	public boolean equals(Object obj)
 	{

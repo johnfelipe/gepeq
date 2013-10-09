@@ -8,7 +8,7 @@
 
 <h:head>
 </h:head>
-	
+
 <ui:composition template="/WEB-INF/templates/maintemplate.xhtml">
   <ui:define name="pageTitle">#{msgs.TITLE}</ui:define>
   <ui:define name="contentTitle">#{msgs.PUBLISH_TEST}</ui:define>
@@ -166,9 +166,9 @@
                   </p:outputPanel>
                   <p:outputPanel id="questionsPanel">
                     <p:dataTable id="questionsSection" styleClass="questionsTable" rowStyleClass="dataRow" 
-                      emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder"
-                      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                      paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                      emptyMessage="#{msgs.NO_QUESTIONS}" value="#{section.questionOrders}" var="questionOrder" 
+                      paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+                      rowsPerPageTemplate="10,25,50">
                       
                       <p:column styleClass="columnOrder" sortBy="#{questionOrder.order}">
                         <f:facet name="header" />
@@ -178,7 +178,7 @@
                         sortFunction="#{testReleaseBean.sortQuestionTypes}">
                         
                         <f:facet name="header" />
-                        <h:graphicImage id="questionOrderQuestionTypeImage" 
+                        <h:graphicImage id="questionOrderQuestionTypeImage" styleClass="graphics" 
                           url="/resources/images/#{questionOrder.question.type}.gif" />
                         <p:tooltip for="questionOrderQuestionTypeImage">
                           #{msgs[questionOrder.question.type]}
@@ -225,14 +225,14 @@
                       </p:column>
                       <p:column styleClass="columnOM">
                         <p:commandLink action="#{testReleaseBean.viewOM(questionOrder.question.id)}" 
-                          onstart="buildingQuestionDialog.show()" 
+                          onstart="viewOMQuestionOrderTooltip.hide();buildingQuestionDialog.show()" 
                           oncomplete="buildingQuestionDialog.hide();viewQuestion(xhr,status,args)" immediate="true" 
                           update="testReleaseForm:sectionsAccordion" 
                           rendered="#{testReleaseBean.isViewOMQuestionEnabled(questionOrder.question)}">
                           
                           <h:graphicImage id="viewOMQuestionOrderImage" styleClass="links" 
                             value="#{resource['images:om16.png']}" />
-                          <p:tooltip for="viewOMQuestionOrderImage">
+                          <p:tooltip widgetVar="viewOMQuestionOrderTooltip" for="viewOMQuestionOrderImage">
                             #{msgs.OM_PREVIEW}
                           </p:tooltip>
                         </p:commandLink>
@@ -283,9 +283,9 @@
                 </h:panelGroup>
                 <p:outputPanel id="usersPanel">
                   <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
-                    emptyMessage="#{msgs.NO_USERS}" value="#{testReleaseBean.testUsersGroups}" var="userGroup"
-                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                    paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                    emptyMessage="#{msgs.NO_USERS}" value="#{testReleaseBean.testUsersGroups}" var="userGroup" 
+                    paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                    rowsPerPageTemplate="5,10,25,50">
                     
                     <p:column styleClass="columnUser" sortBy="#{userGroup.nickShort}">
                       <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
@@ -358,8 +358,8 @@
             <p:outputPanel id="adminsPanel">
               <p:dataTable id="adminsTable" styleClass="adminsTable" rowStyleClass="dataRow" 
                 emptyMessage="#{msgs.NO_ADMINS}" value="#{testReleaseBean.testAdminsGroups}" var="adminGroup"
-                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                rowsPerPageTemplate="5,10,25,50">
                 
                 <p:column styleClass="columnUser" sortBy="#{adminGroup.nickShort}">
                   <f:facet name="header">#{msgs.USER_NICK_S}</f:facet>
@@ -453,11 +453,11 @@
                   </p:calendar>
                   <p:commandLink actionListener="#{testReleaseBean.resetStartDate}" immediate="true" 
                     update="testReleaseForm:startDate testReleaseForm:startDateHidden" 
-                    onclick="clearDate(startDate);">
+                    onclick="resetStartDateTooltip.hide();clearDate(startDate);">
                     
                     <h:graphicImage id="resetStartDateImage" styleClass="links" 
                       value="#{resource['images:reset.png']}" />
-                    <p:tooltip for="resetStartDateImage">
+                    <p:tooltip widgetVar="resetStartDateTooltip" for="resetStartDateImage">
                       #{msgs.RESET}
                     </p:tooltip>
                   </p:commandLink>
@@ -471,11 +471,11 @@
                   </p:calendar>
                   <p:commandLink actionListener="#{testReleaseBean.resetCloseDate}" immediate="true" 
                     update="testReleaseForm:closeDate testReleaseForm:closeDateHidden" 
-                    onclick="clearDate(closeDate);">
+                    onclick="resetCloseDateTooltip.hide();clearDate(closeDate);">
                     
                     <h:graphicImage id="resetCloseDateImage" styleClass="links" 
                       value="#{resource['images:reset.png']}" />
-                    <p:tooltip for="resetCloseDateImage">
+                    <p:tooltip widgetVar="resetCloseDateTooltip" for="resetCloseDateImage">
                       #{msgs.RESET}
                     </p:tooltip>
                   </p:commandLink>
@@ -489,11 +489,11 @@
                   </p:calendar>
                   <p:commandLink actionListener="#{testReleaseBean.resetWarningDate}" immediate="true" 
                     update="testReleaseForm:warningDate testReleaseForm:warningDateHidden"
-                    onclick="clearDate(warningDate);">
+                    onclick="resetWarningDateTooltip.hide();clearDate(warningDate);">
                     
                     <h:graphicImage id="resetWarningDateImage" styleClass="links" 
                       value="#{resource['images:reset.png']}" />
-                    <p:tooltip for="resetWarningDateImage">
+                    <p:tooltip widgetVar="resetWarningDateTooltip" for="resetWarningDateImage">
                       #{msgs.RESET}
                     </p:tooltip>
                   </p:commandLink>
@@ -527,11 +527,11 @@
                   </p:calendar>
                   <p:commandLink actionListener="#{testReleaseBean.resetFeedbackDate}" immediate="true" 
                     update="testReleaseForm:feedbackDate testReleaseForm:feedbackDateHidden"
-                    onclick="clearDate(feedbackDate);">
+                    onclick="resetFeedbackDateTooltip.hide();clearDate(feedbackDate);">
                     
                     <h:graphicImage id="resetFeedbackDateImage" styleClass="links" 
                       value="#{resource['images:reset.png']}" />
-                    <p:tooltip for="resetFeedbackDateImage">
+                    <p:tooltip widgetVar="resetFeedbackDateTooltip" for="resetFeedbackDateImage">
                       #{msgs.RESET}
                     </p:tooltip>
                   </p:commandLink>
@@ -554,11 +554,11 @@
                 </p:calendar>
                 <p:commandLink actionListener="#{testReleaseBean.resetDeleteDate}" immediate="true" 
                   update="testReleaseForm:deleteDate testReleaseForm:deleteDateHidden" 
-                  onclick="clearDate(deleteDate);">
+                  onclick="resetDeleteDateTooltip.hide();clearDate(deleteDate);">
                   
                   <h:graphicImage id="resetDeleteDateImage" styleClass="links" 
                     value="#{resource['images:reset.png']}" />
-                  <p:tooltip for="resetDeleteDateImage">
+                  <p:tooltip widgetVar="resetDeleteDateTooltip" for="resetDeleteDateImage">
                     #{msgs.RESET}
                   </p:tooltip>
                 </p:commandLink>
@@ -655,11 +655,10 @@
               </h:panelGrid>
             </h:panelGroup>
             <p:outputPanel id="assessementAddressesPanel">
-              <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" 
-                rowStyleClass="dataRow" emptyMessage="#{msgs.NO_EVALUATORS}" 
-                value="#{testReleaseBean.evaluators}" var="evaluator"
-                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+              <p:dataTable id="assessementAddressesTable" styleClass="addressesTable" rowStyleClass="dataRow" 
+                emptyMessage="#{msgs.NO_EVALUATORS}" value="#{testReleaseBean.evaluators}" var="evaluator" 
+                paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                rowsPerPageTemplate="5,10,25,50">
                 
                 <p:column styleClass="columnFiltering" sortBy="#{evaluator.filteringString}">
                   <f:facet name="header">#{msgs.FILTERING}</f:facet>
@@ -671,24 +670,25 @@
                 </p:column>
                 <p:column styleClass="columnEdit">
                   <p:commandLink actionListener="#{testReleaseBean.showEditEvaluator}" immediate="true" 
-                    update="addAssessementAddressDialog">
+                    update="addAssessementAddressDialog" onclick="editAssessementAddressTooltip.hide();">
                     
                     <f:attribute name="evaluator" value="#{evaluator}" />
                     <h:graphicImage id="editAssessementAddressImage" styleClass="links" 
                       value="#{resource['images:edit16.png']}" />
-                    <p:tooltip for="editAssessementAddressImage">
+                    <p:tooltip widgetVar="editAssessementAddressTooltip" for="editAssessementAddressImage">
                       #{msgs.EDIT_ADDRESS}
                     </p:tooltip>
                   </p:commandLink>
                 </p:column>
                 <p:column styleClass="columnDelete">
                   <p:commandLink actionListener="#{testReleaseBean.removeEvaluator}" immediate="true" 
-                    process="@this" update="testReleaseForm:assessementAddressesPanel">
+                    process="@this" update="testReleaseForm:assessementAddressesPanel" 
+                    onclick="removeEvaluatorTooltip.hide();">
                     
                     <f:attribute name="evaluator" value="#{evaluator}" />
                     <h:graphicImage id="removeEvaluatorImage" styleClass="links" 
                       value="#{resource['images:delete.png']}" />
-                    <p:tooltip for="removeEvaluatorImage">
+                    <p:tooltip widgetVar="removeEvaluatorTooltip" for="removeEvaluatorImage">
                       #{msgs.REMOVE_ADDRESS}
                     </p:tooltip>
                   </p:commandLink> 
@@ -715,11 +715,10 @@
               </h:panelGrid>
             </h:panelGroup>
             <p:outputPanel id="techSupportAddressesPanel">
-              <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" 
-                rowStyleClass="dataRow" emptyMessage="#{msgs.NO_TECH_SUPPORT}" 
-                value="#{testReleaseBean.supportContacts}" var="supportContact"
-                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+              <p:dataTable id="techSupportAddressesTable" styleClass="addressesTable" rowStyleClass="dataRow" 
+                emptyMessage="#{msgs.NO_TECH_SUPPORT}" value="#{testReleaseBean.supportContacts}" var="supportContact" 
+                paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                rowsPerPageTemplate="5,10,25,50">
                 
                 <p:column styleClass="columnFiltering" sortBy="#{supportContact.filteringString}">
                   <f:facet name="header">#{msgs.FILTERING}</f:facet>
@@ -731,24 +730,25 @@
                 </p:column>
                 <p:column styleClass="columnEdit">
                   <p:commandLink actionListener="#{testReleaseBean.showEditSupportContact}" immediate="true" 
-                    update="addTechSupportAddressDialog">
+                    update="addTechSupportAddressDialog" onclick="editTechSupportAddressTooltip.hide();">
                     
                     <f:attribute name="supportContact" value="#{supportContact}" />
                     <h:graphicImage id="editTechSupportAddressImage" styleClass="links" 
                       value="#{resource['images:edit16.png']}" />
-                    <p:tooltip for="editTechSupportAddressImage">
+                    <p:tooltip widgetVar="editTechSupportAddressTooltip" for="editTechSupportAddressImage">
                       #{msgs.EDIT_ADDRESS}
                     </p:tooltip>
                   </p:commandLink>
                 </p:column>
                 <p:column styleClass="columnDelete">
                   <p:commandLink actionListener="#{testReleaseBean.removeSupportContact}" immediate="true" 
-                    process="@this" update="testReleaseForm:techSupportAddressesPanel">
+                    process="@this" update="testReleaseForm:techSupportAddressesPanel" 
+                    onclick="removeSupportContactTooltip.hide();">
                     
                     <f:attribute name="supportContact" value="#{supportContact}" />
                     <h:graphicImage id="removeSupportContactImage" styleClass="links" 
                       value="#{resource['images:delete.png']}" />
-                    <p:tooltip for="removeSupportContactImage">
+                    <p:tooltip widgetVar="removeSupportContactTooltip" for="removeSupportContactImage">
                       #{msgs.REMOVE_ADDRESS}
                     </p:tooltip>
                   </p:commandLink> 
@@ -767,7 +767,7 @@
               </p>
               <p:commandButton id="publishButton" value="#{msgs.PUBLISH}" ajax="false" 
                 styleClass="confirmButtons" image="ui-icon ui-icon-check" action="#{testReleaseBean.publishTest}" 
-                onclick="publishingDialog.show()" disabled="#{!testReleaseBean.publishAllowed}" />
+                onclick="publishingDialog.show()" />
               <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" ajax="false" styleClass="confirmButtons" 
                 image="ui-icon ui-icon-cancel" action="publication" />
             </h:panelGroup>
@@ -777,7 +777,7 @@
 	</h:form>
 	
     <p:dialog widgetVar="addUserGroupsDialog" id="addUserGroupsDialog" styleClass="dialog" width="530" 
-      height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+      height="330"  header="#{msgs.ADD_USER_GROUPS_TITLE}" modal="true" closable="true" draggable="false" 
       resizable="false" onShow="centerDialog('addUserGroupsDialog');">
       
       <h:form id="userGroupsDialogForm">
@@ -874,7 +874,7 @@
     </p:dialog>
 	
     <p:dialog widgetVar="addAdminGroupsDialog" id="addAdminGroupsDialog" styleClass="dialog" width="530" 
-      height="330"  header="#{msgs.ADD_USER_GROUPS}" modal="true" closable="true" draggable="false" 
+      height="330"  header="#{msgs.ADD_ADMIN_GROUPS_TITLE}" modal="true" closable="true" draggable="false" 
       resizable="false" onShow="centerDialog('addAdminGroupsDialog');">
       
       <h:form id="adminGroupsDialogForm">
@@ -993,6 +993,7 @@
                 onstart="changeSupportContactFilterTypeStart();" />
               <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
               <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+              <f:selectItem itemLabel="#{msgs.GROUP_FILTER}" itemValue="GROUP_FILTER" />
             </p:selectOneMenu>
             <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
               rendered="#{testReleaseBean.supportContactFilterSubtypeEnabled}" />
@@ -1149,6 +1150,39 @@
               </p:selectOneMenu>
             </h:panelGrid>
           </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.supportContactFilterType=='GROUP_FILTER'}">
+            <h:panelGroup layout="block" styleClass="rightAlignTopAddressesDialog" 
+              rendered="#{testReleaseBean.allUsersAllowed}">
+              
+              <h:inputText id="supportContactGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+                value="#{testReleaseBean.supportContactGroup}" />
+              <p:commandButton id="addSupportContactGroupButton" styleClass="button" style="margin-right:20px;" 
+                value="#{msgs.ADD_USER_GROUP}" image="ui-icon ui-icon-plus" 
+                actionListener="#{testReleaseBean.addSupportContactGroup}" 
+                process="@this techSupportAddressDialogForm:supportContactGroup" 
+                update="techSupportAddressDialogForm:supportContactFilterGroupsPickerPanel techSupportAddressDialogForm:techSupportAddressDialogMessages" 
+                onstart="addSupportContactGroupStart();" />  
+            </h:panelGroup>
+            <h:inputHidden id="availableSupportContactFilterGroupsHidden" 
+              value="#{testReleaseBean.availableSupportContactFilterGroupsHidden}" />
+            <h:inputHidden id="supportContactFilterGroupsHidden" 
+              value="#{testReleaseBean.supportContactFilterGroupsHidden}" />            
+            <p:panel id="supportContactFilterGroupsPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="supportContactFilterGroupsList" 
+                styleClass="#{testReleaseBean.allUsersAllowed ? 'supportContactFilterGroupsPickListWithAddGroupInput' : 'supportContactFilterGroupsPickList'}" 
+                value="#{testReleaseBean.supportContactFilterGroupsDualList}" var="group" itemLabel="#{group}" 
+                itemValue="#{group}" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.TECH_SUPPORT_GROUPS_HEADER}</f:facet>
+                <p:column>
+                  #{group}
+                </p:column>
+              </p:pickList>
+            </p:panel>
+          </h:panelGroup>
         </p:panel>
         <p:panel id="techSupportAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">
           <h:panelGrid columns="2" cellpadding="5" rowClasses="topAlignRow"
@@ -1195,6 +1229,7 @@
                 onstart="changeEvaluatorFilterTypeStart();" />
               <f:selectItem itemLabel="#{msgs.NO_FILTER}" itemValue="NO_FILTER" />
               <f:selectItem itemLabel="#{msgs.USER_FILTER}" itemValue="USER_FILTER" />
+              <f:selectItem itemLabel="#{msgs.GROUP_FILTER}" itemValue="GROUP_FILTER" />
             </p:selectOneMenu>
             <h:outputText value="#{msgs.FILTER_SUBTYPE}" 
               rendered="#{testReleaseBean.evaluatorFilterSubtypeEnabled}" />
@@ -1345,6 +1380,39 @@
                   itemValue="#{letter}" />
               </p:selectOneMenu>
             </h:panelGrid>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{testReleaseBean.evaluatorFilterType=='GROUP_FILTER'}">
+            <h:panelGroup layout="block" styleClass="rightAlignTopAddressesDialog" 
+              rendered="#{testReleaseBean.allUsersAllowed}">
+              
+              <h:inputText id="evaluatorGroup" style="width:350px;margin-top:5px;margin-right:10px;" 
+                value="#{testReleaseBean.evaluatorGroup}" />
+              <p:commandButton id="addEvaluatorGroupButton" styleClass="button" style="margin-right:20px;" 
+                value="#{msgs.ADD_USER_GROUP}" image="ui-icon ui-icon-plus" 
+                actionListener="#{testReleaseBean.addEvaluatorGroup}" 
+                process="@this assessementAddressDialogForm:evaluatorGroup" 
+                update="assessementAddressDialogForm:evaluatorFilterGroupsPickerPanel assessementAddressDialogForm:assessementAddressDialogMessages" 
+                onstart="addEvaluatorGroupStart();" />  
+            </h:panelGroup>
+            <h:inputHidden id="availableEvaluatorFilterGroupsHidden" 
+              value="#{testReleaseBean.availableEvaluatorFilterGroupsHidden}" />
+            <h:inputHidden id="evaluatorFilterGroupsHidden" 
+              value="#{testReleaseBean.evaluatorFilterGroupsHidden}" />            
+            <p:panel id="evaluatorFilterGroupsPickerPanel" styleClass="dialogPanel" 
+              style="margin-top:0px;margin-bottom:0px;border-width:0px;">
+              
+              <p:pickList id="evaluatorFilterGroupsList" 
+                styleClass="#{testReleaseBean.allUsersAllowed ? 'evaluatorFilterGroupsPickListWithAddGroupInput' : 'evaluatorFilterGroupsPickList'}" 
+                value="#{testReleaseBean.evaluatorFilterGroupsDualList}" var="group" itemLabel="#{group}" 
+                itemValue="#{group}" iconOnly="true" dynamic="true">
+                
+                <f:facet name="sourceCaption">#{msgs.AVAILABLE_USER_GROUPS}</f:facet>
+                <f:facet name="targetCaption">#{msgs.ASSESSEMENT_GROUPS_HEADER}</f:facet>
+                <p:column>
+                  #{group}
+                </p:column>
+              </p:pickList>
+            </p:panel>
           </h:panelGroup>
         </p:panel>
         <p:panel id="assessementAddressPanel" styleClass="dialogPanel" style="margin-top:-20px;border-width:0px;">

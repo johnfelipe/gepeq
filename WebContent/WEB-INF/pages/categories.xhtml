@@ -49,7 +49,7 @@
           </h:panelGroup>
           <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
             actionListener="#{categoriesBean.applyCategoriesFilter}" immediate="true" 
-            update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" />
+            update="categoriesForm:displayOtherUsersCategories categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:messages" />
 	    </h:panelGrid>
 	  </p:panel>
 	  <p:panel id="categories" styleClass="categoriesPanel">
@@ -64,11 +64,11 @@
               
               #{msgs.CATEGORIES}
               <p:commandLink id="refreshButton" actionListener="#{categoriesBean.refreshTree}" immediate="true" 
-                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:categoriesFilterPanel categoriesForm:messages">
+                update="categoriesForm:categoriesTree categoriesForm:categoryControlsPanelGroup categoriesForm:categoriesFilterPanel categoriesForm:messages"
+                onclick="refreshTreeTooltip.hide();">
                 
-                <h:graphicImage id="refreshTreeImage" styleClass="links" 
-                  value="#{resource['images:reset.png']}" />
-                <p:tooltip for="refreshTreeImage">
+                <h:graphicImage id="refreshTreeImage" styleClass="links" value="#{resource['images:reset.png']}" />
+                <p:tooltip widgetVar="refreshTreeTooltip" for="refreshTreeImage">
                   #{msgs.REFRESH}
                 </p:tooltip>
               </p:commandLink>
@@ -156,7 +156,7 @@
                   <f:selectItems value="#{categoriesBean.categoryVisibilities}" var="visibility" 
                     itemLabel="#{msgs[visibility]}" itemValue="#{visibility}" />
                 </p:selectOneMenu>
-                <h:inputText value="#{msgs[categoriesBean.categoryVisibility]}" 
+                <h:inputText id="categoryVisibilityReadonly" value="#{msgs[categoriesBean.categoryVisibility]}" 
                   styleClass="categoryVisibility readonlyInput" readonly="true" 
                   rendered="#{!categoriesBean.enabledCategoryVisibility}"/>
               </h:panelGroup>

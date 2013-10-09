@@ -42,7 +42,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 
-import org.hibernate.HibernateException;
+import org.hibernate.exception.ConstraintViolationException;
 
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.ResourcesDao;
@@ -194,12 +194,12 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
-			boolean checkVisibility=false;
 			if (categoryId>0L)
 			{
 				// Check permissions to determine if we need to check categories visibility
 				Category category=categoriesService.getCategory(operation,categoryId);
-				checkVisibility=permissionsService.isDenied(operation,viewer,
+				category.setVisibility(visibilitiesService.getVisibilityFromCategoryId(operation,categoryId));
+				boolean checkVisibility=permissionsService.isDenied(operation,viewer,
 					"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED") ||
 					(permissionsService.isGranted(operation,category.getUser(),"PERMISSION_NAVIGATION_ADMINISTRATION") 
 					&& permissionsService.isDenied(operation,viewer,
@@ -217,50 +217,107 @@ public class ResourcesService implements Serializable
 				}
 			}
 			
+			List<Resource> resourcesFromDB=null;
 			if (!includeSubcategories || categoryId<=0L)
 			{
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				resources=RESOURCES_DAO.getResources(
+				resourcesFromDB=RESOURCES_DAO.getResources(
 					user==null?0L:user.getId(),categoryId,mimeType,copyrightId,sortedByName,true,true,true);
-				if (categoryId<=0L)
+				
+				// We return resources within a new list to avoid shared collection references
+				resources=new ArrayList<Resource>(resourcesFromDB.size());
+				for (Resource resourceFromDB:resourcesFromDB)
 				{
-					Map<Category,Boolean> checkedCategoriesVisibility=new HashMap<Category,Boolean>();
-					List<Resource> resourcesToRemove=new ArrayList<Resource>();
-					for (Resource resource:resources)
-					{
-						Category resourceCategory=resource.getCategory();
-						boolean checkedCategoryVisibility=false;						
-						if (checkedCategoriesVisibility.containsKey(resourceCategory))
-						{
-							checkedCategoryVisibility=checkedCategoriesVisibility.get(resourceCategory).booleanValue();
-						}
-						else
-						{
-							checkedCategoryVisibility=resourceCategory.getUser().equals(viewer) ||
-								resourceCategory.getVisibility().isGlobal() || 
-								resourceCategory.getVisibility().getLevel()<=visibilitiesService.getVisibility(
-								operation,"CATEGORY_VISIBILITY_PUBLIC").getLevel();
-							checkedCategoriesVisibility.put(
-								resourceCategory,Boolean.valueOf(checkedCategoryVisibility));
-						}
-						if (!checkedCategoryVisibility)
-						{
-							resourcesToRemove.add(resource);
-						}
-					}
-					for (Resource resourceToRemove:resourcesToRemove)
-					{
-						resources.remove(resourceToRemove);
-					}
+					resources.add(resourceFromDB);
 				}
 			}
 			else
 			{
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				resources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
+				resourcesFromDB=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
 					categoriesService.getDerivedCategoriesIds(operation,categoryId,viewer,
-					getCategoryTypeByMIMEType(operation,mimeType),checkVisibility),mimeType,copyrightId,sortedByName,
-					true,true,true);
+					getCategoryTypeByMIMEType(operation,mimeType)),mimeType,copyrightId,sortedByName,true,true,true);
+			}
+			
+			Map<Category,Boolean> checkedCategoriesVisibility=new HashMap<Category,Boolean>();
+			
+			// We return new referenced resources within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			resources=new ArrayList<Resource>();
+			for (Resource resourceFromDB:resourcesFromDB)
+			{
+				Resource resource=null;
+				if (resourceFromDB.getCategory()!=null)
+				{
+					Category categoryFromDB=resourceFromDB.getCategory();
+					boolean checkedCategoryVisibility=true;						
+					if (checkedCategoriesVisibility.containsKey(categoryFromDB))
+					{
+						checkedCategoryVisibility=checkedCategoriesVisibility.get(categoryFromDB).booleanValue();
+					}
+					else
+					{
+						boolean checkResourceVisibility=permissionsService.isDenied(operation,viewer,
+							"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED") ||
+							(permissionsService.isGranted(operation,categoryFromDB.getUser(),
+							"PERMISSION_NAVIGATION_ADMINISTRATION") && permissionsService.isDenied(operation,viewer,
+							"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED")) ||
+							(permissionsService.isGranted(operation,categoryFromDB.getUser(),
+							"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED") &&
+							permissionsService.isDenied(operation,viewer,
+							"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
+						if (checkResourceVisibility && !categoryFromDB.getUser().equals(viewer)&& 
+							!categoryFromDB.getVisibility().isGlobal() && 
+							categoryFromDB.getVisibility().getLevel()>=visibilitiesService.getVisibility(
+							operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+						{
+							checkedCategoryVisibility=false;
+						}
+						checkedCategoriesVisibility.put(categoryFromDB,Boolean.valueOf(checkedCategoryVisibility));
+					}
+					if (checkedCategoryVisibility)
+					{
+						resource=resourceFromDB.getResourceCopy();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						resource.setCategory(category);
+					}
+				}
+				if (resource!=null)
+				{
+					if (resourceFromDB.getUser()!=null)
+					{
+						User resourceUser=resourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						resourceUser.setPassword("");
+						
+						resource.setUser(resourceUser);
+					}
+					if (resourceFromDB.getCopyright()!=null)
+					{
+						resource.setCopyright(resourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					resources.add(resource);
+				}
 			}
 		}
 		catch (DaoException de)
@@ -565,180 +622,6 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @return List of resources filtered by user
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(User viewer,User user) throws ServiceException
-	{
-		return getResources(null,viewer,user,0L,false,"",0L,false); 
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @return List of resources filtered by user
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(Operation operation,User viewer,User user) throws ServiceException
-	{
-		return getResources(operation,viewer,user,0L,false,"",0L,false); 
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @return List of resources filtered by user and category (and optionally subcategories)
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(User viewer,User user,long categoryId,boolean includeSubcategories) 
-		throws ServiceException
-	{
-		return getResources(null,viewer,user,categoryId,includeSubcategories,"",0L,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @return List of resources filtered by user and category (and optionally subcategories)
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(Operation operation,User viewer,User user,long categoryId,
-		boolean includeSubcategories) throws ServiceException
-	{
-		return getResources(operation,viewer,user,categoryId,includeSubcategories,"",0L,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources filtered by user, category (and optionally subcategories) and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(User viewer,User user,long categoryId,boolean includeSubcategories,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getResources(null,viewer,user,categoryId,includeSubcategories,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources filtered by user, category (and optionally subcategories) and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResources(Operation operation,User viewer,User user,long categoryId,
-		boolean includeSubcategories,String mimeType,long copyrightId) throws ServiceException
-	{
-		return getResources(operation,viewer,user,categoryId,includeSubcategories,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @return List of resources filtered by user and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(User viewer,User user) throws ServiceException
-	{
-		return getResources(null,viewer,user,0L,false,"",0L,true); 
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @return List of resources filtered by user and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(Operation operation,User viewer,User user) throws ServiceException
-	{
-		return getResources(operation,viewer,user,0L,false,"",0L,true); 
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @return List of resources filtered by user and category (and optionally subcategories) 
-	 * and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(User viewer,User user,long categoryId,boolean includeSubcategories) 
-		throws ServiceException
-	{
-		return getResources(null,viewer,user,categoryId,includeSubcategories,"",0L,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @return List of resources filtered by user and category (and optionally subcategories) 
-	 * and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(Operation operation,User viewer,User user,long categoryId,
-		boolean includeSubcategories) throws ServiceException
-	{
-		return getResources(operation,viewer,user,categoryId,includeSubcategories,"",0L,true);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources filtered by user, category (and optionally subcategories) and MIME type 
-	 * and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(User viewer,User user,long categoryId,boolean includeSubcategories,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getResources(null,viewer,user,categoryId,includeSubcategories,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param categoryId Filtering category identifier or 0 to get resources from all categories
-	 * @param includeSubcategories Include resources from categories derived from filtering category
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources filtered by user, category (and optionally subcategories) and MIME type 
-	 * and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getResourcesSortedByName(Operation operation,User viewer,User user,long categoryId,
-		boolean includeSubcategories,String mimeType,long copyrightId) throws ServiceException
-	{
-		return getResources(operation,viewer,user,categoryId,includeSubcategories,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
 	 * @param user User or null to get resources from all users
@@ -774,9 +657,57 @@ public class ResourcesService implements Serializable
 				List<Long> allCategoriesIds=categoriesService.getAllCategoriesIds(operation,viewer,
 					getCategoryTypeByMIMEType(operation,mimeType),includeAdminsPrivateCategories,
 					includeSuperadminsPrivateCategories);
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allCategoriesResources=RESOURCES_DAO.getResources(
+				List<Resource> allCategoriesResourcesFromDB=RESOURCES_DAO.getResources(
 					user==null?0L:user.getId(),allCategoriesIds,mimeType,copyrightId,sortedByName,true,true,true);
+				
+				// We return new referenced resources from all categories within a new list to avoid 
+				// shared collection references and object references to unsaved transient instances
+				allCategoriesResources=new ArrayList<Resource>(allCategoriesResourcesFromDB.size());
+				for (Resource allCategoriesResourceFromDB:allCategoriesResourcesFromDB)
+				{
+					Resource allCategoriesResource=allCategoriesResourceFromDB.getResourceCopy();
+					if (allCategoriesResourceFromDB.getUser()!=null)
+					{
+						User allCategoriesResourceUser=allCategoriesResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allCategoriesResourceUser.setPassword("");
+						
+						allCategoriesResource.setUser(allCategoriesResourceUser);
+					}
+					if (allCategoriesResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allCategoriesResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allCategoriesResource.setCategory(category);
+					}
+					if (allCategoriesResourceFromDB.getCopyright()!=null)
+					{
+						allCategoriesResource.setCopyright(
+							allCategoriesResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allCategoriesResources.add(allCategoriesResource);
+				}
 			}
 			else
 			{
@@ -896,64 +827,6 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesResources(User viewer,User user,String mimeType,long copyrightId)
-		throws ServiceException
-	{
-		return getAllCategoriesResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesResources(Operation operation,User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesResourcesSortedByName(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
 	 * @param user User or null to get resources from all users
@@ -982,9 +855,54 @@ public class ResourcesService implements Serializable
 			{
 				List<Long> allVisibleCategoriesIds=categoriesService.getAllVisibleCategoriesIds(
 					operation,viewer,getCategoryTypeByMIMEType(operation,mimeType));
+				
+				// We get answers from DB
 				RESOURCES_DAO.setOperation(operation);
-				allVisibleCategoriesResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-					allVisibleCategoriesIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allVisibleCategoriesResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allVisibleCategoriesIds,mimeType,copyrightId,sortedByName,true,true,
+					true);
+				
+				// We return new referenced resources from all visible categories within a new list to avoid 
+				// shared collection references and object references to unsaved transient instances
+				allVisibleCategoriesResources=new ArrayList<Resource>(allVisibleCategoriesResourcesFromDB.size());
+				for (Resource allVisibleCategoriesResourceFromDB:allVisibleCategoriesResourcesFromDB)
+				{
+					Resource allVisibleCategoriesResource=allVisibleCategoriesResourceFromDB.getResourceCopy();
+					if (allVisibleCategoriesResourceFromDB.getUser()!=null)
+					{
+						User allVisibleCategoriesResourceUser=
+							allVisibleCategoriesResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allVisibleCategoriesResourceUser.setPassword("");
+						
+						allVisibleCategoriesResource.setUser(allVisibleCategoriesResourceUser);
+					}
+					if (allVisibleCategoriesResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allVisibleCategoriesResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allVisibleCategoriesResource.setCategory(category);
+					}
+					allVisibleCategoriesResources.add(allVisibleCategoriesResource);
+				}
 			}
 			else
 			{
@@ -1104,78 +1022,21 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all visible categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllVisibleCategoriesResources(User viewer,User user,String mimeType,long copyrightId)
-		throws ServiceException
-	{
-		return getAllVisibleCategoriesResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all visible categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllVisibleCategoriesResources(Operation operation,User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllVisibleCategoriesResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all visible categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllVisibleCategoriesResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllVisibleCategoriesResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all visible categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllVisibleCategoriesResourcesSortedByName(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllVisibleCategoriesResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
+	 * @param owner Owner of categories from which we get the resources
 	 * @param user User or null to get resources from all users
 	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
 	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
 	 * @param sortedByName Flag to indicate if we want the results sorted by name
-	 * @return List of resources from all categories of current user (including its global categories) 
-	 * filtered by user and MIME type and optionally sorted by name
+	 * @return List of resources from all categories of an user (including its global categories) filtered by user 
+	 * and MIME type and optionally sorted by name
 	 * @throws ServiceException
 	 */
-	private List<Resource> getAllMyCategoriesResources(Operation operation,User viewer,User user,String mimeType,
-		long copyrightId,boolean sortedByName) throws ServiceException
+	private List<Resource> getAllUserCategoriesResources(Operation operation,User viewer,User owner,User user,
+		String mimeType,long copyrightId,boolean sortedByName) throws ServiceException
 	{
-		List<Resource> allMyCategoriesResources=null;
+		List<Resource> allUserCategoriesResources=null;
 		boolean singleOp=operation==null;
 		try
 		{
@@ -1185,20 +1046,69 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
-			if (permissionsService.isGranted(operation,viewer,"PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED"))
+			if (permissionsService.isGranted(operation,viewer,"PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED") &&
+				((viewer.equals(owner)) || 
+				permissionsService.isGranted(operation,viewer,"PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED")))
 			{
-				List<Long> allMyCategoriesIds=categoriesService.getAllUserCategoriesIds(
-					operation,viewer,getCategoryTypeByMIMEType(operation,mimeType));
+				List<Long> allUserCategoriesIds=categoriesService.getAllUserCategoriesIds(
+					operation,owner,getCategoryTypeByMIMEType(operation,mimeType));
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allMyCategoriesResources=RESOURCES_DAO.getResources(
-					user==null?0L:user.getId(),allMyCategoriesIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allUserCategoriesResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allUserCategoriesIds,mimeType,copyrightId,sortedByName,true,true,true);
+				
+				// We return new referenced resources from all categories of owner within a new list 
+				// to avoid shared collection references and object references to unsaved transient instances
+				allUserCategoriesResources=new ArrayList<Resource>(allUserCategoriesResourcesFromDB.size());
+				for (Resource allUserCategoriesResourceFromDB:allUserCategoriesResourcesFromDB)
+				{
+					Resource allUserCategoriesResource=allUserCategoriesResourceFromDB.getResourceCopy();
+					if (allUserCategoriesResourceFromDB.getUser()!=null)
+					{
+						User allUserCategoriesResourceUser=allUserCategoriesResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allUserCategoriesResourceUser.setPassword("");
+						
+						allUserCategoriesResource.setUser(allUserCategoriesResourceUser);
+					}
+					if (allUserCategoriesResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allUserCategoriesResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allUserCategoriesResource.setCategory(category);
+					}
+					if (allUserCategoriesResourceFromDB.getCopyright()!=null)
+					{
+						allUserCategoriesResource.setCopyright(
+							allUserCategoriesResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allUserCategoriesResources.add(allUserCategoriesResource);
+				}
 			}
 			else
 			{
 				throwServiceException(
 					"NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation.");
 			}
-			
 		}
 		catch (DaoException de)
 		{
@@ -1212,7 +1122,111 @@ public class ResourcesService implements Serializable
 				HibernateUtil.endOperation(operation);
 			}
 		}
-		return allMyCategoriesResources;
+		return allUserCategoriesResources;
+	}
+	
+	/**
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (including its global categories) filtered by user 
+	 * and MIME type
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesResources(User owner,User user,String mimeType,long copyrightId)
+		throws ServiceException
+	{
+		return getAllUserCategoriesResources((Operation)null,owner,user,mimeType,copyrightId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (including its global categories) filtered by user 
+	 * and MIME type
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesResources(Operation operation,User owner,User user,String mimeType,
+		long copyrightId) throws ServiceException
+	{
+		boolean singleOp=operation==null;
+		List<Resource> allUserCategoriesResources=null;
+		try
+		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			allUserCategoriesResources=getAllUserCategoriesResources(
+				operation,getCurrentUser(operation),owner,user,mimeType,copyrightId,false);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
+		}
+		return allUserCategoriesResources;
+	}
+	
+	/**
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (including its global categories) filtered by user 
+	 * and MIME type and sorted by name
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesResourcesSortedByName(User owner,User user,String mimeType,
+		long copyrightId) throws ServiceException
+	{
+		return getAllUserCategoriesResourcesSortedByName((Operation)null,owner,user,mimeType,copyrightId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (including its global categories) filtered by user 
+	 * and MIME type and sorted by name
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesResourcesSortedByName(Operation operation,User owner,User user,
+		String mimeType,long copyrightId) throws ServiceException
+	{
+		boolean singleOp=operation==null;
+		List<Resource> allUserCategoriesResourcesSortedByName=null;
+		try
+		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			allUserCategoriesResourcesSortedByName=getAllUserCategoriesResources(
+				operation,getCurrentUser(operation),owner,user,mimeType,copyrightId,true);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
+		}
+		return allUserCategoriesResourcesSortedByName;
 	}
 	
 	/**
@@ -1251,8 +1265,9 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			User currentUser=getCurrentUser(operation);
 			allMyCategoriesResources=
-				getAllMyCategoriesResources(operation,getCurrentUser(operation),user,mimeType,copyrightId,false);
+				getAllUserCategoriesResources(operation,currentUser,currentUser,user,mimeType,copyrightId,false);
 		}
 		finally
 		{
@@ -1301,8 +1316,9 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			User currentUser=getCurrentUser(operation);
 			allMyCategoriesResourcesSortedByName=
-				getAllMyCategoriesResources(operation,getCurrentUser(operation),user,mimeType,copyrightId,true);
+				getAllUserCategoriesResources(operation,currentUser,currentUser,user,mimeType,copyrightId,true);
 		}
 		finally
 		{
@@ -1316,82 +1332,21 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (including its global categories) 
-	 * filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesResources(User viewer,User user,String mimeType,long copyrightId)
-		throws ServiceException
-	{
-		return getAllMyCategoriesResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (including its global categories) 
-	 * filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesResources(Operation operation,User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (including its global categories) 
-	 * filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (including its global categories) 
-	 * filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesResourcesSortedByName(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
+	 * @param owner Owner of categories from which we get the resources
 	 * @param user User or null to get resources from all users
 	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
 	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
 	 * @param sortedByName Flag to indicate if we want the results sorted by name
-	 * @return List of resources from all categories of current user (except global categories) filtered 
-	 * by user and MIME type and optionally sorted by name
+	 * @return List of resources from all categories of an user (except global categories) filtered by user 
+	 * and MIME type and optionally sorted by name
 	 * @throws ServiceException
 	 */
-	private List<Resource> getAllMyCategoriesExceptGlobalsResources(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId,boolean sortedByName) throws ServiceException
+	private List<Resource> getAllUserCategoriesExceptGlobalsResources(Operation operation,User viewer,User owner,
+		User user,String mimeType,long copyrightId,boolean sortedByName) throws ServiceException
 	{
-		List<Resource> allMyCategoriesExceptGlobalsResources=null;
+		List<Resource> allUserCategoriesExceptGlobalsResources=null;
 		boolean singleOp=operation==null;
 		try
 		{
@@ -1401,11 +1356,73 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
-			List<Long> allUserCategoriesIdsExceptGlobalsIds=categoriesService.getAllUserCategoriesIdsExceptGlobals(
-				operation,viewer,getCategoryTypeByMIMEType(operation,mimeType));
-			RESOURCES_DAO.setOperation(operation);
-			allMyCategoriesExceptGlobalsResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-				allUserCategoriesIdsExceptGlobalsIds,mimeType,copyrightId,sortedByName,true,true,true);
+			if (viewer.equals(owner) || 
+				permissionsService.isGranted(operation,viewer,"PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED"))
+			{
+				List<Long> allUserCategoriesIdsExceptGlobalsIds=categoriesService.getAllUserCategoriesIdsExceptGlobals(
+					operation,owner,getCategoryTypeByMIMEType(operation,mimeType));
+				
+				// We get resources from DB
+				RESOURCES_DAO.setOperation(operation);
+				List<Resource> allUserCategoriesExceptGlobalsResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allUserCategoriesIdsExceptGlobalsIds,mimeType,copyrightId,sortedByName,
+					true,true,true);
+				
+				// We return new referenced resources from all categories of owner (except global categories) 
+				// within a new list to avoid shared collection references and object references 
+				// to unsaved transient instances
+				allUserCategoriesExceptGlobalsResources=
+					new ArrayList<Resource>(allUserCategoriesExceptGlobalsResourcesFromDB.size());
+				for (Resource allUserCategoriesExceptGlobalsResourceFromDB:allUserCategoriesExceptGlobalsResourcesFromDB)
+				{
+					Resource allUserCategoriesExceptGlobalsResource=
+						allUserCategoriesExceptGlobalsResourceFromDB.getResourceCopy();
+					if (allUserCategoriesExceptGlobalsResourceFromDB.getUser()!=null)
+					{
+						User allUserCategoriesExceptGlobalsResourceUser=
+							allUserCategoriesExceptGlobalsResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allUserCategoriesExceptGlobalsResourceUser.setPassword("");
+						
+						allUserCategoriesExceptGlobalsResource.setUser(allUserCategoriesExceptGlobalsResourceUser);
+					}
+					if (allUserCategoriesExceptGlobalsResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allUserCategoriesExceptGlobalsResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allUserCategoriesExceptGlobalsResource.setCategory(category);
+					}
+					if (allUserCategoriesExceptGlobalsResourceFromDB.getCopyright()!=null)
+					{
+						allUserCategoriesExceptGlobalsResource.setCopyright(
+							allUserCategoriesExceptGlobalsResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allUserCategoriesExceptGlobalsResources.add(allUserCategoriesExceptGlobalsResource);
+				}
+			}
+			else
+			{
+				throwServiceException(
+					"NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation.");
+			}
 		}
 		catch (DaoException de)
 		{
@@ -1419,7 +1436,111 @@ public class ResourcesService implements Serializable
 				HibernateUtil.endOperation(operation);
 			}
 		}
-		return allMyCategoriesExceptGlobalsResources;
+		return allUserCategoriesExceptGlobalsResources;
+	}
+	
+	/**
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of resources of an user (except global categories) 
+	 * filtered by user and MIME type
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesExceptGlobalsResources(User owner,User user,String mimeType,
+		long copyrightId) throws ServiceException
+	{
+		return getAllUserCategoriesExceptGlobalsResources((Operation)null,owner,user,mimeType,copyrightId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (except global categories) filtered by user 
+	 * and MIME type
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesExceptGlobalsResources(Operation operation,User owner,User user,
+		String mimeType,long copyrightId) throws ServiceException
+	{
+		boolean singleOp=operation==null;
+		List<Resource> allUserCategoriesExceptGlobalsResources=null;
+		try
+		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			allUserCategoriesExceptGlobalsResources=getAllUserCategoriesExceptGlobalsResources(
+				operation,getCurrentUser(operation),owner,user,mimeType,copyrightId,false);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
+		}
+		return allUserCategoriesExceptGlobalsResources;
+	}
+	
+	/**
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (except global categories) filtered 
+	 * by user and MIME type and sorted by name
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesExceptGlobalsResourcesSortedByName(User owner,User user,String mimeType,
+		long copyrightId) throws ServiceException
+	{
+		return getAllUserCategoriesExceptGlobalsResourcesSortedByName((Operation)null,owner,user,mimeType,copyrightId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param owner Owner of categories from which we get the resources
+	 * @param user User or null to get resources from all users
+	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
+	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
+	 * @return List of resources from all categories of an user (except global categories) filtered by user 
+	 * and MIME type and sorted by name
+	 * @throws ServiceException
+	 */
+	public List<Resource> getAllUserCategoriesExceptGlobalsResourcesSortedByName(Operation operation,User owner,
+		User user,String mimeType,long copyrightId) throws ServiceException
+	{
+		boolean singleOp=operation==null;
+		List<Resource> allUserCategoriesExceptGlobalsResourcesSortedByName=null;
+		try
+		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			allUserCategoriesExceptGlobalsResourcesSortedByName=getAllUserCategoriesExceptGlobalsResources(
+				operation,getCurrentUser(operation),owner,user,mimeType,copyrightId,true);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
+		}
+		return allUserCategoriesExceptGlobalsResourcesSortedByName;
 	}
 	
 	/**
@@ -1458,8 +1579,9 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
-			allMyCategoriesExceptGlobalsResources=getAllMyCategoriesExceptGlobalsResources(
-				operation,getCurrentUser(operation),user,mimeType,copyrightId,false);
+			User currentUser=getCurrentUser(operation);
+			allMyCategoriesExceptGlobalsResources=getAllUserCategoriesExceptGlobalsResources(
+				operation,currentUser,currentUser,user,mimeType,copyrightId,false);
 		}
 		finally
 		{
@@ -1508,8 +1630,9 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
-			allMyCategoriesExceptGlobalsResourcesSortedByName=getAllMyCategoriesExceptGlobalsResources(
-				operation,getCurrentUser(operation),user,mimeType,copyrightId,true);
+			User currentUser=getCurrentUser(operation);
+			allMyCategoriesExceptGlobalsResourcesSortedByName=getAllUserCategoriesExceptGlobalsResources(
+				operation,currentUser,currentUser,user,mimeType,copyrightId,true);
 		}
 		finally
 		{
@@ -1520,68 +1643,6 @@ public class ResourcesService implements Serializable
 			}
 		}
 		return allMyCategoriesExceptGlobalsResourcesSortedByName;
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (except global categories) 
-	 * filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesExceptGlobalsResources(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesExceptGlobalsResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of resources of current user (except global categories) 
-	 * filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesExceptGlobalsResources(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesExceptGlobalsResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (except global categories) 
-	 * filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesExceptGlobalsResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesExceptGlobalsResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of current user (except global categories) 
-	 * filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllMyCategoriesExceptGlobalsResourcesSortedByName(Operation operation,User viewer,
-		User user,String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllMyCategoriesExceptGlobalsResources(operation,viewer,user,mimeType,copyrightId,true);
 	}
 	
 	/**
@@ -1612,9 +1673,59 @@ public class ResourcesService implements Serializable
 			{
 				List<Long> allGlobalCategoriesIds=categoriesService.getAllGlobalCategoriesIds(
 					operation,getCategoryTypeByMIMEType(operation,mimeType));
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allGlobalCategoriesResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-					allGlobalCategoriesIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allGlobalCategoriesResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allGlobalCategoriesIds,mimeType,copyrightId,sortedByName,true,true,
+					true);
+				
+				// We return new referenced resources from all global categories within a new list to avoid 
+				// shared collection references and object references to unsaved transient instances
+				allGlobalCategoriesResources=new ArrayList<Resource>(allGlobalCategoriesResourcesFromDB.size());
+				for (Resource allGlobalCategoriesResourceFromDB:allGlobalCategoriesResourcesFromDB)
+				{
+					Resource allGlobalCategoriesResource=allGlobalCategoriesResourceFromDB.getResourceCopy();
+					if (allGlobalCategoriesResourceFromDB.getUser()!=null)
+					{
+						User allGlobalCategoriesResourceUser=
+							allGlobalCategoriesResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allGlobalCategoriesResourceUser.setPassword("");
+						
+						allGlobalCategoriesResource.setUser(allGlobalCategoriesResourceUser);
+					}
+					if (allGlobalCategoriesResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allGlobalCategoriesResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allGlobalCategoriesResourceFromDB.setCategory(category);
+					}
+					if (allGlobalCategoriesResourceFromDB.getCopyright()!=null)
+					{
+						allGlobalCategoriesResource.setCopyright(
+							allGlobalCategoriesResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allGlobalCategoriesResources.add(allGlobalCategoriesResource);
+				}
 			}
 			else
 			{
@@ -1734,64 +1845,6 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all global categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllGlobalCategoriesResources(User viewer,User user,String mimeType,long copyrightId) 
-		throws ServiceException
-	{
-		return getAllGlobalCategoriesResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all global categories filtered by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllGlobalCategoriesResources(Operation operation,User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllGlobalCategoriesResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all global categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllGlobalCategoriesResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllGlobalCategoriesResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all global categories filtered by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllGlobalCategoriesResourcesSortedByName(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllGlobalCategoriesResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
 	 * @param user User or null to get resources from all users
@@ -1817,11 +1870,67 @@ public class ResourcesService implements Serializable
 			
 			if (permissionsService.isGranted(operation,viewer,"PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED"))
 			{
-				List<Long> allPublicCategoriesOfOtherUsersIds=categoriesService.getAllPublicCategoriesOfOtherUsersIds(
-					operation,viewer,getCategoryTypeByMIMEType(operation,mimeType));
+				List<Long> allPublicCategoriesOfOtherUsersIds=
+					categoriesService.getAllPublicCategoriesOfOtherUsersIds(operation,viewer,
+					getCategoryTypeByMIMEType(operation,mimeType));
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allPublicCategoriesOfOtherUsersResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-					allPublicCategoriesOfOtherUsersIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allPublicCategoriesOfOtherUsersResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allPublicCategoriesOfOtherUsersIds,mimeType,copyrightId,sortedByName,
+					true,true,true);
+				
+				// We return new referenced resources from  all public categories of all users 
+				// except the current one within a new list to avoid shared collection references
+				// and object references to unsaved transient instances
+				allPublicCategoriesOfOtherUsersResources=
+					new ArrayList<Resource>(allPublicCategoriesOfOtherUsersResourcesFromDB.size());
+				for (Resource allPublicCategoriesOfOtherUsersResourceFromDB:
+					allPublicCategoriesOfOtherUsersResourcesFromDB)
+				{
+					Resource allPublicCategoriesOfOtherUsersResource=
+						allPublicCategoriesOfOtherUsersResourceFromDB.getResourceCopy();
+					if (allPublicCategoriesOfOtherUsersResourceFromDB.getUser()!=null)
+					{
+						User allPublicCategoriesOfOtherUsersResourceUser=
+							allPublicCategoriesOfOtherUsersResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allPublicCategoriesOfOtherUsersResourceUser.setPassword("");
+						
+						allPublicCategoriesOfOtherUsersResource.setUser(
+							allPublicCategoriesOfOtherUsersResourceUser);
+					}
+					if (allPublicCategoriesOfOtherUsersResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allPublicCategoriesOfOtherUsersResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allPublicCategoriesOfOtherUsersResource.setCategory(category);
+					}
+					if (allPublicCategoriesOfOtherUsersResourceFromDB.getCopyright()!=null)
+					{
+						allPublicCategoriesOfOtherUsersResource.setCopyright(
+							allPublicCategoriesOfOtherUsersResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allPublicCategoriesOfOtherUsersResources.add(allPublicCategoriesOfOtherUsersResource);
+				}
 			}
 			else
 			{
@@ -1945,52 +2054,6 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all public categories of all users except the current one filtered 
-	 * by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPublicCategoriesOfOtherUsersResources(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllPublicCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all public categories of all users except the current one filtered 
-	 * by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPublicCategoriesOfOtherUsersResources(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllPublicCategoriesOfOtherUsersResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all public categories of all users except the current one filtered 
-	 * by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPublicCategoriesOfOtherUsersResourcesSortedByName(User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllPublicCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
 	 * @param user User or null to get resources from all users
@@ -2042,9 +2105,64 @@ public class ResourcesService implements Serializable
 					categoriesService.getAllPrivateCategoriesOfOtherUsersIds(operation,viewer,
 					getCategoryTypeByMIMEType(operation,mimeType),includeAdminsPrivateCategories,
 					includeSuperadminsPrivateCategories);
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allPrivateCategoriesOfOtherUsersResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-					allPrivateCategoriesOfOtherUsersIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allPrivateCategoriesOfOtherUsersResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allPrivateCategoriesOfOtherUsersIds,mimeType,copyrightId,
+					sortedByName,true,true,true);
+				
+				// We return new referenced resources from all private categories of all users 
+				// except the current one within a new list to avoid shared collection references
+				// and object references to unsaved transient instances
+				allPrivateCategoriesOfOtherUsersResources=
+					new ArrayList<Resource>(allPrivateCategoriesOfOtherUsersResourcesFromDB.size());
+				for (Resource allPrivateCategoriesOfOtherUsersResourceFromDB:
+					allPrivateCategoriesOfOtherUsersResourcesFromDB)
+				{
+					Resource allPrivateCategoriesOfOtherUsersResource=
+						allPrivateCategoriesOfOtherUsersResourceFromDB.getResourceCopy();
+					if (allPrivateCategoriesOfOtherUsersResourceFromDB.getUser()!=null)
+					{
+						User allPrivateCategoriesOfOtherUsersResourceUser=
+							allPrivateCategoriesOfOtherUsersResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allPrivateCategoriesOfOtherUsersResourceUser.setPassword("");
+						
+						allPrivateCategoriesOfOtherUsersResource.setUser(
+							allPrivateCategoriesOfOtherUsersResourceUser);
+					}
+					if (allPrivateCategoriesOfOtherUsersResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allPrivateCategoriesOfOtherUsersResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allPrivateCategoriesOfOtherUsersResource.setCategory(category);
+					}
+					if (allPrivateCategoriesOfOtherUsersResourceFromDB.getCopyright()!=null)
+					{
+						allPrivateCategoriesOfOtherUsersResource.setCopyright(
+							allPrivateCategoriesOfOtherUsersResourceFromDB.getCopyright());
+					}
+					allPrivateCategoriesOfOtherUsersResources.add(allPrivateCategoriesOfOtherUsersResource);
+				}
 			}
 			else
 			{
@@ -2168,68 +2286,6 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all private categories of all users except the current one filtered 
-	 * by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPrivateCategoriesOfOtherUsersResources(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllPrivateCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources of all private categories of all users except the current one filtered 
-	 * by user and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPrivateCategoriesOfOtherUsersResources(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllPrivateCategoriesOfOtherUsersResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources of all private categories of all users except the current one filtered 
-	 * by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPrivateCategoriesOfOtherUsersResourcesSortedByName(User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllPrivateCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all private categories of all users except the current one filtered 
-	 * by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllPrivateCategoriesOfOtherUsersResourcesSortedByName(Operation operation,User viewer,
-		User user,String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllPrivateCategoriesOfOtherUsersResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param operation Operation
 	 * @param viewer User used to check visibility
 	 * @param user User or null to get resources from all users
@@ -2264,9 +2320,62 @@ public class ResourcesService implements Serializable
 				List<Long> allCategoriesOfOtherUsersIds=categoriesService.getAllCategoriesOfOtherUsersIds(
 					operation,viewer,getCategoryTypeByMIMEType(operation,mimeType),
 					includeAdminsPrivateCategories,includeSuperadminsPrivateCategories);
+				
+				// We get resources from DB
 				RESOURCES_DAO.setOperation(operation);
-				allCategoriesOfOtherUsersResources=RESOURCES_DAO.getResources(user==null?0L:user.getId(),
-					allCategoriesOfOtherUsersIds,mimeType,copyrightId,sortedByName,true,true,true);
+				List<Resource> allCategoriesOfOtherUsersResourcesFromDB=RESOURCES_DAO.getResources(
+					user==null?0L:user.getId(),allCategoriesOfOtherUsersIds,mimeType,copyrightId,sortedByName,true,
+					true,true);
+				
+				// We return new referenced resources from all categories of all users except the current one 
+				// within a new list to avoid shared collection references and object references 
+				// to unsaved transient instances
+				allCategoriesOfOtherUsersResources=
+					new ArrayList<Resource>(allCategoriesOfOtherUsersResourcesFromDB.size());
+				for (Resource allCategoriesOfOtherUsersResourceFromDB:allCategoriesOfOtherUsersResourcesFromDB)
+				{
+					Resource allCategoriesOfOtherUsersResource=
+						allCategoriesOfOtherUsersResourceFromDB.getResourceCopy();
+					if (allCategoriesOfOtherUsersResourceFromDB.getUser()!=null)
+					{
+						User allCategoriesOfOtherUsersResourceUser=
+							allCategoriesOfOtherUsersResourceFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						allCategoriesOfOtherUsersResourceUser.setPassword("");
+						
+						allCategoriesOfOtherUsersResource.setUser(allCategoriesOfOtherUsersResourceUser);
+					}
+					if (allCategoriesOfOtherUsersResourceFromDB.getCategory()!=null)
+					{
+						Category categoryFromDB=allCategoriesOfOtherUsersResourceFromDB.getCategory();
+						Category category=categoryFromDB.getCategoryCopy();
+						if (categoryFromDB.getUser()!=null)
+						{
+							User categoryUser=categoryFromDB.getUser().getUserCopy();
+							
+							// Password is set to empty string before returning instance for security reasons
+							categoryUser.setPassword("");
+							
+							category.setUser(categoryUser);
+						}
+						if (categoryFromDB.getCategoryType()!=null)
+						{
+							category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+						}
+						if (categoryFromDB.getVisibility()!=null)
+						{
+							category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+						}
+						allCategoriesOfOtherUsersResource.setCategory(category);
+					}
+					if (allCategoriesOfOtherUsersResourceFromDB.getCopyright()!=null)
+					{
+						allCategoriesOfOtherUsersResource.setCopyright(
+							allCategoriesOfOtherUsersResourceFromDB.getCopyright().getCopyrightCopy());
+					}
+					allCategoriesOfOtherUsersResources.add(allCategoriesOfOtherUsersResource);
+				}
 			}
 			else
 			{
@@ -2390,75 +2499,13 @@ public class ResourcesService implements Serializable
 	}
 	
 	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of all users except the current one filtered by user 
-	 * and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesOfOtherUsersResources(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of all users except the current one filtered by user 
-	 * and MIME type
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesOfOtherUsersResources(Operation operation,User viewer,User user,
-		String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesOfOtherUsersResources(operation,viewer,user,mimeType,copyrightId,false);
-	}
-	
-	/**
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all categories of all users except the current one filtered by user 
-	 * and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesOfOtherUsersResourcesSortedByName(User viewer,User user,String mimeType,
-		long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesOfOtherUsersResources(null,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param viewer User used to check visibility
-	 * @param user User or null to get resources from all users
-	 * @param mimeType Filtering MIME type or empty string to get resources with all MIME types
-	 * @param copyrightId Filtering copyright identifier or 0 to get resources with all copyrights
-	 * @return List of resources from all private categories of all users except the current one filtered 
-	 * by user and MIME type and sorted by name
-	 * @throws ServiceException
-	 */
-	public List<Resource> getAllCategoriesOfOtherUsersResourcesSortedByName(Operation operation,User viewer,
-		User user,String mimeType,long copyrightId) throws ServiceException
-	{
-		return getAllCategoriesOfOtherUsersResources(operation,viewer,user,mimeType,copyrightId,true);
-	}
-	
-	/**
 	 * @param user User or null to get total number of resources
 	 * @return Number of resources filtered by user (or total)
 	 * @throws ServiceException
 	 */
 	public int getResourcesCount(User user) throws ServiceException
 	{
-		return getResourcesCount(null,user);
+		return getResourcesCount(null,user,0L);
 	}
 	
 	/**
@@ -2468,6 +2515,29 @@ public class ResourcesService implements Serializable
 	 * @throws ServiceException
 	 */
 	public int getResourcesCount(Operation operation,User user) throws ServiceException
+	{
+		return getResourcesCount(operation,user,0L);
+	}
+	
+	/**
+	 * @param user User or null to get number of resources without filtering by user
+	 * @param categoryId Category identifier or 0L to get number of resources without filtering by category
+	 * @return Number of resources optionally filtered by user and category
+	 * @throws ServiceException
+	 */
+	public int getResourcesCount(User user,long categoryId) throws ServiceException
+	{
+		return getResourcesCount(null,user,categoryId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param user User or null to get number of resources without filtering by user
+	 * @param categoryId Category identifier or 0L to get number of resources without filtering by category
+	 * @return Number of resources optionally filtered by user and category
+	 * @throws ServiceException
+	 */
+	public int getResourcesCount(Operation operation,User user,long categoryId) throws ServiceException
 	{
 		int resourcesCount=0;
 		boolean singleOp=operation==null;
@@ -2480,8 +2550,8 @@ public class ResourcesService implements Serializable
 			}
 			
 			RESOURCES_DAO.setOperation(operation);
-			resourcesCount=
-				RESOURCES_DAO.getResources(user==null?0L:user.getId(),0L,"",0L,false,false,false,false).size();
+			resourcesCount=RESOURCES_DAO.getResources(
+				user==null?0L:user.getId(),categoryId,"",0L,false,false,false,false).size();
 		}
 		catch (DaoException de)
 		{
@@ -2496,6 +2566,39 @@ public class ResourcesService implements Serializable
 			}
 		}
 		return resourcesCount;
+	}
+	
+	/**
+	 * Checks if exists a resource with the indicated identifier.
+	 * @param id Identifier
+	 * @return true if exists a resource with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkResourceId(long id) throws ServiceException
+	{
+		return checkResourceId(null,id);
+	}
+	
+	/**
+	 * Checks if exists a resource with the indicated identifier.
+	 * @param operation Operation
+	 * @param id Identifier
+	 * @return true if exists a resource with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkResourceId(Operation operation,long id) throws ServiceException
+	{
+		boolean resourceFound=false;
+		try
+		{
+			RESOURCES_DAO.setOperation(operation);
+			resourceFound=RESOURCES_DAO.checkResourceId(id);
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return resourceFound;
 	}
 	
 	/**
@@ -2634,8 +2737,49 @@ public class ResourcesService implements Serializable
 		Resource resource=null;
 		try
 		{
+			// Get resource from DB
 			RESOURCES_DAO.setOperation(operation);
-			resource=RESOURCES_DAO.getResource(id,true,true,true);
+			Resource resourceFromDB=RESOURCES_DAO.getResource(id,true,true,true);
+			if (resourceFromDB!=null)
+			{
+				resource=resourceFromDB.getResourceCopy();
+				if (resourceFromDB.getUser()!=null)
+				{
+					User resourceUser=resourceFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					resourceUser.setPassword("");
+					
+					resource.setUser(resourceUser);
+				}
+				if (resourceFromDB.getCategory()!=null)
+				{
+					Category categoryFromDB=resourceFromDB.getCategory();
+					Category category=categoryFromDB.getCategoryCopy();
+					if (categoryFromDB.getUser()!=null)
+					{
+						User resourceCategoryUser=categoryFromDB.getUser().getUserCopy();
+						
+						// Password is set to empty string before returning instance for security reasons
+						resourceCategoryUser.setPassword("");
+						
+						category.setUser(resourceCategoryUser);
+					}
+					if (categoryFromDB.getCategoryType()!=null)
+					{
+						category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+					}
+					if (categoryFromDB.getVisibility()!=null)
+					{
+						category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+					}
+					resource.setCategory(category);
+				}
+				if (resourceFromDB.getCopyright()!=null)
+				{
+					resource.setCopyright(resourceFromDB.getCopyright().getCopyrightCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -2651,17 +2795,7 @@ public class ResourcesService implements Serializable
 	 */
 	public void updateResource(ResourceBean resource) throws ServiceException
 	{
-		updateResource(null,resource,false);
-	}
-	
-	/**
-	 * Updates a resource but keeping intact its associated file.
-	 * @param operation Operation
-	 * @throws ServiceException
-	 */
-	public void updateResource(Operation operation,ResourceBean resource) throws ServiceException
-	{
-		updateResource(operation,resource,false);
+		updateResource(resource,false);
 	}
 	
 	//Modifica un recurso que contiene un fichero diferente
@@ -2673,37 +2807,19 @@ public class ResourcesService implements Serializable
 	 */
 	public void updateResource(ResourceBean resource,boolean updateFile) throws ServiceException
 	{
-		updateResource(null,resource,updateFile);
-	}
-	
-	//TODO ¿Y si varios usuarios modifican a la vez el mismo recurso? la operacion de BD al hacerse por transacción ok... solo valdría la última, ¿pero y el fichero?.... así en principio pienso que sí un usuario escribe en el fichero y luego otro intenta escribir sin que haya acabado el primero el segundo no va a poder... le ocurrira una IOException... en ese caso lo más probable es que se intentaría restaurar el backup aunque esto es posible que tampoco se pudiera por estar bloqueado el archivo, pero ¿y si justo en ese momento termina el primer usuario y la restauración del backup sí es posible? no es que sea muy probable pero en ese caso se volvería a poner el fichero anterior pero el resto de modificaciones del recurso valdrían las del primer usuario, lo cual sería inválido, ahora bien esto creo que es muy improbable de que ocurra
-	//TODO otro caso de conflicto de modificación simultanea podría ser que el primer usuario subio ya el archivo y termino la subida y en ese momento el segundo usuario sube su archivo sin errores y aplica sus modificaciones en BD antes que el primer usuario.... si esto ocurre... que también es muy improbable porque el segundo usuario tendría que haber sido rapidísimo para adelantar al primero no habría errores.... pero quedaría el fichero que subio el segundo usuario junto con el resto de datos del recurso segun los modifico el primer usuario (NOTA... este caso me parece incluso más improbable que el primero)
-	/**
-	 * Updates a resource and also its associated file if it is indicated.
-	 * @param operation Operation
-	 * @param resource Resource to update
-	 * @param updateFile true if associated file is going to be updated, false otherwise
-	 * @throws ServiceException
-	 */
-	public void updateResource(Operation operation,ResourceBean resource,boolean updateFile) throws ServiceException
-	{
-		boolean singleOp=operation==null;
-		Resource res=null;
+		Resource res=resource.getResource();
 		File backupFile=null;
 		String oldResourceFilePath=null;
 		String newResourceFilePath=null;
 		boolean ok=false;
+		Operation operation=null;
 		try
 		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
+			// Start Hibernate operation
+			operation=HibernateUtil.startOperation();
 			
-			res=resource.getResource(operation);
-			oldResourceFilePath=getCurrentResourceFilePath(operation,resource);
-			newResourceFilePath=getNewResourceFilePath(operation,resource);
+			oldResourceFilePath=getCurrentResourceFilePath(resource);
+			newResourceFilePath=getNewResourceFilePath(resource);
 			
 			if (updateFile)
 			{
@@ -2737,10 +2853,149 @@ public class ResourcesService implements Serializable
 			}
 			
 			// Update new resource file name
-			res.setFileName(getNewResourceFileName(operation,resource));
+			res.setFileName(getNewResourceFileName(resource));
 			
+			// Get resource from DB
 			RESOURCES_DAO.setOperation(operation);
-			RESOURCES_DAO.updateResource(res);
+			Resource resourceFromDB=RESOURCES_DAO.getResource(res.getId(),false,false,false);
+			
+			// Set fields with the updated values
+			resourceFromDB.setFromOtherResource(res);
+			
+			// Update resource
+			RESOURCES_DAO.setOperation(operation);
+			RESOURCES_DAO.updateResource(resourceFromDB);
+			
+			// Do commit
+			operation.commit();
+			
+			// Operation OK
+			ok=true;
+		}
+		catch (IOException ioe)
+		{
+			throwServiceException(
+				"RESOURCE_FILE_UPDATE_ERROR","Error updating the file corresponding to the resource.",ioe);
+		}
+		catch (DaoException de)
+		{
+			// Do rollback
+			operation.rollback();
+			
+			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			// End Hibernate operation
+			HibernateUtil.endOperation(operation);
+			
+			// We will try to restore old file from backup if operation has failed and we have a valid backup
+			if (backupFile!=null)
+			{
+				if (!ok)
+				{
+					try
+					{
+						restoreBackupFile(new File(oldResourceFilePath),backupFile);
+					}
+					catch (IOException ioe)
+					{
+						// Restoring backup file has failed, perhaps we could treat this case
+						// but we ignore it for now
+					}
+				}
+				if (newResourceFilePath.equals(oldResourceFilePath))
+				{
+					// Delete backup temporary file
+					deleteResourceFile(backupFile);
+				}
+			}
+			// We need to delete old resource file if operation has been succesful 
+			// and updating has not owerwrited it
+			if (ok && updateFile && !newResourceFilePath.equals(oldResourceFilePath))
+			{
+				deleteResourceFile(new File(oldResourceFilePath));
+			}
+		}
+	}
+	
+	//TODO No es invocada... ¿quizas sea obsoleta?
+	//TODO ¿Y si varios usuarios modifican a la vez el mismo recurso? la operacion de BD al hacerse por transacción ok... solo valdría la última, ¿pero y el fichero?.... así en principio pienso que sí un usuario escribe en el fichero y luego otro intenta escribir sin que haya acabado el primero el segundo no va a poder... le ocurrira una IOException... en ese caso lo más probable es que se intentaría restaurar el backup aunque esto es posible que tampoco se pudiera por estar bloqueado el archivo, pero ¿y si justo en ese momento termina el primer usuario y la restauración del backup sí es posible? no es que sea muy probable pero en ese caso se volvería a poner el fichero anterior pero el resto de modificaciones del recurso valdrían las del primer usuario, lo cual sería inválido, ahora bien esto creo que es muy improbable de que ocurra
+	//TODO otro caso de conflicto de modificación simultanea podría ser que el primer usuario subio ya el archivo y termino la subida y en ese momento el segundo usuario sube su archivo sin errores y aplica sus modificaciones en BD antes que el primer usuario.... si esto ocurre... que también es muy improbable porque el segundo usuario tendría que haber sido rapidísimo para adelantar al primero no habría errores.... pero quedaría el fichero que subio el segundo usuario junto con el resto de datos del recurso segun los modifico el primer usuario (NOTA... este caso me parece incluso más improbable que el primero)
+	/**
+	 * Updates a resource and also its associated file if it is indicated.
+	 * @param operation Operation
+	 * @param resource Resource to update
+	 * @param updateFile true if associated file is going to be updated, false otherwise
+	 * @throws ServiceException
+	 */
+	public void updateResource(Operation operation,ResourceBean resource,boolean updateFile) throws ServiceException
+	{
+		Resource res=resource.getResource();
+		boolean singleOp=operation==null;
+		File backupFile=null;
+		String oldResourceFilePath=null;
+		String newResourceFilePath=null;
+		boolean ok=false;
+		try
+		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			else
+			{
+				operation=resource.getCurrentUserOperation(operation);
+			}
+			
+			oldResourceFilePath=getCurrentResourceFilePath(resource);
+			newResourceFilePath=getNewResourceFilePath(resource);
+			
+			if (updateFile)
+			{
+				// We try to keep a backup to recover old file if operation fails
+				if (newResourceFilePath.equals(oldResourceFilePath))
+				{
+					try
+					{
+						backupFile=createBackupFile(new File(oldResourceFilePath));
+					}
+					catch (IOException ioe)
+					{
+						// It's not possible to get a valid backup file, continue operation any way
+						backupFile=null;
+					}
+				}
+				else
+				{
+					// As new resource file is a different file we can use old resource file as backup
+					backupFile=new File(oldResourceFilePath);
+					if (!backupFile.exists() || !backupFile.isFile())
+					{
+						// It's not possible to get a valid backup file, continue operation any way
+						backupFile=null;
+					}
+				}
+				
+				// Save updated file
+				byte[] contents=resource.getFile()!=null?resource.getFile().getContents():resource.getUrlContent();
+				saveNewResourceFile(newResourceFilePath,contents);
+			}
+			
+			// Update new resource file name
+			res.setFileName(getNewResourceFileName(resource));
+			
+			// Get resource from DB
+			RESOURCES_DAO.setOperation(operation);
+			Resource resourceFromDB=RESOURCES_DAO.getResource(res.getId(),false,false,false);
+			
+			// Set fields with the updated values
+			resourceFromDB.setFromOtherResource(res);
+			
+			// Update resource
+			RESOURCES_DAO.setOperation(operation);
+			RESOURCES_DAO.updateResource(resourceFromDB);
 			
 			if (singleOp)
 			{
@@ -2823,6 +3078,7 @@ public class ResourcesService implements Serializable
 	 */
 	public void addResource(Operation operation,ResourceBean resource) throws ServiceException
 	{
+		Resource res=resource.getResource();
 		boolean singleOp=operation==null;
 		String newResourceFilePath=null;
 		boolean ok=false;
@@ -2833,8 +3089,10 @@ public class ResourcesService implements Serializable
 				// Start Hibernate operation
 				operation=HibernateUtil.startOperation();
 			}
-			
-			Resource res=resource.getResource(operation);
+			else
+			{
+				operation=resource.getCurrentUserOperation(operation);
+			}
 			
 			// Create new resource
 			RESOURCES_DAO.setOperation(operation);
@@ -2842,14 +3100,22 @@ public class ResourcesService implements Serializable
 			
 			// Save file
 			byte[] contents=resource.getFile()!=null?resource.getFile().getContents():resource.getUrlContent();
-			newResourceFilePath=getNewResourceFilePath(operation,resource);
+			newResourceFilePath=getNewResourceFilePath(resource);
 			saveNewResourceFile(newResourceFilePath,contents);
 			
 			// Update resource file name
-			res.setFileName(getNewResourceFileName(operation,resource));
+			res.setFileName(getNewResourceFileName(resource));
 			
+			// Get resource from DB
 			RESOURCES_DAO.setOperation(operation);
-			RESOURCES_DAO.updateResource(res);
+			Resource resourceFromDB=RESOURCES_DAO.getResource(res.getId(),false,false,false);
+			
+			// Set fields with the updated values
+			resourceFromDB.setFromOtherResource(res);
+			
+			// Update resource
+			RESOURCES_DAO.setOperation(operation);
+			RESOURCES_DAO.updateResource(resourceFromDB);
 			
 			if (singleOp)
 			{
@@ -2876,14 +3142,17 @@ public class ResourcesService implements Serializable
 			{
 				deleteResourceFile(new File(newResourceFilePath));
 			}
-			if (singleOp)
+			if (!ok)
 			{
-				if (!ok)
+				if (singleOp)
 				{
 					// Do rollback
 					operation.rollback();
 				}
-				
+			}
+			
+			if (singleOp)
+			{
 				// End Hibernate operation
 				HibernateUtil.endOperation(operation);
 			}
@@ -2918,10 +3187,11 @@ public class ResourcesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get resource from DB
 			RESOURCES_DAO.setOperation(operation);
 			Resource res=RESOURCES_DAO.getResource(resourceId,false,false,false);
 			
-			//Delete resource from BD 
+			// Delete resource
 			RESOURCES_DAO.setOperation(operation);
 			RESOURCES_DAO.deleteResource(res);
 			
@@ -2929,7 +3199,7 @@ public class ResourcesService implements Serializable
 			ResourceBean deleteResourceBean=new ResourceBean(res);
 			deleteResourceBean.setResourcesService(this);
 			deleteResourceBean.setUserSessionService(getUserSessionService());
-			String filePath=getCurrentResourceFilePath(operation,deleteResourceBean);
+			String filePath=getCurrentResourceFilePath(deleteResourceBean);
 			deleteResourceFile(new File(filePath));
 			
 			if (singleOp)
@@ -2945,7 +3215,33 @@ public class ResourcesService implements Serializable
 				// Do rollback
 				operation.rollback();
 			}
-			throw new ServiceException(de.getMessage(),de);
+			if (de.getCause() instanceof ConstraintViolationException)
+			{
+				throw new ResourceDeleteConstraintServiceException(de.getMessage(),de);
+			}
+			else
+			{
+				throw new ServiceException(de.getMessage(),de);
+			}
+		}
+		catch (ServiceException se)
+		{
+			if (se.getCause() instanceof DaoException)
+			{
+				DaoException de=(DaoException)se.getCause();
+				if (de.getCause() instanceof ConstraintViolationException)
+				{
+					throw new ResourceDeleteConstraintServiceException(de.getMessage(),de);
+				}
+				else
+				{
+					throw se;
+				}
+			}
+			else
+			{
+				throw se;
+			}
 		}
 		finally
 		{
@@ -2988,11 +3284,9 @@ public class ResourcesService implements Serializable
 		FileInputStream input=new FileInputStream(file);
 		FileOutputStream output=new FileOutputStream(backupFile);
 		byte[] buffer=new byte[BACKUP_BUFFER_SIZE];
-		int totalBytesRead=0;
 		int bytesRead=input.read(buffer);
 		while (bytesRead>0)
 		{
-			totalBytesRead+=bytesRead;
 			output.write(buffer,0,bytesRead);
 			bytesRead=input.read(buffer);
 		}
@@ -3012,11 +3306,9 @@ public class ResourcesService implements Serializable
 		FileInputStream input=new FileInputStream(backupFile);
 		FileOutputStream output=new FileOutputStream(file);
 		byte[] buffer=new byte[BACKUP_BUFFER_SIZE];
-		int totalBytesRead=0;
 		int bytesRead=input.read(buffer);
 		while (bytesRead>0)
 		{
-			totalBytesRead+=bytesRead;
 			output.write(buffer,0,bytesRead);
 			bytesRead=input.read(buffer);
 		}
@@ -3289,95 +3581,39 @@ public class ResourcesService implements Serializable
 	 */
 	public String getCurrentResourceFilePath(ResourceBean resource) throws ServiceException
 	{
-		return getCurrentResourceFilePath(null,resource);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param resource Resource bean
-	 * @return Full path to the current file associated to a resource
-	 * @throws ServiceException
-	 */
-	public String getCurrentResourceFilePath(Operation operation,ResourceBean resource) throws ServiceException
-	{
 		String currentResourceFilePath=null;
 		if (resource!=null)
 		{
-			boolean singleOp=operation==null;
-			try
-			{
-				if (singleOp)
-				{
-					// Start Hibernate operation
-					operation=HibernateUtil.startOperation();
-				}
-				
-				currentResourceFilePath=getResourceFilePath(resource.getResource(operation));
-			}
-			catch (HibernateException he)
-			{
-				throw new ServiceException(he.getMessage(),he);
-			}
-			finally
-			{
-				if (singleOp)
-				{
-					//End Hibernate operation
-					HibernateUtil.endOperation(operation);
-				}
-			}
+			currentResourceFilePath=getResourceFilePath(resource.getResource());
 		}
 		return currentResourceFilePath;
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param resource Resource
 	 * @return Full path to the new file that we are going to associate to a resource
 	 * @throws ServiceException
 	 */
-	private String getNewResourceFilePath(Operation operation,ResourceBean resource) throws ServiceException
+	private String getNewResourceFilePath(ResourceBean resource) throws ServiceException
 	{
 		StringBuffer newResourceFilePath=new StringBuffer();
-		boolean singleOp=operation==null;
-		try
+		Resource res=resource.getResource();
+		if (resource.isUploaded())
 		{
-			if (singleOp)
+			newResourceFilePath.append(configurationService.getResourcesPath());
+			newResourceFilePath.append(File.separatorChar);
+			newResourceFilePath.append(res.getId());
+			String fullName=resource.getFile()!=null?resource.getFile().getFileName():resource.getUploadedUrl();
+			int iExt=fullName.lastIndexOf('.');
+			if (iExt!=-1 && iExt<fullName.length()-1)
 			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
-			Resource res=resource.getResource(operation);
-			if (resource.isUploaded())
-			{
-				newResourceFilePath.append(configurationService.getResourcesPath());
-				newResourceFilePath.append(File.separatorChar);
-				newResourceFilePath.append(res.getId());
-				String fullName=resource.getFile()!=null?resource.getFile().getFileName():resource.getUploadedUrl();
-				int iExt=fullName.lastIndexOf('.');
-				if (iExt!=-1 && iExt<fullName.length()-1)
-				{
-					newResourceFilePath.append(fullName.substring(iExt));
-				}
-			}
-			else
-			{
-				newResourceFilePath.append(configurationService.getApplicationPath());
-				newResourceFilePath.append(res.getFileName().replace('/',File.separatorChar));
+				newResourceFilePath.append(fullName.substring(iExt));
 			}
 		}
-		catch (HibernateException he)
+		else
 		{
-			throw new ServiceException(he.getMessage(),he);
-		}
-		finally
-		{
-			if (singleOp)
-			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
+			newResourceFilePath.append(configurationService.getApplicationPath());
+			newResourceFilePath.append(res.getFileName().replace('/',File.separatorChar));
 		}
 		return newResourceFilePath.toString();
 	}
@@ -3386,53 +3622,30 @@ public class ResourcesService implements Serializable
 	 * Get a new file name to give to a resource.<br/><br/>
 	 * Note that this new name will be a relative valid path from web application root so it will be a viewable
 	 * file from client side.
-	 * @param operation Operation
 	 * @param resource Resource
 	 * @return New file name to give to a resource
 	 * @throws ServiceException
 	 */
-	private String getNewResourceFileName(Operation operation,ResourceBean resource) throws ServiceException
+	private String getNewResourceFileName(ResourceBean resource) throws ServiceException
 	{
 		StringBuffer newResourceFileName=new StringBuffer();
-		boolean singleOp=operation==null;
-		try
+		Resource res=resource.getResource();
+		if (resource.isUploaded())
 		{
-			if (singleOp)
+			newResourceFileName.append('/');
+			newResourceFileName.append(configurationService.getResourcesFolder());
+			newResourceFileName.append('/');
+			newResourceFileName.append(res.getId());
+			String fullName=resource.getFile()!=null?resource.getFile().getFileName():resource.getUploadedUrl();
+			int iExt=fullName.lastIndexOf('.');
+			if (iExt!=-1 && iExt<fullName.length()-1)
 			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
-			Resource res=resource.getResource(operation);
-			if (resource.isUploaded())
-			{
-				newResourceFileName.append('/');
-				newResourceFileName.append(configurationService.getResourcesFolder());
-				newResourceFileName.append('/');
-				newResourceFileName.append(res.getId());
-				String fullName=resource.getFile()!=null?resource.getFile().getFileName():resource.getUploadedUrl();
-				int iExt=fullName.lastIndexOf('.');
-				if (iExt!=-1 && iExt<fullName.length()-1)
-				{
-					newResourceFileName.append(fullName.substring(iExt));
-				}
-			}
-			else
-			{
-				newResourceFileName.append(res.getFileName());
+				newResourceFileName.append(fullName.substring(iExt));
 			}
 		}
-		catch (HibernateException he)
+		else
 		{
-			throw new ServiceException(he.getMessage(),he);
-		}
-		finally
-		{
-			if (singleOp)
-			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
+			newResourceFileName.append(res.getFileName());
 		}
 		return newResourceFileName.toString();
 	}

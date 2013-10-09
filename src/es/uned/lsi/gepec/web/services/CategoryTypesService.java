@@ -90,9 +90,11 @@ public class CategoryTypesService implements Serializable
 		// We don't want caller accessing directly to a cached category type so we return a copy
 		if (categoryTypeFromCache!=null)
 		{
-			categoryType=new CategoryType();
-			categoryType.setFromOtherCategoryType(categoryTypeFromCache);
-			categoryType.setParent(getParentCopy(categoryType.getParent()));
+			categoryType=categoryTypeFromCache.getCategoryTypeCopy();
+			if (categoryTypeFromCache.getParent()!=null)
+			{
+				categoryType.setParent(categoryTypeFromCache.getParent().getCategoryTypeCopy());
+			}
 		}
 		return categoryType;
 	}
@@ -137,9 +139,54 @@ public class CategoryTypesService implements Serializable
 		// We don't want caller accessing directly to a cached category type so we return a copy
 		if (categoryTypeFromCache!=null)
 		{
-			categoryType=new CategoryType();
-			categoryType.setFromOtherCategoryType(categoryTypeFromCache);
-			categoryType.setParent(getParentCopy(categoryType.getParent()));
+			categoryType=categoryTypeFromCache.getCategoryTypeCopy();
+			if (categoryTypeFromCache.getParent()!=null)
+			{
+				categoryType.setParent(categoryTypeFromCache.getParent().getCategoryTypeCopy());
+			}
+		}
+		return categoryType;
+	}
+	
+	/**
+	 * @param categoryId Category identifier
+	 * @return Category type from a category
+	 * @throws ServiceException
+	 */
+	public CategoryType getCategoryTypeFromCategoryId(long categoryId) throws ServiceException
+	{
+		return getCategoryTypeFromCategoryId(null,categoryId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param categoryId Category identifier
+	 * @return Category type from a category
+	 * @throws ServiceException
+	 */
+	public CategoryType getCategoryTypeFromCategoryId(Operation operation,long categoryId) throws ServiceException
+	{
+		CategoryType categoryType=null;
+		if (categoryId>0L)
+		{
+			CategoryType categoryTypeFromDB=null;
+			try
+			{
+				CATEGORY_TYPES_DAO.setOperation(operation);
+				categoryTypeFromDB=CATEGORY_TYPES_DAO.getCategoryTypeFromCategoryId(categoryId);
+			}
+			catch (DaoException de)
+			{
+				throw new ServiceException(de.getMessage(),de);
+			}
+			if (categoryTypeFromDB!=null)
+			{
+				categoryType=categoryTypeFromDB.getCategoryTypeCopy();
+				if (categoryTypeFromDB.getParent()!=null)
+				{
+					categoryType.setParent(categoryTypeFromDB.getParent().getCategoryTypeCopy());
+				}
+			}
 		}
 		return categoryType;
 	}
@@ -185,27 +232,20 @@ public class CategoryTypesService implements Serializable
 			{
 				throw new ServiceException(de.getMessage(),de);
 			}
-			for (CategoryType categoryType:CATEGORY_TYPES_CACHED)
-			{
-				if (categoryType.getParent()!=null)
-				{
-					categoryType.setParent(
-						CATEGORY_TYPES_CACHED_BY_ID.get(Long.valueOf(categoryType.getParent().getId())));
-				}
-			}
 		}
+		
 		// We don't want caller accessing directly to cached category types so we return copies of all them
 		for (CategoryType categoryTypeFromCache:CATEGORY_TYPES_CACHED)
 		{
-			CategoryType categoryType=null;
-			if (categoryTypeFromCache!=null)
+			CategoryType categoryType=categoryTypeFromCache.getCategoryTypeCopy();
+			if (categoryTypeFromCache.getParent()!=null)
 			{
-				categoryType=new CategoryType();
-				categoryType.setFromOtherCategoryType(categoryTypeFromCache);
+				CategoryType categoryTypeFilter=new CategoryType();
+				categoryTypeFilter.setId(categoryTypeFromCache.getParent().getId());
+				categoryType.setParent(categoryTypeFilter);
 			}
 			categoryTypes.add(categoryType);
 		}
-		// We also need to use the new copies of category types in their 'parent' field
 		for (CategoryType categoryType:categoryTypes)
 		{
 			if (categoryType.getParent()!=null)
@@ -249,6 +289,8 @@ public class CategoryTypesService implements Serializable
 			isDerived=categoryType.equals(from);
 			if (!isDerived)
 			{
+				checkedCategoryTypes.add(categoryType);
+				
 				boolean singleOp=operation==null;
 				try
 				{
@@ -258,16 +300,8 @@ public class CategoryTypesService implements Serializable
 						operation=HibernateUtil.startOperation();
 					}
 					
-					checkedCategoryTypes.add(categoryType);
-					if (categoryType.getParent()!=null)
-					{
-						categoryType.setParent(getCategoryType(operation,categoryType.getParent().getId()));
-					}
-					isDerived=isDerivedFrom(operation,checkedCategoryTypes,categoryType.getParent(),from);
-				}
-				catch (DaoException de)
-				{
-					throw new ServiceException(de.getMessage(),de);
+					isDerived=isDerivedFrom(operation,checkedCategoryTypes,categoryType.getParent()==null?
+						null:getCategoryType(operation,categoryType.getParent().getId()),from);
 				}
 				finally
 				{
@@ -318,39 +352,5 @@ public class CategoryTypesService implements Serializable
 		throws ServiceException
 	{
 		return isDerivedFrom(operation,new ArrayList<CategoryType>(),categoryType,from);
-	}
-	
-	/**
-	 * @param parent Parent category type
-	 * @param parentCopies List with copies of parent categories types already done
-	 * @return Copy of parent category type
-	 */
-	private CategoryType getParentCopy(CategoryType parent,List<CategoryType> parentCopies)
-	{
-		CategoryType parentCopy=null;
-		if (parent!=null)
-		{
-			if (parentCopies.contains(parent))
-			{
-				parentCopy=parentCopies.get(parentCopies.indexOf(parent));
-			}
-			else
-			{
-				parentCopy=new CategoryType();
-				parentCopy.setFromOtherCategoryType(parent);
-				parentCopies.add(parentCopy);
-				parentCopy.setParent(getParentCopy(parentCopy.getParent(),parentCopies));
-			}
-		}
-		return parentCopy;
-	}
-	
-	/**
-	 * @param parent Parent category type
-	 * @return Copy of parent category type
-	 */
-	private CategoryType getParentCopy(CategoryType parent)
-	{
-		return getParentCopy(parent,new ArrayList<CategoryType>());
 	}
 }

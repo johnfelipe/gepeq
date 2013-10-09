@@ -20,9 +20,7 @@ package es.uned.lsi.gepec.model.entities;
 // Generated 08-jul-2011 10:08:42 by Hibernate Tools 3.4.0.CR1
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -61,14 +59,7 @@ public class User implements java.io.Serializable {
 	private String oucu;
 	private String groups;
 	private List<UserPermission> userPermissions = new ArrayList<UserPermission>(0);
-	private List<TestUser> userTests = new ArrayList<TestUser>(0);
-	private Set<Category> categories = new HashSet<Category>(0);
-	private Set<Resource> resources = new HashSet<Resource>(0);
-	private Set<Test> testsCreated = new HashSet<Test>(0);
-	private Set<Test> testsModified = new HashSet<Test>(0);
-	private Set<Question> questionsCreated = new HashSet<Question>(0);
-	private Set<Question> questionsModified = new HashSet<Question>(0);
-
+	
 	public User() {
 	}
 
@@ -193,69 +184,6 @@ public class User implements java.io.Serializable {
 		this.userPermissions = userPermissions;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "user", cascade = CascadeType.ALL)
-	public List<TestUser> getUserTests() {
-		return this.userTests;
-	}
-
-	public void setUserTests(List<TestUser> userTests) {
-		this.userTests = userTests;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
-	public Set<Category> getCategories() {
-		return this.categories;
-	}
-
-	public void setCategories(Set<Category> categories) {
-		this.categories = categories;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
-	public Set<Resource> getResources() {
-		return this.resources;
-	}
-
-	public void setResources(Set<Resource> resources) {
-		this.resources = resources;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "createdBy")
-	public Set<Test> getTestsCreated() {
-		return this.testsCreated;
-	}
-
-	public void setTestsCreated(Set<Test> testsCreated) {
-		this.testsCreated = testsCreated;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "modifiedBy")
-	public Set<Test> getTestsModified() {
-		return this.testsModified;
-	}
-
-	public void setTestsModified(Set<Test> testsModified) {
-		this.testsModified = testsModified;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "createdBy")
-	public Set<Question> getQuestionsCreated() {
-		return this.questionsCreated;
-	}
-
-	public void setQuestionsCreated(Set<Question> questionsCreated) {
-		this.questionsCreated = questionsCreated;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "modifiedBy")
-	public Set<Question> getQuestionsModified() {
-		return this.questionsModified;
-	}
-
-	public void setQuestionsModified(Set<Question> questionsModified) {
-		this.questionsModified = questionsModified;
-	}
-
 	/**
 	 * @return Both name and surname in a single string
 	 */
@@ -298,6 +226,18 @@ public class User implements java.io.Serializable {
 			setOucu(otherUser.getOucu());
 			setGroups(otherUser.getGroups());
 		}
+	}
+	
+	/**
+	 * @return A copy of this user.
+	 */
+	@Transient
+	public User getUserCopy()
+	{
+		User userCopy=new User(getId(),getUserType(),getLogin(),getPassword(),getNick(),getName(),getSurname(),
+			isGepeqUser(),getGroups());
+		userCopy.setOucu(getOucu());
+		return userCopy;
 	}
 	
 	@Override

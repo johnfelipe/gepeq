@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 11-abr-2012 15:51:55 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,20 +39,13 @@ public class NavLocation implements java.io.Serializable {
 
 	private long id;
 	private String location;
-	private Set<Test> tests = new HashSet<Test>(0);
 
 	public NavLocation() {
 	}
 
-	public NavLocation(long id, String navlocation) {
+	public NavLocation(long id, String location) {
 		this.id = id;
-		this.location = navlocation;
-	}
-
-	public NavLocation(long id, String navlocation, Set<Test> tests) {
-		this.id = id;
-		this.location = navlocation;
-		this.tests = tests;
+		this.location = location;
 	}
 
 	@Id
@@ -79,15 +68,6 @@ public class NavLocation implements java.io.Serializable {
 		this.location = location;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "navLocation")
-	public Set<Test> getTests() {
-		return this.tests;
-	}
-
-	public void setTests(Set<Test> tests) {
-		this.tests = tests;
-	}
-
 	/**
 	 * Set the fields of this navigation location with the values from fields from other navigation location.
 	 * @param otherNavLocation Other navigation location
@@ -100,6 +80,15 @@ public class NavLocation implements java.io.Serializable {
 			setId(otherNavLocation.getId());
 			setLocation(otherNavLocation.getLocation());
 		}
+	}
+	
+	/**
+	 * @return A copy of this navigation location.
+	 */
+	@Transient
+	public NavLocation getNavLocationCopy()
+	{
+		return new NavLocation(getId(),getLocation());
 	}
 	
 	@Override

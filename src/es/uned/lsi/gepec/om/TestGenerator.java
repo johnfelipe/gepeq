@@ -812,6 +812,15 @@ public class TestGenerator
 							userFilter.appendChild(supportContactsValue);
 						}
 					}
+					else if ("GROUP_FILTER".equals(filterType))
+					{
+						Element userFilter=doc.createElement("user-filter");
+						userFilter.setAttribute("type","single-group");
+						userFilter.setAttribute("value",supportContactEntry.getKey().getFilterValue());
+						supportContacts.appendChild(userFilter);
+						Text supportContactsValue=doc.createTextNode(supportContactEntry.getValue().toString());
+						userFilter.appendChild(supportContactsValue);
+					}
 				}
 			}
 		}
@@ -875,6 +884,15 @@ public class TestGenerator
 							Text evaluatorsValue=doc.createTextNode(evaluatorEntry.getValue().toString());
 							userFilter.appendChild(evaluatorsValue);
 						}
+					}
+					else if ("GROUP_FILTER".equals(filterType))
+					{
+						Element userFilter=doc.createElement("user-filter");
+						userFilter.setAttribute("type","single-group");
+						userFilter.setAttribute("value",evaluatorEntry.getKey().getFilterValue());
+						evaluators.appendChild(userFilter);
+						Text evaluatorsValue=doc.createTextNode(evaluatorEntry.getValue().toString());
+						userFilter.appendChild(evaluatorsValue);
 					}
 				}
 			}

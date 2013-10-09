@@ -130,7 +130,16 @@ public class ForceLoginPhaseListener implements PhaseListener
 					if (RESTRICTED_PAGES.containsKey(viewId) && userSessionService.isDenied(
 						userSessionService.getCurrentUserOperation(),RESTRICTED_PAGES.get(viewId)))
 					{
-						displayErrorPage("NON_AUTHORIZED_ACCESS_ERROR","You are not authorized to access that page.");
+						if (context.getPartialViewContext().isAjaxRequest())
+						{
+							displayErrorPage(
+								"NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation.");
+						}
+						else
+						{
+							displayErrorPage(
+								"NON_AUTHORIZED_ACCESS_ERROR","You are not authorized to access that page.");
+						}
 					}
 					else if (!viewEnabled && PROGRAM_PAGES.contains(viewId))
 					{
@@ -239,12 +248,37 @@ public class ForceLoginPhaseListener implements PhaseListener
 	}
 	
 	/**
-	 * Display error page with the indicated error message.<br/><br/>
+	 * Display error with the indicated error message.<br/><br/>
 	 * The message will be localized if it is possible or be displayed the plain version of the error message otherwise.
 	 * @param errorCode Error message locale code
 	 * @param plainMessage Plain version of the error message
 	 */
 	private void displayErrorPage(String errorCode,String plainMessage)
+	{
+		// Get context
+		FacesContext context=FacesContext.getCurrentInstance();
+		
+		if (context.getPartialViewContext().isAjaxRequest())
+		{
+			// Ajax requests can not be treated here so we throw an exception to allow them
+			// to be handled by the exception handler
+			throw new ForceLoginPhaseListenerException(errorCode,plainMessage);
+		}
+		else
+		{
+			displayNonAjaxErrorPage(errorCode,plainMessage);
+		}
+	}
+	
+	/**
+	 * Display error page with the indicated error message.<br/><br/>
+	 * The message will be localized if it is possible or be displayed the plain version of the error message otherwise.
+	 * <br/><br/>
+	 * This method only works correctly with non-Ajax requests.
+	 * @param errorCode Error message locale code
+	 * @param plainMessage Plain version of the error message
+	 */
+	private void displayNonAjaxErrorPage(String errorCode,String plainMessage)
 	{
 		// Get context
 		FacesContext context=FacesContext.getCurrentInstance();

@@ -87,8 +87,7 @@ public class PermissionTypesService implements Serializable
 		// We don't want caller accessing directly to a cached permission type so we return a copy
 		if (permissionTypeFromCache!=null)
 		{
-			permissionType=new PermissionType();
-			permissionType.setFromOtherPermissionType(permissionTypeFromCache);
+			permissionType=permissionTypeFromCache.getPermissionTypeCopy();
 		}
 		return permissionType;
 	}
@@ -133,8 +132,7 @@ public class PermissionTypesService implements Serializable
 		// We don't want caller accessing directly to a cached permission type so we return a copy
 		if (permissionTypeFromCache!=null)
 		{
-			permissionType=new PermissionType();
-			permissionType.setFromOtherPermissionType(permissionTypeFromCache);
+			permissionType=permissionTypeFromCache.getPermissionTypeCopy();
 		}
 		return permissionType;
 	}

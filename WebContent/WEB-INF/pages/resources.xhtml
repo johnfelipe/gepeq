@@ -73,7 +73,7 @@
             </p:selectOneMenu>
             <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
               actionListener="#{resourcesBean.applyResourcesFilter}" process="resourcesForm:resourcesFilterPanel" 
-              update="resourcesForm:messages resourcesForm:resourcesGrid" />
+              update="resourcesForm:resourcesFilterPanel resourcesForm:messages resourcesForm:resourcesGrid" />
           </h:panelGrid>
         </p:panel>
         
@@ -84,8 +84,9 @@
         </h:panelGroup>
         
 	  	<p:dataGrid id="resourcesGrid" value="#{resourcesBean.resources}" var="res" columns="4" rows="8" 
-	  	  paginator="true" rowsPerPageTemplate="4,8,12,16,24,48"
-		  paginatorTemplate="{CurrentPageReport} {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}">
+	  	  paginator="true" rowsPerPageTemplate="4,8,12,16,24,48" 
+	  	  paginatorTemplate="#{msgs.DATAGRID_PAGINATOR_TEMPLATE}" 
+	  	  currentPageReportTemplate="#{msgs.CURRENT_PAGE_REPORT_TEMPLATE}">
 		  
 		  <p:column>
 		    <p:panel id="resourcesGridPanel" header="#{resourcesBean.abbreviate(res.name,12)}" 
@@ -94,7 +95,7 @@
                 <h:panelGroup id="resourcePreview" styleClass="resourcePreview" layout="block">
                   <h:panelGroup styleClass="resourcePreviewSpan">
                     <h:panelGroup styleClass="resourcePreviewContent">
-                      <h:graphicImage id="resourcePreviewImage" value="#{res.fileName}" 
+                      <h:graphicImage id="resourcePreviewImage" value="#{res.fileName}" styleClass="graphics" 
                         width="#{resourcesBean.getResourceWidthForResourcePreview(res)}" 
                         height="#{resourcesBean.getResourceHeightForResourcePreview(res)}" />
                       
@@ -137,31 +138,32 @@
                   </h:panelGroup>
                 </h:panelGroup>
 		        <h:panelGroup>
-		          <p:commandLink actionListener="#{resourcesBean.view}" update="resourceDialog">
+		          <p:commandLink update="resourceDialog resourcesForm:messages resourcesForm:resourcesFilterPanel resourcesForm:resourcesGrid" 
+		            actionListener="#{resourcesBean.viewResource}" onclick="viewResourceTooltip.hide();">
+		            
 		            <f:attribute name="resource" value="#{res}" />
 				    <h:graphicImage id="viewResourceImage" styleClass="links" 
 				      value="#{resource['images:search.png']}" />
-				    <p:tooltip for="viewResourceImage">
+				    <p:tooltip widgetVar="viewResourceTooltip" for="viewResourceImage">
 				      #{msgs.VIEW_RESOURCE}
 				    </p:tooltip>
 				  </p:commandLink>
-				  <h:commandLink action="#{resourcesBean.editResource(res)}" 
-				    rendered="#{resourcesBean.isEditResourceAllowed(res)}">
+				  <h:commandLink action="#{resourcesBean.editResource(res)}"  
+				    rendered="#{resourcesBean.isEditResourceAllowed(res)}" onclick="editResourceTooltip.hide();">
 	  	  			
 	          		<f:param name="resourceId" value="#{res.id}" />
 				    <h:graphicImage id="editResourceImage" styleClass="links" 
 				      value="#{resource['images:edit16.png']}" />
-				    <p:tooltip for="editResourceImage">
+				    <p:tooltip widgetVar="editResourceTooltip" for="editResourceImage">
 				      #{msgs.EDIT_RESOURCE}
 				    </p:tooltip>
 				  </h:commandLink>
-				  <p:commandLink update="@form" actionListener="#{resourcesBean.confirm}" 
-				    rendered="#{resourcesBean.isDeleteResourceAllowed(res)}">
+				  <p:commandLink update="@form" actionListener="#{resourcesBean.confirmDelete(res)}" 
+				    rendered="#{resourcesBean.isDeleteResourceAllowed(res)}" onclick="deleteResourceTooltip.hide();">
 				    
-				    <f:setPropertyActionListener value="#{res.id}" target="#{resourcesBean.resourceId}" />
 				    <h:graphicImage id="deleteResourceImage" styleClass="links" 
 				      value="#{resource['images:delete.png']}" />
-				    <p:tooltip for="deleteResourceImage">
+				    <p:tooltip widgetVar="deleteResourceTooltip" for="deleteResourceImage">
 				      #{msgs.DELETE_RESOURCE}
 				    </p:tooltip>
 				  </p:commandLink>
@@ -189,10 +191,12 @@
       <h:form>
         <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
           <h:panelGroup layout="block" style="text-align:right;">
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
-              actionListener="#{resourcesBean.deleteResource}" 
-              update="resourcesForm:messages resourcesForm:newResourceButton resourcesForm:resourcesGrid" />
-            <p:commandButton value="#{msgs.NO}" type="button" onclick="confirmDialog.hide();" />
+            <p:commandButton value="#{msgs.YES}" actionListener="#{resourcesBean.deleteResource}"
+              oncomplete="confirmDialog.hide()" 
+              update="resourcesForm:resourcesFilterPanel resourcesForm:messages resourcesForm:newResourceButton resourcesForm:resourcesGrid" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{resourcesBean.cancelDeleteResource}" 
+              oncomplete="confirmDialog.hide();" 
+              update="resourcesForm:resourcesFilterPanel resourcesForm:messages resourcesForm:newResourceButton resourcesForm:resourcesGrid"/>
           </h:panelGroup>
         </h:panelGroup>
       </h:form>
@@ -204,8 +208,8 @@
       
       <h:form>
         <p:outputPanel id="resourceDetail" styleClass="resourceDetail" layout="block">
-          <p:graphicImage id="resourceDetailPreview" value="#{resourcesBean.currentResourceFileName}" 
-            width="#{resourcesBean.currentResourceWidthForResourceDialog}" 
+          <h:graphicImage id="resourceDetailPreview" value="#{resourcesBean.currentResourceFileName}" 
+            styleClass="graphics" width="#{resourcesBean.currentResourceWidthForResourceDialog}" 
             height="#{resourcesBean.currentResourceHeightForResourceDialog}" />
           <p:tooltip for="resourceDetailPreview">
             <table style="max-width:450px;">

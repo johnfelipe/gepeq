@@ -84,7 +84,7 @@ public class CategoriesBean implements Serializable
 	
 	private final static String NOT_VIEW_OTHER_USERS_CATEGORIES_CHOICE="NOT_VIEW_OTHER_USERS_CATEGORIES";
 	private final static String VIEW_OTHER_USERS_PUBLIC_CATEGORIES_CHOICE="VIEW_OTHER_USERS_PUBLIC_CATEGORIES";
-	private final static String VIEW_OTHER_USERS_PRIVATE_CATEGORIESS_CHOICE="VIEW_OTHER_USERS_PRIVATE_CATEGORIES";
+	private final static String VIEW_OTHER_USERS_PRIVATE_CATEGORIES_CHOICE="VIEW_OTHER_USERS_PRIVATE_CATEGORIES";
 	private final static String VIEW_OTHER_USERS_ALL_CATEGORIES_CHOICE="VIEW_OTHER_USERS_ALL_CATEGORIES";
 	
 	public static class DisplayOtherUsersCategoriesChoice
@@ -118,7 +118,7 @@ public class CategoriesBean implements Serializable
 		DISPLAY_OTHER_USERS_CATEGORIES_CHOICES.add(new DisplayOtherUsersCategoriesChoice(
 			VIEW_OTHER_USERS_PUBLIC_CATEGORIES_CHOICE,CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES));
 		DISPLAY_OTHER_USERS_CATEGORIES_CHOICES.add(new DisplayOtherUsersCategoriesChoice(
-			VIEW_OTHER_USERS_PRIVATE_CATEGORIESS_CHOICE,CategoriesService.VIEW_OTHER_USERS_PRIVATE_CATEGORIES));
+			VIEW_OTHER_USERS_PRIVATE_CATEGORIES_CHOICE,CategoriesService.VIEW_OTHER_USERS_PRIVATE_CATEGORIES));
 		DISPLAY_OTHER_USERS_CATEGORIES_CHOICES.add(new DisplayOtherUsersCategoriesChoice(
 			VIEW_OTHER_USERS_ALL_CATEGORIES_CHOICE,CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES));
 	}
@@ -189,7 +189,8 @@ public class CategoriesBean implements Serializable
 		
 		currentDisplayMyCategories=displayMyCategories=true;
 		currentDisplayGlobalCategories=displayGlobalCategories=false;
-		currentDisplayOtherUsersCategories=displayOtherUsersCategories=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
+		currentDisplayOtherUsersCategories=displayOtherUsersCategories=
+			CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
 		
 		mode=MODE_DISPLAY;
 		
@@ -260,6 +261,11 @@ public class CategoriesBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && rootNode==null)
+    	{
+    		getRootNode();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
@@ -496,8 +502,8 @@ public class CategoriesBean implements Serializable
 	{
 		if (deleteCategoryEnabled==null)
 		{
-			deleteCategoryEnabled=Boolean.valueOf(
-				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_CATEGORIES_DELETE_ENABLED"));
+			deleteCategoryEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_CATEGORIES_DELETE_ENABLED"));
 		}
 		return deleteCategoryEnabled;
 	}
@@ -672,7 +678,8 @@ public class CategoriesBean implements Serializable
 		if (viewOtherUsersPrivateCategoriesEnabled==null)
 		{
 			viewOtherUsersPrivateCategoriesEnabled=Boolean.valueOf(userSessionService.isGranted(
-				getCurrentUserOperation(operation),"PERMISSION_CATEGORIES_VIEW_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
+				getCurrentUserOperation(operation),
+				"PERMISSION_CATEGORIES_VIEW_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewOtherUsersPrivateCategoriesEnabled;
 	}
@@ -722,7 +729,8 @@ public class CategoriesBean implements Serializable
 		if (viewSuperadminsPrivateCategoriesEnabled==null)
 		{
 			viewSuperadminsPrivateCategoriesEnabled=Boolean.valueOf(userSessionService.isGranted(
-				getCurrentUserOperation(operation),"PERMISSION_CATEGORIES_VIEW_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
+				getCurrentUserOperation(operation),
+				"PERMISSION_CATEGORIES_VIEW_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewSuperadminsPrivateCategoriesEnabled;
 	}
@@ -826,7 +834,8 @@ public class CategoriesBean implements Serializable
 				allowed=getEditModeEnabled(operation).booleanValue() && 
 					(categoryUser.getId()==userSessionService.getCurrentUserId() || 
 					(getEditOtherUsersCategoriesEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,categoryUser) || getEditAdminsCategoriesEnabled(operation).booleanValue()) &&
+					(!isAdmin(operation,categoryUser) || 
+					getEditAdminsCategoriesEnabled(operation).booleanValue()) &&
 					(!isSuperadmin(operation,categoryUser) || 
 					getEditSuperadminsCategoriesEnabled(operation).booleanValue())));
 				
@@ -1194,7 +1203,8 @@ public class CategoriesBean implements Serializable
 				}
 				else
 				{
-					filterVisibility=((CategoryTreeNode)getSelectedNode().getParent()).getCategory().getVisibility();
+					filterVisibility=
+						((CategoryTreeNode)getSelectedNode().getParent()).getCategory().getVisibility();
 					for (Visibility visibility:visibilities)
 					{
 						if (visibility.isGlobal()!=filterVisibility.isGlobal() || 
@@ -1376,8 +1386,8 @@ public class CategoriesBean implements Serializable
 			// We need to check that category owner is not current user
 			if (userSessionService.getCurrentUserId()!=category.getUser().getId())
 			{
-				categoryNodeName=
-					categoriesService.getLocalizedCategoryLongName(getCurrentUserOperation(operation),category.getId());
+				categoryNodeName=categoriesService.getLocalizedCategoryLongName(
+					getCurrentUserOperation(operation),category.getId());
 			}
 		}
 		
@@ -1475,7 +1485,6 @@ public class CategoriesBean implements Serializable
 		nonAuthorizedError=false;
 		if (getAddModeEnabled(operation).booleanValue())
 		{
-			//User user=userSessionService.getCurrentUser(getCurrentUserOperation(null));
 			long userId=userSessionService.getCurrentUserId();
 			
 			if ("CATEGORY_VISIBILITY_GLOBAL".equals(getCategoryVisibility()) && 
@@ -1489,11 +1498,6 @@ public class CategoriesBean implements Serializable
 				enabledAdd=getSelectedNode()!=null && getSelectedNode()!=rootNode && 
 					getSelectedNode().getCategory().getUser().getId()==userId && getCategory()!=null && 
 					getCategory().getName()!=null && !getCategory().getName().equals("");
-				/*
-				enabledAdd=selectedNode!=null && selectedNode!=rootNode && 
-					user.equals(selectedNode.getCategory().getUser()) && category!=null && 
-					category.getName()!=null && !category.getName().equals("");
-				*/
 			}
 			else if (ADD_SIBLING.equals(getWhereToAdd()))
 			{
@@ -1510,7 +1514,6 @@ public class CategoriesBean implements Serializable
 					else
 					{
 						enabledAdd=parentNode.getCategory().getUser().getId()==userId;
-						//enabledAdd=user.equals(parentNode.getCategory().getUser());
 					}
 				}
 			}
@@ -1566,15 +1569,10 @@ public class CategoriesBean implements Serializable
 	
 	public CategoryTreeNode getRootNode()
 	{
-		return getRootNode(null);
-	}
-	
-	private CategoryTreeNode getRootNode(Operation operation)
-	{
 		if (rootNode==null)		// If there is no root node we need to generate tree
 		{				
-			rootNode=generateTree(getCurrentUserOperation(operation),currentDisplayMyCategories,
-				currentDisplayGlobalCategories,currentDisplayOtherUsersCategories);
+			rootNode=generateTree(currentDisplayMyCategories,currentDisplayGlobalCategories,
+				currentDisplayOtherUsersCategories);
 			rootNode.setSelected(true);
 			setSelectedNode(rootNode);
 		}
@@ -1675,7 +1673,8 @@ public class CategoriesBean implements Serializable
 			}
 			
 			// Check if category is displayable because we are filtering by categories of other users
-			if (!displayable && currentDisplayOtherUsersCategories!=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES)
+			if (!displayable && 
+				currentDisplayOtherUsersCategories!=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES)
 			{
 				displayable=category.getUser().getId()!=currentUserId && !category.getVisibility().isGlobal();
 				if (displayable)
@@ -1731,7 +1730,6 @@ public class CategoriesBean implements Serializable
 	
 	/**
 	 * Generates categories tree.
-	 * @param operation Operation
 	 * @param includeUserCategories Flag to indicate if we want to include user categories in the 
 	 * categories tree 
 	 * @param includeGlobalCategories Flag to indicate if we want to include global categories in the 
@@ -1739,15 +1737,18 @@ public class CategoriesBean implements Serializable
 	 * @param includeOtherUserCategories Value indicating if we want to include public categories of 
 	 * other users in the categories tree
 	 */
-	private CategoryTreeNode generateTree(Operation operation,boolean includeUserCategories,
-		boolean includeGlobalCategories,int includeOtherUserCategories)
+	private CategoryTreeNode generateTree(boolean includeUserCategories,boolean includeGlobalCategories,
+		int includeOtherUserCategories)
 	{
 		// Root node
 		CategoryTreeNode rootCategoryNode=null;
 		try
 		{
-			// Get Hibernate operation
-			operation=getCurrentUserOperation(operation);
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
 			
 			// Current user
 			User user=userSessionService.getCurrentUser(operation);
@@ -1894,7 +1895,8 @@ public class CategoriesBean implements Serializable
 						case CategoriesService.VIEW_OTHER_USERS_PRIVATE_CATEGORIES:
 							otherUserCategories=categoriesService.getPrivateCategories(operation);
 							// In this case we need to sort categories by localized category long name
-							categoriesService.sortCategoriesByLocalizedCategoryLongName(operation,otherUserCategories);
+							categoriesService.sortCategoriesByLocalizedCategoryLongName(
+								operation,otherUserCategories);
 							break;
 						case CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES:
 							otherUserCategories=categoriesService.getNonGlobalCategoriesSortedByName(operation);
@@ -1955,8 +1957,8 @@ public class CategoriesBean implements Serializable
 					for (Category rootOtherUserCategory:rootOtherUserCategories)
 					{
 						// Add this root category of other user to the categories tree
-						new CategoryTreeNode(
-							rootOtherUserCategory.getCategoryType().getType(),rootOtherUserCategory,rootCategoryNode);
+						new CategoryTreeNode(rootOtherUserCategory.getCategoryType().getType(),
+							rootOtherUserCategory,rootCategoryNode);
 						
 						// Find categories derived from this root category of other user
 						rootOtherUserDerivedCategories.clear();
@@ -2019,7 +2021,6 @@ public class CategoriesBean implements Serializable
 	
 	/**
 	 * Refresh categories tree trying to keep current tree view as best as possible.
-	 * @param operation Operation
 	 * @param includeUserCategories Flag to indicate if we want to include user categories in the 
 	 * categories tree 
 	 * @param includeGlobalCategories Flag to indicate if we want to include global categories in the 
@@ -2027,12 +2028,12 @@ public class CategoriesBean implements Serializable
 	 * @param includeOtherUsersCategories Value indicating if we want to include public categories of 
 	 * other users in the categories tree
 	 */
-	private void refreshTree(Operation operation,boolean includeUserCategories,boolean includeGlobalCategories,
+	private void refreshTree(boolean includeUserCategories,boolean includeGlobalCategories,
 		int includeOtherUsersCategories)
 	{
 		// Generate a new categories tree
-		CategoryTreeNode newTree=generateTree(getCurrentUserOperation(operation),includeUserCategories,
-			includeGlobalCategories,includeOtherUsersCategories);
+		CategoryTreeNode newTree=
+			generateTree(includeUserCategories,includeGlobalCategories,includeOtherUsersCategories);
 		
 		// We check that tree generation is successful
 		if (newTree!=null)
@@ -2183,6 +2184,13 @@ public class CategoriesBean implements Serializable
 			UIInput categoryDescriptionInput=
 				(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
 			categoryDescriptionInput.setSubmittedValue(getCategoryDescription(getCategory()));
+			if (!isEnabledCategoryVisibility())
+			{
+				UIInput categoryVisibilityReadonly=
+					(UIInput)event.getComponent().findComponent(":categoriesForm:categoryVisibilityReadonly");
+				categoryVisibilityReadonly.setSubmittedValue(
+					localizationService.getLocalizedMessage(getCategoryVisibility()));
+			}
 		}
 	}
 	
@@ -2239,6 +2247,13 @@ public class CategoriesBean implements Serializable
 		UIInput categoryDescriptionInput=
 			(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
 		categoryDescriptionInput.setSubmittedValue(getCategory().getDescription());
+		if (!isEnabledCategoryVisibility())
+		{
+			UIInput categoryVisibilityReadonly=
+				(UIInput)event.getComponent().findComponent(":categoriesForm:categoryVisibilityReadonly");
+			categoryVisibilityReadonly.setSubmittedValue(
+				localizationService.getLocalizedMessage(getCategoryVisibility()));
+		}
 	}
 	
 	public void selectAddMode(ActionEvent event)
@@ -2261,7 +2276,8 @@ public class CategoriesBean implements Serializable
 			{
 				getCategory().setName("");
 				getCategory().setDescription("");
-				UIInput categoryNameInput=(UIInput)event.getComponent().findComponent(":categoriesForm:categoryName");
+				UIInput categoryNameInput=
+					(UIInput)event.getComponent().findComponent(":categoriesForm:categoryName");
 				categoryNameInput.setSubmittedValue("");
 				UIInput categoryDescriptionInput=
 					(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
@@ -2361,18 +2377,17 @@ public class CategoriesBean implements Serializable
 	 * @param operation Operation
 	 * @param node Category tree node
 	 * @param checkName Flag to indicate if we need to check category name
-	 * @param checkDescription Flag to indicate if we need to check category description
 	 * @param checkCategoryType Flag to indicate if we need to check category type
 	 * @param checkVisibility Flag to indicate if we need to check category visibility
 	 * @return true if parents categories of a node have not changed from last refresh of the categories tree, 
 	 * false otherwise 
 	 */
 	private boolean checkParentsCategories(Operation operation,CategoryTreeNode node,boolean checkName,
-		boolean checkDescription,boolean checkCategoryType,boolean checkVisibility)
+		boolean checkCategoryType,boolean checkVisibility)
 	{
 		boolean ok=true;
-		Category parentCategory=
-			node.getParent()==null || node.getParent()==rootNode?null:((CategoryTreeNode)node.getParent()).getCategory();
+		Category parentCategory=node.getParent()==null || node.getParent()==rootNode?
+			null:((CategoryTreeNode)node.getParent()).getCategory();
 		if (parentCategory!=null)
 		{
 			// Get current user session Hibernate operation
@@ -2383,29 +2398,38 @@ public class CategoriesBean implements Serializable
 			{
 				ok=false;
 			}
-			else if (!parentCategory.getName().equals(currentParentCategory.getName()))
+			
+			// Check name of parent category if required
+			if (ok && checkName)
 			{
-				ok=false;
+				String parentCategoryName=parentCategory.getName()==null?"":parentCategory.getName();
+				String currentParentCategoryName=
+					currentParentCategory.getName()==null?"":currentParentCategory.getName();
+				ok=parentCategoryName.equals(currentParentCategoryName);
 			}
-			else if (!parentCategory.getCategoryType().equals(currentParentCategory.getCategoryType()))
+			
+			// Check type of parent category if required
+			if (ok && checkCategoryType)
 			{
-				ok=false;
+				ok=parentCategory.getCategoryType().equals(
+					categoryTypesService.getCategoryTypeFromCategoryId(operation,currentParentCategory.getId()));
 			}
-			else if (!parentCategory.getVisibility().equals(currentParentCategory.getVisibility()))
+			
+			// Check visibility of parent category if required
+			if (ok && checkVisibility)
 			{
-				ok=false;
+				ok=parentCategory.getVisibility().equals(
+					visibilitiesService.getVisibilityFromCategoryId(operation,currentParentCategory.getId()));
 			}
-			else if ((parentCategory.getParent()==null && currentParentCategory.getParent()!=null) ||
-				parentCategory.getParent()!=null && 
-				!parentCategory.getParent().equals(currentParentCategory.getParent()))
-			{
-				ok=false;
-			}
-			else
-			{
-				ok=checkParentsCategories(operation,(CategoryTreeNode)node.getParent(),checkName,checkDescription,
-					checkCategoryType,checkVisibility);
-			}
+			
+			// Check parent category
+			ok=ok && ((parentCategory.getParent()==null && currentParentCategory.getParent()==null) ||
+				(parentCategory.getParent()!=null && 
+				parentCategory.getParent().equals(currentParentCategory.getParent())));
+			
+			// Check more ancestors categories recursively
+			ok=ok && checkParentsCategories(
+				operation,(CategoryTreeNode)node.getParent(),checkName,checkCategoryType,checkVisibility);
 		}
 		return ok;
 	}
@@ -2427,32 +2451,47 @@ public class CategoriesBean implements Serializable
 		Category category=node==null || node==rootNode?null:node.getCategory();
 		if (category!=null)
 		{
-			Category currentCategory=categoriesService.getCategory(getCurrentUserOperation(operation),category.getId());
+			Category currentCategory=
+				categoriesService.getCategory(getCurrentUserOperation(operation),category.getId());
 			if (currentCategory==null)
 			{
 				ok=false;
 			}
-			else if (checkName && !category.getName().equals(currentCategory.getName()))
+			
+			// Check name of category if required
+			if (ok && checkName)
 			{
-				ok=false;
+				String categoryName=category.getName()==null?"":category.getName();
+				String currentCategoryName=currentCategory.getName()==null?"":currentCategory.getName();
+				ok=categoryName.equals(currentCategoryName);
 			}
-			else if (checkDescription && !category.getDescription().equals(currentCategory.getDescription()))
+			
+			// Check description of category if required
+			if (ok && checkDescription)
 			{
-				ok=false;
+				String categoryDescription=category.getDescription()==null?"":category.getDescription();
+				String currentCategoryDescription=
+					currentCategory.getDescription()==null?"":currentCategory.getDescription();
+				ok=categoryDescription.equals(currentCategoryDescription);
 			}
-			else if (checkCategoryType && !category.getCategoryType().equals(currentCategory.getCategoryType()))
+			
+			// Check type of category if required
+			if (ok && checkCategoryType)
 			{
-				ok=false;
+				ok=category.getCategoryType().equals(
+					categoryTypesService.getCategoryTypeFromCategoryId(operation,currentCategory.getId()));
 			}
-			else if (checkVisibility && !category.getVisibility().equals(currentCategory.getVisibility()))
+			
+			// Check visibility of category if required
+			if (ok && checkVisibility)
 			{
-				ok=false;
+				ok=category.getVisibility().equals(
+					visibilitiesService.getVisibilityFromCategoryId(operation,currentCategory.getId()));
 			}
-			else if ((category.getParent()==null && currentCategory.getParent()!=null) ||
-				category.getParent()!=null && !category.getParent().equals(currentCategory.getParent()))
-			{
-				ok=false;
-			}
+			
+			// Check parent category
+			ok=ok && ((category.getParent()==null && currentCategory.getParent()==null) || 
+				(category.getParent()!=null && category.getParent().equals(currentCategory.getParent()))); 
 		}
 		return ok;
 	}
@@ -2480,7 +2519,8 @@ public class CategoriesBean implements Serializable
 	private boolean checkFirstCharacterNotDigitNotWhitespaceForCategoryName()
 	{
 		String categoryName=getCategory().getName();
-		return !StringUtils.isFirstCharacterDigit(categoryName) && !StringUtils.isFirstCharacterWhitespace(categoryName);
+		return !StringUtils.isFirstCharacterDigit(categoryName) && 
+			!StringUtils.isFirstCharacterWhitespace(categoryName);
 	}
 	
 	/**
@@ -2536,19 +2576,19 @@ public class CategoriesBean implements Serializable
 		{
 			if (delete)
 			{
-				ok=questionsService.getQuestions(
-					getCurrentUserOperation(operation),null,category.getId(),false).isEmpty();
+				ok=questionsService.getQuestionsCount(getCurrentUserOperation(operation),null,category.getId())==0;
 			}
 			else
 			{
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				CategoryType questionsType=categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_QUESTIONS");
+				CategoryType questionsType=
+					categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_QUESTIONS");
 				if (!categoryTypesService.isDerivedFrom(operation,questionsType,getCategory().getCategoryType()) &&
 					!categoryTypesService.isDerivedFrom(operation,getCategory().getCategoryType(),questionsType))
 				{
-					ok=questionsService.getQuestions(operation,null,category.getId(),false).isEmpty();
+					ok=questionsService.getQuestionsCount(operation,null,category.getId())==0;
 				}
 			}
 		}
@@ -2569,7 +2609,8 @@ public class CategoriesBean implements Serializable
 		{
 			if (delete)
 			{
-				ok=testsService.getTests(getCurrentUserOperation(operation),null,category.getId(),false).isEmpty();
+				ok=testsService.getTestsCount(getCurrentUserOperation(operation),null,category.getId())==0;
+				
 			}
 			else
 			{
@@ -2580,7 +2621,7 @@ public class CategoriesBean implements Serializable
 				if (!categoryTypesService.isDerivedFrom(operation,questionsType,getCategory().getCategoryType()) &&
 					!categoryTypesService.isDerivedFrom(operation,getCategory().getCategoryType(),questionsType))
 				{
-					ok=testsService.getTests(operation,null,category.getId(),false).isEmpty();
+					ok=testsService.getTestsCount(operation,null,category.getId())==0;
 				}
 			}
 		}
@@ -2601,8 +2642,7 @@ public class CategoriesBean implements Serializable
 		{
 			if (delete)
 			{
-				ok=resourcesService.getResources(
-					getCurrentUserOperation(operation),null,category.getId(),false).isEmpty();
+				ok=resourcesService.getResourcesCount(getCurrentUserOperation(operation),null,category.getId())==0L;
 			}
 			else
 			{
@@ -2614,7 +2654,7 @@ public class CategoriesBean implements Serializable
 				if (!categoryTypesService.isDerivedFrom(operation,resourcesType,getCategory().getCategoryType()) &&
 					!categoryTypesService.isDerivedFrom(operation,getCategory().getCategoryType(),resourcesType))
 				{
-					ok=resourcesService.getResources(operation,null,category.getId(),false).isEmpty();
+					ok=resourcesService.getResourcesCount(operation,null,category.getId())==0L;
 				}
 			}
 		}
@@ -2643,10 +2683,9 @@ public class CategoriesBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				// Read parent category from DB
-				parentCategory=categoriesService.getCategory(operation,parentCategory.getId());
-				ok=categoryTypesService.isDerivedFrom(
-					operation,getCategory().getCategoryType(),parentCategory.getCategoryType());
+				// Check parent category type
+				ok=categoryTypesService.isDerivedFrom(operation,getCategory().getCategoryType(),
+					categoryTypesService.getCategoryTypeFromCategoryId(operation,parentCategory.getId()));
 			}
 		}
 		else
@@ -2655,7 +2694,8 @@ public class CategoriesBean implements Serializable
 			operation=getCurrentUserOperation(operation);
 			
 			// Read category from DB
-			Category category=categoriesService.getCategory(operation,getCategory().getId());
+			long categoryId=getCategory().getId();
+			Category category=categoriesService.getCategory(operation,categoryId);
 			if (category!=null)
 			{
 				// Check parent category type
@@ -2664,7 +2704,8 @@ public class CategoriesBean implements Serializable
 					if (category.isDefaultCategory())
 					{
 						// Default categories are not allowed to change its category type
-						ok=category.getCategoryType().equals(getCategory().getCategoryType());
+						ok=categoryTypesService.getCategoryTypeFromCategoryId(operation,categoryId).equals(
+							getCategory().getCategoryType());
 					}
 					else
 					{
@@ -2674,10 +2715,9 @@ public class CategoriesBean implements Serializable
 				}
 				else
 				{
-					// Read parent category from DB
-					Category parentCategory=categoriesService.getCategory(operation,category.getParent().getId());
-					ok=categoryTypesService.isDerivedFrom(
-						operation,getCategory().getCategoryType(),parentCategory.getCategoryType());
+					// Check parent category type
+					ok=categoryTypesService.isDerivedFrom(operation,getCategory().getCategoryType(),
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getParent().getId()));
 					if (ok)
 					{
 						// Check childs categories types
@@ -2716,10 +2756,11 @@ public class CategoriesBean implements Serializable
 			}
 			else
 			{
-				// Read parent category from DB
-				parentCategory=categoriesService.getCategory(getCurrentUserOperation(operation),parentCategory.getId());
-				ok=parentCategory.getVisibility().isGlobal()==getCategory().getVisibility().isGlobal() &&
-					parentCategory.getVisibility().getLevel()<=getCategory().getVisibility().getLevel();
+				// Check parent visibility
+				Visibility parentCategoryVisibility=visibilitiesService.getVisibilityFromCategoryId(
+					getCurrentUserOperation(operation),parentCategory.getId());
+				ok=parentCategoryVisibility.isGlobal()==getCategory().getVisibility().isGlobal() &&
+					parentCategoryVisibility.getLevel()<=getCategory().getVisibility().getLevel();
 			}
 		}
 		else
@@ -2731,7 +2772,7 @@ public class CategoriesBean implements Serializable
 			Category category=categoriesService.getCategory(operation,getCategory().getId());
 			if (category!=null)
 			{
-				// Check parent category visibility
+				// Check parent visibility
 				if (category.getParent()==null)
 				{
 					if (category.isDefaultCategory())
@@ -2747,19 +2788,21 @@ public class CategoriesBean implements Serializable
 				}
 				else
 				{
-					// Read parent category from DB
-					Category parentCategory=categoriesService.getCategory(operation,category.getParent().getId());
-					ok=parentCategory.getVisibility().isGlobal()==getCategory().getVisibility().isGlobal() &&
-						parentCategory.getVisibility().getLevel()<=getCategory().getVisibility().getLevel();
+					Visibility categoryVisibility=getCategory().getVisibility();
+					
+					// Check parent visibility
+					Visibility parentCategoryVisibility=
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getParent().getId());
+					ok=parentCategoryVisibility.isGlobal()==categoryVisibility.isGlobal() &&
+						parentCategoryVisibility.getLevel()<=categoryVisibility.getLevel();
 					if (ok)
 					{
-						// Check childs categories visibilities
+						// Check childs visibilities
 						for (Category childCategory:categoriesService.getChildCategories(operation,category))
 						{
-							if (getCategory().getVisibility().isGlobal()!=
-								childCategory.getVisibility().isGlobal() ||
-								getCategory().getVisibility().getLevel()>
-								childCategory.getVisibility().getLevel())
+							Visibility childCategoryVisibility=childCategory.getVisibility();
+							if (categoryVisibility.isGlobal()!=childCategoryVisibility.isGlobal() ||
+								categoryVisibility.getLevel()>childCategoryVisibility.getLevel())
 							{
 								ok=false;
 								break;
@@ -2779,6 +2822,7 @@ public class CategoriesBean implements Serializable
 	public void addCategory(ActionEvent event)
 	{
 		boolean ok=true;
+		boolean categoryToAddNotFound=false;
 		CategoryTreeNode parentNode=null;
 		setAddModeEnabled(null);
 		setAddGlobalCategoryEnabled(null);
@@ -2796,7 +2840,7 @@ public class CategoriesBean implements Serializable
 			{
 				parentNode=getSelectedNode();
 				ok=checkThisCategory(operation,getSelectedNode(),true,false,false,false) && 
-					checkParentsCategories(operation,getSelectedNode(),true,false,false,false);
+					checkParentsCategories(operation,getSelectedNode(),true,false,false);
 				if (!ok)
 				{
 					categoryParentsChanged=true;
@@ -2805,7 +2849,7 @@ public class CategoriesBean implements Serializable
 			else if (ADD_SIBLING.equals(getWhereToAdd()))
 			{
 				parentNode=(CategoryTreeNode)getSelectedNode().getParent();
-				if (!checkParentsCategories(operation,getSelectedNode(),true,false,false,false))
+				if (!checkParentsCategories(operation,getSelectedNode(),true,false,false))
 				{
 					ok=false;
 					categoryParentsChanged=true;
@@ -2815,52 +2859,69 @@ public class CategoriesBean implements Serializable
 			{
 				parentNode=rootNode;
 			}
-			if (!checkValidCharactersForCategoryName())
+			if (ok && parentNode!=rootNode && 
+				!categoriesService.checkCategoryId(operation, getSelectedNode().getCategory().getId()))
 			{
 				ok=false;
-				addErrorMessage("CATEGORY_NAME_INVALID_CHARACTERS");
-			}
-			if (!checkLetterIncludedForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_WITHOUT_LETTER");
-			}
-			if (!checkFirstCharacterNotDigitNotWhitespaceForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_FIRST_CHARACTER_INVALID");
-			}
-			if (!checkLastCharacterNotWhitespaceForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_LAST_CHARACTER_INVALID");
-			}
-			if (!checkNonConsecutiveWhitespacesForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_WITH_CONSECUTIVE_WHITESPACES");
-			}
-			if (!checkAvailableCategoryName(operation,parentNode))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_ALREADY_DECLARED");
-			}
-			if (categoryParentsChanged)
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_PARENTS_CHANGED");
+				categoryToAddNotFound=true;
+				addErrorMessage("CATEGORY_ADD_NOT_FOUND_ERROR");
+				
+				// Now we have no node selected, so we reset selectedNode and category
+				setSelectedNode(rootNode);
+				setCategory(getEmptyCategory());
+				
+				// We need to refresh category tree
+				refreshTree(event);
 			}
 			else
 			{
-				if (!checkCategoryType(operation,parentNode))
+				if (!checkValidCharactersForCategoryName())
 				{
 					ok=false;
-					addErrorMessage("CATEGORY_TYPE_INVALID");
+					addErrorMessage("CATEGORY_NAME_INVALID_CHARACTERS");
 				}
-				if (!checkVisibility(operation,parentNode))
+				if (!checkLetterIncludedForCategoryName())
 				{
 					ok=false;
-					addErrorMessage("CATEGORY_VISIBILITY_INVALID");
+					addErrorMessage("CATEGORY_NAME_WITHOUT_LETTER");
+				}
+				if (!checkFirstCharacterNotDigitNotWhitespaceForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_FIRST_CHARACTER_INVALID");
+				}
+				if (!checkLastCharacterNotWhitespaceForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_LAST_CHARACTER_INVALID");
+				}
+				if (!checkNonConsecutiveWhitespacesForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_WITH_CONSECUTIVE_WHITESPACES");
+				}
+				if (!checkAvailableCategoryName(operation,parentNode))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_ALREADY_DECLARED");
+				}
+				if (categoryParentsChanged)
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_PARENTS_CHANGED");
+				}
+				else
+				{
+					if (!checkCategoryType(operation,parentNode))
+					{
+						ok=false;
+						addErrorMessage("CATEGORY_TYPE_INVALID");
+					}
+					if (!checkVisibility(operation,parentNode))
+					{
+						ok=false;
+						addErrorMessage("CATEGORY_VISIBILITY_INVALID");
+					}
 				}
 			}
 		}
@@ -2924,8 +2985,11 @@ public class CategoriesBean implements Serializable
 			else if ((getSelectedNode()==null || getSelectedNode()==rootNode) && 
 				(ADD_CHILD.equals(getWhereToAdd()) || ADD_SIBLING.equals(getWhereToAdd())))
 			{
-				// No category selected
-				addErrorMessage("CATEGORY_REQUIRED");
+				if (!categoryToAddNotFound)
+				{
+					// No category selected
+					addErrorMessage("CATEGORY_REQUIRED");
+				}
 			}
 			else if (getCategory()==null || getCategory().getName()==null || getCategory().getName().equals("")) 
 			{
@@ -2962,6 +3026,7 @@ public class CategoriesBean implements Serializable
 	public void updateCategory(ActionEvent event)
 	{
 		boolean ok=true;
+		boolean categoryToUpdateNotFound=false;
 		CategoryTreeNode parentNode=(CategoryTreeNode)getSelectedNode().getParent();
 		setEditModeEnabled(null);
 		setEditOtherUsersCategoriesEnabled(null);
@@ -2977,73 +3042,89 @@ public class CategoriesBean implements Serializable
 		if (isEnabledUpdate())
 		{
 			// Update validations
-			boolean categoryParentsChanged=false;
-			if (!checkParentsCategories(operation,getSelectedNode(),true,false,false,false))
+			if (!categoriesService.checkCategoryId(operation,getSelectedNode().getCategory().getId()))
 			{
 				ok=false;
-				categoryParentsChanged=true;
-			}
-			if (!checkValidCharactersForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_INVALID_CHARACTERS");
-			}
-			if (!checkLetterIncludedForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_WITHOUT_LETTER");
-			}
-			if (!checkFirstCharacterNotDigitNotWhitespaceForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_FIRST_CHARACTER_INVALID");
-			}
-			if (!checkLastCharacterNotWhitespaceForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_LAST_CHARACTER_INVALID");
-			}
-			if (!checkNonConsecutiveWhitespacesForCategoryName())
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_WITH_CONSECUTIVE_WHITESPACES");
-			}
-			if (!checkAvailableCategoryName(operation,parentNode))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_NAME_ALREADY_DECLARED");
-			}
-			if (!checkUnexpectedQuestions(operation,getSelectedNode(),false))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_EDIT_UNEXPECTED_QUESTIONS");
-			}
-			if (!checkUnexpectedTests(operation,getSelectedNode(),false))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_EDIT_UNEXPECTED_TESTS");
-			}
-			if (!checkUnexpectedResources(operation,getSelectedNode(),false))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_EDIT_UNEXPECTED_RESOURCES");
-			}
-			if (categoryParentsChanged)
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_PARENTS_CHANGED");
+				categoryToUpdateNotFound=true;
+				addErrorMessage("CATEGORY_UPDATE_NOT_FOUND_ERROR");
+				
+				// Now we have no node selected, so we reset selectedNode and category
+				setSelectedNode(rootNode);
+				setCategory(getEmptyCategory());
+				
+				// We need to refresh category tree
+				refreshTree(event);
 			}
 			else
 			{
-				if (!checkCategoryType(operation,parentNode))
+				boolean categoryParentsChanged=false;
+				if (!checkParentsCategories(operation,getSelectedNode(),true,false,false))
 				{
 					ok=false;
-					addErrorMessage("CATEGORY_TYPE_INVALID");
+					categoryParentsChanged=true;
 				}
-				if (!checkVisibility(operation,parentNode))
+				if (!checkValidCharactersForCategoryName())
 				{
 					ok=false;
-					addErrorMessage("CATEGORY_VISIBILITY_INVALID");
+					addErrorMessage("CATEGORY_NAME_INVALID_CHARACTERS");
+				}
+				if (!checkLetterIncludedForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_WITHOUT_LETTER");
+				}
+				if (!checkFirstCharacterNotDigitNotWhitespaceForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_FIRST_CHARACTER_INVALID");
+				}
+				if (!checkLastCharacterNotWhitespaceForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_LAST_CHARACTER_INVALID");
+				}
+				if (!checkNonConsecutiveWhitespacesForCategoryName())
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_WITH_CONSECUTIVE_WHITESPACES");
+				}
+				if (!checkAvailableCategoryName(operation,parentNode))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_NAME_ALREADY_DECLARED");
+				}
+				if (!checkUnexpectedQuestions(operation,getSelectedNode(),false))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_EDIT_UNEXPECTED_QUESTIONS");
+				}
+				if (!checkUnexpectedTests(operation,getSelectedNode(),false))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_EDIT_UNEXPECTED_TESTS");
+				}
+				if (!checkUnexpectedResources(operation,getSelectedNode(),false))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_EDIT_UNEXPECTED_RESOURCES");
+				}
+				if (categoryParentsChanged)
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_PARENTS_CHANGED");
+				}
+				else
+				{
+					if (!checkCategoryType(operation,parentNode))
+					{
+						ok=false;
+						addErrorMessage("CATEGORY_TYPE_INVALID");
+					}
+					if (!checkVisibility(operation,parentNode))
+					{
+						ok=false;
+						addErrorMessage("CATEGORY_VISIBILITY_INVALID");
+					}
 				}
 			}
 		}
@@ -3061,6 +3142,7 @@ public class CategoriesBean implements Serializable
 				
 				
 				// We update category with new values
+				/*
 				Category cat=categoriesService.getCategory(writeOp,getCategory().getId());
 				if (getSelectedNode()!=null && getSelectedNode()!=rootNode && 
 					getSelectedNode().getCategory().isDefaultCategory())
@@ -3078,6 +3160,16 @@ public class CategoriesBean implements Serializable
 				cat.setCategoryType(getCategory().getCategoryType());
 				cat.setVisibility(getCategory().getVisibility());
 				cat.setParent(getCategory().getParent());
+				*/
+				Category cat=getCategory().getCategoryCopy();
+				if (getSelectedNode()!=null && getSelectedNode()!=rootNode && 
+					getSelectedNode().getCategory().isDefaultCategory())
+				{
+					cat.setName("DEFAULT_CATEGORY");
+					UIInput categoryNameInput=
+						(UIInput)event.getComponent().findComponent(":categoriesForm:categoryName");
+					categoryNameInput.setSubmittedValue(getCategoryDisplayName(getSelectedNode().getCategory()));
+				}
 				categoriesService.updateCategory(writeOp,cat);
 				
 				// We need also to update tree node
@@ -3093,7 +3185,7 @@ public class CategoriesBean implements Serializable
 				}
 				else
 				{
-					refreshTree(operation,currentDisplayMyCategories,currentDisplayGlobalCategories,
+					refreshTree(currentDisplayMyCategories,currentDisplayGlobalCategories,
 						currentDisplayOtherUsersCategories);
 					
 					// If EDIT mode is not enabled we select DISPLAY mode
@@ -3114,11 +3206,19 @@ public class CategoriesBean implements Serializable
 					}
 					
 					// Update category name and description input fields
-					UIInput categoryNameInput=(UIInput)event.getComponent().findComponent(":categoriesForm:categoryName");
+					UIInput categoryNameInput=
+						(UIInput)event.getComponent().findComponent(":categoriesForm:categoryName");
 					categoryNameInput.setSubmittedValue(getCategoryDisplayName(getCategory()));
 					UIInput categoryDescriptionInput=
 						(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
 					categoryDescriptionInput.setSubmittedValue(getCategory().getDescription());
+					if (!isEnabledCategoryVisibility())
+					{
+						UIInput categoryVisibilityReadonly=(UIInput)event.getComponent().findComponent(
+							":categoriesForm:categoryVisibilityReadonly");
+						categoryVisibilityReadonly.setSubmittedValue(
+							localizationService.getLocalizedMessage(getCategoryVisibility()));
+					}
 				}
 				
 				// Do commit
@@ -3126,6 +3226,8 @@ public class CategoriesBean implements Serializable
 			}
 			catch (ServiceException se)
 			{
+				se.printStackTrace();
+				
 				// Do rollback
 				writeOp.rollback();
 				
@@ -3148,8 +3250,11 @@ public class CategoriesBean implements Serializable
 			}
 			else if (getSelectedNode()==null || getSelectedNode()==rootNode)
 			{
-				// No category selected
-				addErrorMessage("CATEGORY_REQUIRED");
+				if (!categoryToUpdateNotFound)
+				{
+					// No category selected
+					addErrorMessage("CATEGORY_REQUIRED");
+				}
 			}
 			// This check has sense because it is possible that "Edit" button is enabled even 
 			// if name input field is empty
@@ -3186,6 +3291,7 @@ public class CategoriesBean implements Serializable
 	public void deleteCategory(ActionEvent event)
 	{
 		boolean ok=true;
+		boolean categoryToDeleteNotFound=false;
 		setDeleteCategoriesEnabled(null);
 		setDeleteOtherUsersCategoriesEnabled(null);
 		setDeleteAdminsCategoriesEnabled(null);
@@ -3199,26 +3305,42 @@ public class CategoriesBean implements Serializable
 			Operation operation=getCurrentUserOperation(null);
 			
 			// Delete validations
-			if (!checkThisCategory(operation,getSelectedNode(),true,true,true,true) || 
-				!checkParentsCategories(operation,getSelectedNode(),true,false,false,false))
+			if (!categoriesService.checkCategoryId(operation,getSelectedNode().getCategory().getId()))
 			{
 				ok=false;
-				addErrorMessage("CATEGORY_THIS_OR_PARENTS_CHANGED");
+				categoryToDeleteNotFound=true;
+				addErrorMessage("CATEGORY_DELETE_NOT_FOUND_ERROR");
+				
+				// Now we have no node selected, so we reset selectedNode and category
+				setSelectedNode(rootNode);
+				setCategory(getEmptyCategory());
+				
+				// We need to refresh category tree
+				refreshTree(event);
 			}
-			if (!checkUnexpectedQuestions(operation,getSelectedNode(),true))
+			else
 			{
-				ok=false;
-				addErrorMessage("CATEGORY_DELETE_UNEXPECTED_QUESTIONS");
-			}
-			if (!checkUnexpectedTests(operation,getSelectedNode(),true))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_DELETE_UNEXPECTED_TESTS");
-			}
-			if (!checkUnexpectedResources(operation,getSelectedNode(),true))
-			{
-				ok=false;
-				addErrorMessage("CATEGORY_DELETE_UNEXPECTED_RESOURCES");
+				if (!checkThisCategory(operation,getSelectedNode(),true,true,true,true) || 
+					!checkParentsCategories(operation,getSelectedNode(),true,false,false))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_THIS_OR_PARENTS_CHANGED");
+				}
+				if (!checkUnexpectedQuestions(operation,getSelectedNode(),true))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_DELETE_UNEXPECTED_QUESTIONS");
+				}
+				if (!checkUnexpectedTests(operation,getSelectedNode(),true))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_DELETE_UNEXPECTED_TESTS");
+				}
+				if (!checkUnexpectedResources(operation,getSelectedNode(),true))
+				{
+					ok=false;
+					addErrorMessage("CATEGORY_DELETE_UNEXPECTED_RESOURCES");
+				}
 			}
 		}
 		if (ok)
@@ -3248,8 +3370,11 @@ public class CategoriesBean implements Serializable
 			}
 			else if (getSelectedNode()==null || getSelectedNode()==rootNode)
 			{
-				// No category selected
-				addErrorMessage("CATEGORY_REQUIRED");
+				if (!categoryToDeleteNotFound)
+				{
+					// No category selected
+					addErrorMessage("CATEGORY_REQUIRED");
+				}
 			}
 			else if (!getSelectedNode().isLeaf())
 			{
@@ -3320,10 +3445,15 @@ public class CategoriesBean implements Serializable
 		setViewAdminsPrivateCategoriesEnabled(null);
 		setViewSuperadminsPrivateCategoriesEnabled(null);
     	
-		if (checkCategoriesFilterPermission(operation,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories))
+		if (checkCategoriesFilterPermission(
+			operation,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories))
 		{
 			// Refresh categories tree based on recent applied filter
-			refreshTree(operation,currentDisplayMyCategories,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories);
+			refreshTree(
+				currentDisplayMyCategories,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories);
+			
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(null);
 			
 			// If current mode is not enabled we select DISPLAY mode
 			if ((MODE_ADD.equals(getMode()) && !isEnabledAddMode(operation)) || 
@@ -3356,6 +3486,13 @@ public class CategoriesBean implements Serializable
 			UIInput categoryDescriptionInput=
 				(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
 			categoryDescriptionInput.setSubmittedValue(getCategory().getDescription());
+			if (!isEnabledCategoryVisibility())
+			{
+				UIInput categoryVisibilityReadonly=
+					(UIInput)event.getComponent().findComponent(":categoriesForm:categoryVisibilityReadonly");
+				categoryVisibilityReadonly.setSubmittedValue(
+					localizationService.getLocalizedMessage(getCategoryVisibility()));
+			}
 		}
 		else
 		{
@@ -3402,14 +3539,15 @@ public class CategoriesBean implements Serializable
 		setViewAdminsPrivateCategoriesEnabled(null);
 		setViewSuperadminsPrivateCategoriesEnabled(null);
 		
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
-		if (checkCategoriesFilterPermission(operation,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories))
+		if (checkCategoriesFilterPermission(
+			getCurrentUserOperation(null),currentDisplayGlobalCategories,currentDisplayOtherUsersCategories))
 		{
 			// Refresh categories tree based on last used categories filter
 			refreshTree(
-				operation,currentDisplayMyCategories,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories);
+				currentDisplayMyCategories,currentDisplayGlobalCategories,currentDisplayOtherUsersCategories);
+			
+			// Get current user session Hibernate operation
+			Operation operation=getCurrentUserOperation(null);
 			
 			// If current mode is not enabled we select DISPLAY mode
 			if ((MODE_ADD.equals(getMode()) && !isEnabledAddMode(operation)) || 
@@ -3442,6 +3580,13 @@ public class CategoriesBean implements Serializable
 			UIInput categoryDescriptionInput=
 				(UIInput)event.getComponent().findComponent(":categoriesForm:categoryDescription");
 			categoryDescriptionInput.setSubmittedValue(getCategory().getDescription());
+			if (!isEnabledCategoryVisibility())
+			{
+				UIInput categoryVisibilityReadonly=
+					(UIInput)event.getComponent().findComponent(":categoriesForm:categoryVisibilityReadonly");
+				categoryVisibilityReadonly.setSubmittedValue(
+					localizationService.getLocalizedMessage(getCategoryVisibility()));
+			}
 		}
 		else
 		{
@@ -3485,7 +3630,8 @@ public class CategoriesBean implements Serializable
     	int includeOtherUserCategories)
 	{
     	boolean ok=true;
-    	if (includeGlobalCategories || includeOtherUserCategories!=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES)
+    	if (includeGlobalCategories || 
+    		includeOtherUserCategories!=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES)
     	{
     		// Get current user session Hibernate operation
     		operation=getCurrentUserOperation(operation);

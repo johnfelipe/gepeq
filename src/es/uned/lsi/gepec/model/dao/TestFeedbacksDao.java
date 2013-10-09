@@ -141,6 +141,7 @@ public class TestFeedbacksDao
 			testFeedback=(TestFeedback)operation.session.get(TestFeedback.class,id);
 			if (testFeedback!=null)
 			{
+				Hibernate.initialize(testFeedback.getTest());
 				if (includeSection)
 				{
 					Hibernate.initialize(testFeedback.getSection());
@@ -196,6 +197,7 @@ public class TestFeedbacksDao
 				{
 					for (TestFeedback testFeedback:testFeedbacks)
 					{
+						Hibernate.initialize(testFeedback.getTest());
 						Hibernate.initialize(testFeedback.getSection());
 						Hibernate.initialize(testFeedback.getScoreUnit());
 					}
@@ -204,6 +206,7 @@ public class TestFeedbacksDao
 				{
 					for (TestFeedback testFeedback:testFeedbacks)
 					{
+						Hibernate.initialize(testFeedback.getTest());
 						Hibernate.initialize(testFeedback.getSection());
 					}
 				}
@@ -212,7 +215,15 @@ public class TestFeedbacksDao
 			{
 				for (TestFeedback testFeedback:testFeedbacks)
 				{
+					Hibernate.initialize(testFeedback.getTest());
 					Hibernate.initialize(testFeedback.getScoreUnit());
+				}
+			}
+			else
+			{
+				for (TestFeedback testFeedback:testFeedbacks)
+				{
+					Hibernate.initialize(testFeedback.getTest());
 				}
 			}
 		}

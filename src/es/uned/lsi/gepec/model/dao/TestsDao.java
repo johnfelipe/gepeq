@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.model.dao;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;  
 
 import javax.el.ELContext;
@@ -162,12 +163,16 @@ public class TestsDao
 						if (test.getCategory()!=null)
 						{
 							Hibernate.initialize(test.getCategory().getUser());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 						}
 					}
 				}
 				else if (includeCategory)
 				{
 					Hibernate.initialize(test.getCategory());
+					Hibernate.initialize(test.getCategory().getCategoryType());
+					Hibernate.initialize(test.getCategory().getVisibility());
 				}
 				if (includeAssessement)
 				{
@@ -308,6 +313,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
@@ -323,6 +330,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
@@ -338,6 +347,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -352,6 +363,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 								}
@@ -368,6 +381,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getNavLocation());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -382,6 +397,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getNavLocation());
 								}
@@ -396,6 +413,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -409,6 +428,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getAssessement());
 							}
 						}
@@ -426,6 +447,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -440,6 +463,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
 								}
@@ -454,6 +479,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getScoreType());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -467,6 +494,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getScoreType());
 							}
 						}
@@ -482,6 +511,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getNavLocation());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -495,6 +526,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getNavLocation());
 							}
 						}
@@ -508,6 +541,8 @@ public class TestsDao
 							Category category=test.getCategory();
 							Hibernate.initialize(category);
 							Hibernate.initialize(category.getUser());
+							Hibernate.initialize(category.getCategoryType());
+							Hibernate.initialize(category.getVisibility());
 							Hibernate.initialize(test.getRedoQuestion());
 						}
 					}
@@ -520,6 +555,8 @@ public class TestsDao
 							Category category=test.getCategory();
 							Hibernate.initialize(category);
 							Hibernate.initialize(category.getUser());
+							Hibernate.initialize(category.getCategoryType());
+							Hibernate.initialize(category.getVisibility());
 						}
 					}
 				}
@@ -718,6 +755,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
@@ -729,6 +768,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
@@ -740,6 +781,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getScoreType());
 								Hibernate.initialize(test.getRedoQuestion());
@@ -750,6 +793,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getScoreType());
 							}
@@ -762,6 +807,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getNavLocation());
 								Hibernate.initialize(test.getRedoQuestion());
@@ -772,6 +819,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getNavLocation());
 							}
@@ -782,6 +831,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getAssessement());
 							Hibernate.initialize(test.getRedoQuestion());
 						}
@@ -791,6 +842,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getAssessement());
 						}
 					}
@@ -804,6 +857,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getScoreType());
 								Hibernate.initialize(test.getNavLocation());
 								Hibernate.initialize(test.getRedoQuestion());
@@ -814,6 +869,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getScoreType());
 								Hibernate.initialize(test.getNavLocation());
 							}
@@ -824,6 +881,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getScoreType());
 							Hibernate.initialize(test.getRedoQuestion());
 						}
@@ -833,6 +892,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getScoreType());
 						}
 					}
@@ -844,6 +905,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getNavLocation());
 							Hibernate.initialize(test.getRedoQuestion());
 						}
@@ -853,6 +916,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getNavLocation());
 						}
 					}
@@ -862,6 +927,8 @@ public class TestsDao
 					for (Test test:tests)
 					{
 						Hibernate.initialize(test.getCategory());
+						Hibernate.initialize(test.getCategory().getCategoryType());
+						Hibernate.initialize(test.getCategory().getVisibility());
 						Hibernate.initialize(test.getRedoQuestion());
 					}
 				}
@@ -870,6 +937,8 @@ public class TestsDao
 					for (Test test:tests)
 					{
 						Hibernate.initialize(test.getCategory());
+						Hibernate.initialize(test.getCategory().getCategoryType());
+						Hibernate.initialize(test.getCategory().getVisibility());
 					}
 				}
 			}
@@ -1110,6 +1179,8 @@ public class TestsDao
 											Category category=test.getCategory();
 											Hibernate.initialize(category);
 											Hibernate.initialize(category.getUser());
+											Hibernate.initialize(category.getCategoryType());
+											Hibernate.initialize(category.getVisibility());
 											Hibernate.initialize(test.getAssessement());
 											Hibernate.initialize(test.getScoreType());
 											Hibernate.initialize(test.getNavLocation());
@@ -1125,6 +1196,8 @@ public class TestsDao
 											Category category=test.getCategory();
 											Hibernate.initialize(category);
 											Hibernate.initialize(category.getUser());
+											Hibernate.initialize(category.getCategoryType());
+											Hibernate.initialize(category.getVisibility());
 											Hibernate.initialize(test.getAssessement());
 											Hibernate.initialize(test.getScoreType());
 											Hibernate.initialize(test.getNavLocation());
@@ -1140,6 +1213,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getRedoQuestion());
@@ -1154,6 +1229,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 									}
@@ -1170,6 +1247,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getNavLocation());
 										Hibernate.initialize(test.getRedoQuestion());
@@ -1184,6 +1263,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getNavLocation());
 									}
@@ -1198,6 +1279,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getRedoQuestion());
 								}
@@ -1211,6 +1294,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getAssessement());
 								}
 							}
@@ -1228,6 +1313,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
 										Hibernate.initialize(test.getRedoQuestion());
@@ -1242,6 +1329,8 @@ public class TestsDao
 										Category category=test.getCategory();
 										Hibernate.initialize(category);
 										Hibernate.initialize(category.getUser());
+										Hibernate.initialize(category.getCategoryType());
+										Hibernate.initialize(category.getVisibility());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
 									}
@@ -1256,6 +1345,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getRedoQuestion());
 								}
@@ -1269,6 +1360,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getScoreType());
 								}
 							}
@@ -1284,6 +1377,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getNavLocation());
 									Hibernate.initialize(test.getRedoQuestion());
 								}
@@ -1297,6 +1392,8 @@ public class TestsDao
 									Category category=test.getCategory();
 									Hibernate.initialize(category);
 									Hibernate.initialize(category.getUser());
+									Hibernate.initialize(category.getCategoryType());
+									Hibernate.initialize(category.getVisibility());
 									Hibernate.initialize(test.getNavLocation());
 								}
 							}
@@ -1310,6 +1407,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
 						}
@@ -1322,6 +1421,8 @@ public class TestsDao
 								Category category=test.getCategory();
 								Hibernate.initialize(category);
 								Hibernate.initialize(category.getUser());
+								Hibernate.initialize(category.getCategoryType());
+								Hibernate.initialize(category.getVisibility());
 							}
 						}
 					}
@@ -1520,6 +1621,8 @@ public class TestsDao
 									for (Test test:tests)
 									{
 										Hibernate.initialize(test.getCategory());
+										Hibernate.initialize(test.getCategory().getCategoryType());
+										Hibernate.initialize(test.getCategory().getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
@@ -1531,6 +1634,8 @@ public class TestsDao
 									for (Test test:tests)
 									{
 										Hibernate.initialize(test.getCategory());
+										Hibernate.initialize(test.getCategory().getCategoryType());
+										Hibernate.initialize(test.getCategory().getVisibility());
 										Hibernate.initialize(test.getAssessement());
 										Hibernate.initialize(test.getScoreType());
 										Hibernate.initialize(test.getNavLocation());
@@ -1542,6 +1647,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -1552,6 +1659,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getScoreType());
 								}
@@ -1564,6 +1673,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getNavLocation());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -1574,6 +1685,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getAssessement());
 									Hibernate.initialize(test.getNavLocation());
 								}
@@ -1584,6 +1697,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -1593,6 +1708,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getAssessement());
 							}
 						}
@@ -1606,6 +1723,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
 									Hibernate.initialize(test.getRedoQuestion());
@@ -1616,6 +1735,8 @@ public class TestsDao
 								for (Test test:tests)
 								{
 									Hibernate.initialize(test.getCategory());
+									Hibernate.initialize(test.getCategory().getCategoryType());
+									Hibernate.initialize(test.getCategory().getVisibility());
 									Hibernate.initialize(test.getScoreType());
 									Hibernate.initialize(test.getNavLocation());
 								}
@@ -1626,6 +1747,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getScoreType());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -1635,6 +1758,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getScoreType());
 							}
 						}
@@ -1646,6 +1771,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getNavLocation());
 								Hibernate.initialize(test.getRedoQuestion());
 							}
@@ -1655,6 +1782,8 @@ public class TestsDao
 							for (Test test:tests)
 							{
 								Hibernate.initialize(test.getCategory());
+								Hibernate.initialize(test.getCategory().getCategoryType());
+								Hibernate.initialize(test.getCategory().getVisibility());
 								Hibernate.initialize(test.getNavLocation());
 							}
 						}
@@ -1664,6 +1793,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 							Hibernate.initialize(test.getRedoQuestion());
 						}
 					}
@@ -1672,6 +1803,8 @@ public class TestsDao
 						for (Test test:tests)
 						{
 							Hibernate.initialize(test.getCategory());
+							Hibernate.initialize(test.getCategory().getCategoryType());
+							Hibernate.initialize(test.getCategory().getVisibility());
 						}
 					}
 				}
@@ -1830,6 +1963,61 @@ public class TestsDao
 			}
 		}
 		return tests;
+	}
+	
+	/**
+	 * Checks if exists a test with the indicated identifier.
+	 * @param id Identifier
+	 * @return true if exists a test with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkTestId(long id) throws DaoException
+	{
+		boolean testFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(t) from Test t Where t.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			testFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return testFound;
+	}
+	
+	/**
+	 * @param id Identifier
+	 * @return Last time the test has been modified
+	 * @throws DaoException
+	 */
+	public Date getTimeModifiedFromTestId(long id) throws DaoException
+	{
+		Date timeModified=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select t.timeModified from Test t Where t.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
+			timeModified=(Date)query.uniqueResult();
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return timeModified;
 	}
 	
 	//Inicia una sesión e inicia una transacción contra el dbms

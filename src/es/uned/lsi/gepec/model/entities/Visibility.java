@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 16-may-2012 16:24:00 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -45,7 +41,6 @@ public class Visibility implements java.io.Serializable {
 	private String visibility;
 	private boolean global;
 	private int level;
-	private Set<Category> categories = new HashSet<Category>(0);
 
 	public Visibility() {
 	}
@@ -56,12 +51,11 @@ public class Visibility implements java.io.Serializable {
 		this.level = level;
 	}
 
-	public Visibility(long id, String visibility, boolean global, int level,Set<Category> categories) {
+	public Visibility(long id, String visibility, boolean global, int level) {
 		this.id = id;
 		this.visibility = visibility;
 		this.global = global;
 		this.level = level;
-		this.categories = categories;
 	}
 
 	@Id
@@ -102,15 +96,6 @@ public class Visibility implements java.io.Serializable {
 		this.level = level;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "visibility")
-	public Set<Category> getCategories() {
-		return this.categories;
-	}
-
-	public void setCategories(Set<Category> categories) {
-		this.categories = categories;
-	}
-
 	/**
 	 * Set the fields of this visibility with the values from fields from other visibility.
 	 * @param otherVisibility Other visibility
@@ -125,6 +110,15 @@ public class Visibility implements java.io.Serializable {
 			setGlobal(otherVisibility.isGlobal());
 			setLevel(otherVisibility.getLevel());
 		}
+	}
+	
+	/**
+	 * @return A copy of this visibility.
+	 */
+	@Transient
+	public Visibility getVisibilityCopy()
+	{
+		return new Visibility(getId(),getVisibility(),isGlobal(),getLevel());
 	}
 	
 	@Override

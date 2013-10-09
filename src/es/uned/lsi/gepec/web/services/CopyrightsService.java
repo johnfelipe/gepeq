@@ -98,8 +98,7 @@ public class CopyrightsService implements Serializable
 		// We don't want caller accessing directly to a cached copyright so we return a copy
 		if (copyrightFromCache!=null)
 		{
-			copyright=new Copyright();
-			copyright.setFromOtherCopyright(copyrightFromCache);
+			copyright=copyrightFromCache.getCopyrightCopy();
 		}
 		return copyright;
 	}
@@ -144,8 +143,7 @@ public class CopyrightsService implements Serializable
 		// We don't want caller accessing directly to a cached copyright so we return a copy
 		if (copyrightFromCache!=null)
 		{
-			copyright=new Copyright();
-			copyright.setFromOtherCopyright(copyrightFromCache);
+			copyright=copyrightFromCache.getCopyrightCopy();
 		}
 		return copyright;
 	}
@@ -195,12 +193,7 @@ public class CopyrightsService implements Serializable
 		// We don't want caller accessing directly to cached copyrights so we return copies of all them
 		for (Copyright copyrightFromCache:COPYRIGHTS_CACHED)
 		{
-			Copyright copyright=null;
-			if (copyrightFromCache!=null)
-			{
-				copyright=new Copyright();
-				copyright.setFromOtherCopyright(copyrightFromCache);
-			}
+			Copyright copyright=copyrightFromCache.getCopyrightCopy();
 			copyrights.add(copyright);
 		}
 		return copyrights;

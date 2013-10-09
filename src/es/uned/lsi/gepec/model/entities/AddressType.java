@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 26-feb-2013 16:30:23 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -44,9 +40,7 @@ public class AddressType implements java.io.Serializable {
 	private long id;
 	private String type;
 	private String subtype;
-	private Set<SupportContact> supportContacts = new HashSet<SupportContact>(0);
-	private Set<Evaluator> evaluators = new HashSet<Evaluator>(0);
-
+	
 	public AddressType() {
 	}
 
@@ -54,15 +48,6 @@ public class AddressType implements java.io.Serializable {
 		this.id = id;
 		this.type = type;
 		this.subtype = subtype;
-	}
-
-	public AddressType(long id, String type, String subtype,
-			Set<SupportContact> supportContacts, Set<Evaluator> evaluators) {
-		this.id = id;
-		this.type = type;
-		this.subtype = subtype;
-		this.supportContacts = supportContacts;
-		this.evaluators = evaluators;
 	}
 
 	@Id
@@ -94,24 +79,6 @@ public class AddressType implements java.io.Serializable {
 		this.subtype = subtype;
 	}
 	
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "addressType")
-	public Set<SupportContact> getSupportContacts() {
-		return this.supportContacts;
-	}
-
-	public void setSupportContacts(Set<SupportContact> supportContacts) {
-		this.supportContacts = supportContacts;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "addressType")
-	public Set<Evaluator> getEvaluators() {
-		return this.evaluators;
-	}
-
-	public void setEvaluators(Set<Evaluator> evaluators) {
-		this.evaluators = evaluators;
-	}
-	
 	/**
 	 * Set the fields of this address type with the values from fields from other address type.
 	 * @param otherAddressType Other address type
@@ -125,6 +92,15 @@ public class AddressType implements java.io.Serializable {
 			setType(otherAddressType.getType());
 			setSubtype(otherAddressType.getSubtype());
 		}
+	}
+	
+	/**
+	 * @return A copy of this address type.
+	 */
+	@Transient
+	public AddressType getAddressTypeCopy()
+	{
+		return new AddressType(getId(),getType(),getSubtype());
 	}
 	
 	@Override

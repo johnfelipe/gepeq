@@ -30,7 +30,7 @@
       <h:form id="questionForm" onkeypress="preventEnterSubmit(event);">
         <p:tabView id="tabview">
           <p:ajax event="tabChange" listener="#{questionBean.changeActiveQuestionTab}" process="@this" 
-            update="@this questionForm:tabview:answersAccordion questionForm:tabview:feedbackAccordion:feedbacksTable questionForm:tabview:generalMessages questionForm:tabview:answersMessages questionForm:tabview:feedbackMessages" />
+            update="@this" />
           <p:tab id="general" title="#{msgs.COMMON_DATA}">
             <p:messages id="generalMessages" rendered="#{questionBean.activeQuestionTabName=='general'}" />
             <h:panelGrid columns="2" cellpadding="5" 
@@ -40,15 +40,30 @@
               <h:inputText id="nameInput" style="width:550px;" maxlength="50" 
                 value="#{questionBean.question.name}" />
               #{msgs.CATEGORY}
-              <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:550px;" 
-                value="#{questionBean.categoryId}" var="questionCategoryId">
-                
-                <f:selectItems value="#{questionBean.questionsCategoriesIds}" var="catId" 
-                  itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
-                <p:column>
-                  #{questionBean.getLocalizedCategoryLongName(questionCategoryId,65)}
-                </p:column>
-              </p:selectOneMenu>
+              <h:panelGroup>
+                <p:selectOneMenu id="categoryInput" styleClass="combo" style="width:530px;margin-right:5px;" 
+                  value="#{questionBean.categoryId}" var="questionCategoryId" disabledValueValidation="true">
+                  
+                  <f:selectItems value="#{questionBean.questionsCategoriesIds}" var="catId" 
+                    itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                  <p:column>
+                    #{questionBean.getLocalizedCategoryLongName(questionCategoryId,65)}
+                  </p:column>
+                </p:selectOneMenu>
+                <h:panelGroup style="display:inline-block;vertical-align:top;padding-top:6px;">
+                  <p:commandLink id="refreshQuestionCategoriesButton" 
+                    actionListener="#{questionBean.refreshQuestionCategories}" 
+                    update="questionForm:tabview:categoryInput questionForm:tabview:generalMessages" 
+                    onclick="refreshQuestionCategoriesTooltip.hide();">
+                    
+                    <h:graphicImage id="refreshQuestionCategoriesImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip widgetVar="refreshQuestionCategoriesTooltip" for="refreshQuestionCategoriesImage">
+                      #{msgs.REFRESH}
+                    </p:tooltip>
+                  </p:commandLink>
+                </h:panelGroup>
+              </h:panelGroup>
             </h:panelGrid>
             <h:panelGrid columns="4" cellpadding="5" 
               columnClasses="columnDifficultyLevelLabel,columnDifficultyLevelInput,columnAuthorLabel,columnAuthorInput" 
@@ -77,15 +92,18 @@
               #{msgs.IMAGE}
               <h:panelGroup id="questionResourceImage">
                 <p:commandButton id="selectNewImageButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
-                  actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog"
+                  actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                  update="selectImageDialog questionForm:tabview:generalMessages"
                   rendered="#{questionBean.question.resource==null}" />
                 <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                   rendered="#{questionBean.question.resource!=null}">
                   
-                  <p:graphicImage value="#{questionBean.question.resource.fileName}" width="35" height="20" />
+                  <h:graphicImage value="#{questionBean.question.resource.fileName}" styleClass="graphics" 
+                    width="35" height="20" />
                   <h:outputText style="margin-right:5px;" value="#{questionBean.question.resource.name}" />
                   <p:commandButton id="selectImageButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
-                    actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog" />
+                    actionListener="#{questionBean.showSelectImage}" immediate="true" 
+                    update="selectImageDialog questionForm:tabview:generalMessages" />
                 </h:panelGrid>
               </h:panelGroup>
             </h:panelGrid>
@@ -137,6 +155,8 @@
           <p:tab id="feedback" title="#{msgs.FEEDBACK}">
             <p:messages id="feedbackMessages" rendered="#{questionBean.activeQuestionTabName=='feedback'}" />
             <p:accordionPanel id="feedbackAccordion" styleClass="accordion">
+              <p:ajax event="tabChange" listener="#{questionBean.changeFeedbackTab}" process="@this" 
+                update="@this" />
               <p:tab title="#{msgs.CORRECT_FEEDBACK}" titletip="#{msgs.CORRECT_FEEDBACK_TIP}">
                 <p:inputTextarea id="correctFeedback" value="#{questionBean.question.correctFeedback}" 
                   maxHeight="200" styleClass="feedbackTextArea" />
@@ -152,8 +172,8 @@
                     <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                       rendered="#{questionBean.question.correctFeedbackResource!=null}">
                       
-                      <p:graphicImage value="#{questionBean.question.correctFeedbackResource.fileName}" width="35" 
-                        height="20" />
+                      <h:graphicImage value="#{questionBean.question.correctFeedbackResource.fileName}" 
+                        styleClass="graphics" width="35" height="20" />
                       <h:outputText style="margin-right:5px;" 
                         value="#{questionBean.question.correctFeedbackResource.name}" />
                       <p:commandButton id="selectCorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
@@ -177,8 +197,8 @@
                     <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                       rendered="#{questionBean.question.incorrectFeedbackResource!=null}">
                       
-                      <p:graphicImage value="#{questionBean.question.incorrectFeedbackResource.fileName}" width="35" 
-                        height="20" />
+                      <h:graphicImage value="#{questionBean.question.incorrectFeedbackResource.fileName}" 
+                        styleClass="graphics" width="35" height="20" />
                       <h:outputText style="margin-right:5px;" 
                         value="#{questionBean.question.incorrectFeedbackResource.name}" />
                       <p:commandButton id="selectIncorrectFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
@@ -221,8 +241,8 @@
                   </h:panelGroup>
                   <p:dataTable id="feedbacksTable" styleClass="feedbacksTable" rowStyleClass="dataRow" 
                     emptyMessage="#{msgs.NO_FEEDBACKS}" value="#{questionBean.feedbacks}" var="feedback" 
-                    paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                    paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+                    paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+                    rowsPerPageTemplate="10,25,50">
                     
                     <p:column styleClass="columnOrder" sortBy="#{feedback.position}">
                       <f:facet name="header"></f:facet>
@@ -246,8 +266,8 @@
                     </p:column>
                     <p:column styleClass="columnImage">
                       <f:facet name="header">#{msgs.IMAGE}</f:facet>
-                      <p:graphicImage value="#{feedback.resource.fileName}" width="35" height="20" 
-                        rendered="#{feedback.resource!=null}" />
+                      <h:graphicImage value="#{feedback.resource.fileName}" styleClass="graphics" width="35" 
+                        height="20" rendered="#{feedback.resource!=null}" />
                     </p:column>
                     <p:column styleClass="columnContent" sortBy="#{feedback.text}">
                       <f:facet name="header">#{msgs.CONTENT}</f:facet>
@@ -259,21 +279,25 @@
                       </p:tooltip>
                     </p:column>
                     <p:column styleClass="columnEdit">
-                      <p:commandLink actionListener="#{questionBean.showEditFeedback}" update="addFeedbackDialog">
+                      <p:commandLink actionListener="#{questionBean.showEditFeedback}" update="addFeedbackDialog"
+                        onclick="editFeedbackTooltip.hide();">
+                        
                         <f:attribute name="feedback" value="#{feedback}" />
                         <h:graphicImage id="editFeedbackImage" styleClass="links" 
                           value="#{resource['images:edit16.png']}" />
-                        <p:tooltip for="editFeedbackImage">
+                        <p:tooltip widgetVar="editFeedbackTooltip" for="editFeedbackImage">
                           #{msgs.EDIT_FEEDBACK}
                         </p:tooltip>
                       </p:commandLink>
                     </p:column>
                     <p:column styleClass="columnDelete">
-                      <p:commandLink actionListener="#{questionBean.removeFeedback}" update="@form">
+                      <p:commandLink actionListener="#{questionBean.removeFeedback}" update="@form"
+                        onclick="deleteFeedbackTooltip.hide();">
+                        
                         <f:attribute name="feedback" value="#{feedback}" />
                         <h:graphicImage id="deleteFeedbackImage" styleClass="links" 
                           value="#{resource['images:delete.png']}" />
-                        <p:tooltip for="deleteFeedbackImage">
+                        <p:tooltip widgetVar="deleteFeedbackTooltip" for="deleteFeedbackImage">
                           #{msgs.DELETE_FEEDBACK}
                         </p:tooltip> 
                       </p:commandLink> 
@@ -295,8 +319,8 @@
                     <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                       rendered="#{questionBean.question.passFeedbackResource!=null}">
                       
-                      <p:graphicImage value="#{questionBean.question.passFeedbackResource.fileName}" width="35" 
-                        height="20" />
+                      <h:graphicImage value="#{questionBean.question.passFeedbackResource.fileName}" 
+                        styleClass="graphics" width="35" height="20" />
                       <h:outputText style="margin-right:5px;" 
                         value="#{questionBean.question.passFeedbackResource.name}" />
                       <p:commandButton id="selectPassFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
@@ -320,8 +344,8 @@
                     <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                       rendered="#{questionBean.question.finalFeedbackResource!=null}">
                       
-                      <p:graphicImage value="#{questionBean.question.finalFeedbackResource.fileName}" width="35" 
-                        height="20" />
+                      <h:graphicImage value="#{questionBean.question.finalFeedbackResource.fileName}" 
+                        styleClass="graphics" width="35" height="20" />
                       <h:outputText style="margin-right:5px;" 
                         value="#{questionBean.question.finalFeedbackResource.name}" />
                       <p:commandButton id="selectFinalFeedbackImageButton" value="#{msgs.SELECT_IMAGE}" 
@@ -353,25 +377,38 @@
               columnClasses="categoryLabelColumn,categoryComboColumn,includeSubcategoriesLabelColumn,includeSubcategoriesOptionColumn">
             
               #{msgs.CATEGORY}
-              <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:450px;" panelStyle="width:550px;" 
-                value="#{questionBean.filterCategoryId}" var="filterCategoryId">
-                
-                <p:ajax event="change" process="imageDialogForm:imagesFilterPanel" 
-                  update="imageDialogForm:imagesFilterPanel" />
-                <f:selectItems value="#{questionBean.specialCategoriesFilters}" var="catFilter" 
-                  itemLabel="#{questionBean.getSpecialCategoryFilterName(catFilter)}" 
-                  itemValue="#{catFilter.id}" />
-                <f:selectItems value="#{questionBean.imagesCategoriesIds}" var="catId" 
-                  itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" 
-                  itemValue="#{catId}" />
-                <p:column>
-                  #{questionBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
-                </p:column>
-              </p:selectOneMenu>
-              <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" 
-                rendered="#{questionBean.filterCategoryId&gt;0}" />
-              <p:selectBooleanCheckbox id="includeSubcategories" 
-                value="#{questionBean.filterIncludeSubcategories}" 
+              <h:panelGroup>
+                <p:selectOneMenu id="filterCategoryId" styleClass="combo" style="width:430px;margin-right:5px;" 
+                  panelStyle="width:550px;" value="#{questionBean.filterCategoryId}" var="filterCategoryId" 
+                  disabledValueValidation="true">
+                  
+                  <p:ajax event="change" process="imageDialogForm:imagesFilterPanel" 
+                    update="imageDialogForm:imagesFilterPanel" />
+                  <f:selectItems value="#{questionBean.specialCategoriesFilters}" var="catFilter" 
+                    itemLabel="#{questionBean.getSpecialCategoryFilterName(catFilter)}" 
+                    itemValue="#{catFilter.id}" />
+                  <f:selectItems value="#{questionBean.imagesCategoriesIds}" var="catId" 
+                    itemLabel="#{questionBean.getLocalizedCategoryLongName(catId)}" itemValue="#{catId}" />
+                  <p:column>
+                    #{questionBean.getLocalizedCategoryFilterName(filterCategoryId,65)}
+                  </p:column>
+                </p:selectOneMenu>
+                <h:panelGroup style="display:inline-block;vertical-align:top;padding-top:6px;">
+                  <p:commandLink id="refreshImagesCategoriesButton" 
+                    actionListener="#{questionBean.refreshImagesCategories}" 
+                    update="imageDialogForm:imagesFilterPanel imageDialogForm:imagesMessages" 
+                    onclick="refreshImagesCategoriesTooltip.hide();">
+                    
+                    <h:graphicImage id="refreshImagesCategoriesImage" styleClass="links" 
+                      value="#{resource['images:reset.png']}" />
+                    <p:tooltip widgetVar="refreshImagesCategoriesTooltip" for="refreshImagesCategoriesImage">
+                      #{msgs.REFRESH}
+                    </p:tooltip>
+                  </p:commandLink>
+                </h:panelGroup>
+              </h:panelGroup>
+              <h:outputText value="#{msgs.INCLUDE_SUBCATEGORIES}" rendered="#{questionBean.filterCategoryId&gt;0}" />
+              <p:selectBooleanCheckbox id="includeSubcategories" value="#{questionBean.filterIncludeSubcategories}" 
                 rendered="#{questionBean.filterCategoryId&gt;0}" />
             </h:panelGrid>
             <h:panelGrid columns="5" cellpadding="3" 
@@ -396,7 +433,7 @@
               </p:selectOneMenu>
               <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
                 actionListener="#{questionBean.applyImagesFilter}" process="imageDialogForm:imagesFilterPanel" 
-                update="imageDialogForm:currentResource imageDialogForm:imagesMessages" />
+                update="imageDialogForm:currentResource imageDialogForm:imagesFilterPanel imageDialogForm:imagesMessages" />
             </h:panelGrid>
           </p:panel>
           
@@ -414,7 +451,8 @@
                     itemValue="#{im}" />
                   <f:converter converterId="ImageConverter" />
                   <p:column styleClass="columnLevel">
-                    <p:graphicImage value="#{r.fileName}" width="35" height="20" rendered="#{r.id&gt;0}" />
+                    <h:graphicImage value="#{r.fileName}" styleClass="graphics" width="35" height="20" 
+                      rendered="#{r.id&gt;0}" />
                   </p:column>
                   <p:column>
                     #{r.name}
@@ -423,6 +461,7 @@
               </h:panelGrid>
               <h:panelGroup layout="block" styleClass="columnImageGraphicsDisplay">
                 <h:graphicImage id="currentImagePreview" value="#{questionBean.currentResourceFileName}" 
+                  styleClass="graphics" 
                   width="#{questionBean.currentResourceWidthForPropertiesDialog}" 
                   height="#{questionBean.currentResourceHeightForPropertiesDialog}" />
               </h:panelGroup>
@@ -433,11 +472,9 @@
                   columnClasses="panelImagePropertiesInfoLabel,panelImagePropertiesInfoValue">
                   
                   #{msgs.NAME}:
-                  <h:outputText id="currentResourceImageName" 
-                    value="#{questionBean.currentResourceImageName}" />
+                  <h:outputText id="currentResourceImageName" value="#{questionBean.currentResourceImageName}" />
                   #{msgs.OWNER}:
-                  <h:outputText id="currentResourceImageUser" 
-                    value="#{questionBean.currentResourceImageUser}" />
+                  <h:outputText id="currentResourceImageUser" value="#{questionBean.currentResourceImageUser}" />
                   #{msgs.DESCRIPTION}:
                   <h:outputText id="currentResourceImageDescription" 
                     value="#{questionBean.currentResourceImageDescription}" />
@@ -494,9 +531,10 @@
               <h:panelGroup layout="block" styleClass="centerAlignBottom">
                 <p:commandButton value="#{msgs.ACCEPT}" styleClass="imageConfirmButtons" immediate="true" 
                   actionListener="#{questionBean.acceptSelectImage}" oncomplete="selectImageDialog.hide();" 
-                  update="questionForm:tabview:questionResourceImage questionForm:tabview:feedbackAccordion:questionCorrectFeedbackResourceImage questionForm:tabview:feedbackAccordion:questionIncorrectFeedbackResourceImage questionForm:tabview:feedbackAccordion:questionPassFeedbackResourceImage questionForm:tabview:feedbackAccordion:questionFinalFeedbackResourceImage questionForm:tabview:answersAccordion  questionForm:tabview:questionResourcesAccordion questionForm:tabview:draggableItemsAccordion feedbackDialogForm:feedbackResourceImage" />
+                  update="questionForm:tabview:questionResourceImage questionForm:tabview:feedbackAccordion questionForm:tabview:answersAccordion questionForm:tabview:questionResourcesAccordion questionForm:tabview:draggableItemsAccordion feedbackDialogForm:feedbackResourceImage" />
                 <p:commandButton value="#{msgs.CANCEL}" styleClass="imageConfirmButtons" immediate="true" 
-                  oncomplete="selectImageDialog.hide();" />
+                  actionListener="#{questionBean.cancelSelectImage}" oncomplete="selectImageDialog.hide();" 
+                  update="questionForm:tabview:questionResourceImage questionForm:tabview:feedbackAccordion questionForm:tabview:answersAccordion questionForm:tabview:questionResourcesAccordion questionForm:tabview:draggableItemsAccordion feedbackDialogForm:feedbackResourceImage" />
               </h:panelGroup>
             </h:panelGroup>
           </h:panelGrid>
@@ -517,7 +555,7 @@
                 #{questionBean.getNumberedAnswerName(answer)}
               </p:column>
               <p:column styleClass="columnImage">
-                <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" 
+                <h:graphicImage value="#{answer.resource.fileName}" styleClass="graphics" width="35" height="20" 
                   rendered="#{answer.resource!=null}" />
               </p:column>
               <p:column styleClass="columnAnswerText">
@@ -534,10 +572,10 @@
           </p:panel>
           <h:panelGroup layout="block" styleClass="centerAlignBottom">
             <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
-              actionListener="#{questionBean.acceptReSortAnswers}" 
-              oncomplete="resortAnswersDialog.hide();" />
+              actionListener="#{questionBean.acceptReSortAnswers}" oncomplete="resortAnswersDialog.hide();" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="resortAnswersDialog.hide();" />
+              actionListener="#{questionBean.cancelReSortAnswers}" oncomplete="resortAnswersDialog.hide();" 
+              update="questionForm:tabview:answersAccordion" />
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -557,8 +595,8 @@
                 #{questionBean.getNumberedDraggableItemName(draggableItem)}
               </p:column>
               <p:column styleClass="columnImage">
-                <p:graphicImage value="#{draggableItem.resource.fileName}" width="35" height="20" 
-                  rendered="#{draggableItem.resource!=null}" />
+                <h:graphicImage value="#{draggableItem.resource.fileName}" styleClass="graphics" width="35" 
+                  height="20" rendered="#{draggableItem.resource!=null}" />
               </p:column>
               <p:column styleClass="columnDraggableItemText">
                 <h:outputText value="#{questionBean.breakText(questionBean.abbreviate(questionBean.abbreviateWords(draggableItem.text,15),100),5)}" 
@@ -574,7 +612,9 @@
               actionListener="#{questionBean.acceptReSortDraggableItems}" 
               oncomplete="resortDraggableItemsDialog.hide();" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="resortDraggableItemsDialog.hide();" />
+              actionListener="#{questionForm.cancelReSortDraggableItems}" 
+              oncomplete="resortDraggableItemsDialog.hide();" 
+              update="questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -595,7 +635,7 @@
                 #{questionBean.getNumberedDroppableAnswerName(answer)}
               </p:column>
               <p:column styleClass="columnImage">
-                <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" 
+                <h:graphicImage value="#{answer.resource.fileName}" styleClass="graphics" width="35" height="20" 
                   rendered="#{answer.resource!=null}" />
               </p:column>
               <p:column styleClass="columnDroppableAnswerText">
@@ -615,7 +655,9 @@
               actionListener="#{questionBean.acceptReSortDroppableAnswers}" 
               oncomplete="resortDroppableAnswersDialog.hide();" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="resortDroppableAnswersDialog.hide();" />
+              actionListener="#{questionBean.cancelReSortDroppableAnswers}" 
+              oncomplete="resortDroppableAnswersDialog.hide();" 
+              update="questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -635,8 +677,8 @@
                 #{questionBean.getValidResourceName(questionResource)}
               </p:column>
               <p:column styleClass="columnImage">
-                <p:graphicImage value="#{questionResource.resource.fileName}" width="35" height="20" 
-                  rendered="#{questionResource.resource!=null}" />
+                <h:graphicImage value="#{questionResource.resource.fileName}" styleClass="graphics" width="35" 
+                  height="20" rendered="#{questionResource.resource!=null}" />
               </p:column>
             </p:orderList>
           </p:panel>
@@ -644,7 +686,8 @@
             <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
               actionListener="#{questionBean.acceptReSortResources}" oncomplete="resortResourcesDialog.hide();" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="resortResourcesDialog.hide();" />
+              actionListener="#{questionBean.cancelReSortResources}" oncomplete="resortResourcesDialog.hide();" 
+              update="questionForm:tabview:reSortResources questionForm:tabview:questionResourcesPanel" />
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -666,8 +709,8 @@
                 <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton"
                   rendered="#{questionBean.currentFeedback.resource!=null}">
                   
-                  <p:graphicImage value="#{questionBean.currentFeedback.resource.fileName}" width="35" 
-                    height="20" />
+                  <h:graphicImage value="#{questionBean.currentFeedback.resource.fileName}" styleClass="graphics" 
+                    width="35" height="20" />
                   <h:outputText style="margin-right:5px;" value="#{questionBean.currentFeedback.resource.name}" />
                   <p:commandButton id="selectImageFeedbackButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
                     actionListener="#{questionBean.showSelectImage}" immediate="true" update="selectImageDialog" />
@@ -1268,11 +1311,12 @@
             </ui:fragment>
           </p:panel>
           <h:panelGroup layout="block" styleClass="centerAlignBottom">
-            <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons"
-              actionListener="#{questionBean.acceptAddFeedback}" process="@form" 
-              update="@form questionForm:tabview:feedbackAccordion" />
+            <p:commandButton value="#{msgs.ACCEPT}" styleClass="confirmButtons" 
+              actionListener="#{questionBean.acceptAddFeedback}" oncomplete="addFeedbackDialog.hide();" 
+              process="@form" update="questionForm:tabview:feedbackAccordion" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="addFeedbackDialog.hide();" />
+              actionListener="#{questionBean.cancelAddFeedback}" oncomplete="addFeedbackDialog.hide();" 
+              update="questionForm:tabview:feedbackAccordion" />
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -1300,7 +1344,7 @@
                   value="#{questionBean.breakText(feedback.conditionString)}" escape="false" />
               </p:column>
               <p:column styleClass="columnImage">
-                <p:graphicImage value="#{feedback.resource.fileName}" width="35" height="20" 
+                <h:graphicImage value="#{feedback.resource.fileName}" styleClass="graphics" width="35" height="20" 
                   rendered="#{feedback.resource!=null}" />
               </p:column>
               <p:column styleClass="columnContent" sortBy="#{feedback.text}">
@@ -1311,10 +1355,10 @@
           </p:panel>
           <h:panelGroup layout="block" styleClass="centerAlignBottom">
             <p:commandButton ajax="false" value="#{msgs.ACCEPT}" styleClass="confirmButtons"
-              actionListener="#{questionBean.acceptReSortFeedbacks}" 
-              oncomplete="resortFeedbacksDialog.hide();" />
+              actionListener="#{questionBean.acceptReSortFeedbacks}" oncomplete="resortFeedbacksDialog.hide();" />
             <p:commandButton value="#{msgs.CANCEL}" styleClass="confirmButtons" 
-              onclick="resortFeedbacksDialog.hide();" />
+              actionListener="#{questionBean.cancelReSortFeedbacks}" oncomplete="resortFeedbacksDialog.hide();" 
+              update="questionForm:tabview:feedbackAccordion"/>
           </h:panelGroup>
         </h:form>
       </p:dialog>
@@ -1338,11 +1382,11 @@
             styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
             
             <h:panelGroup layout="block" style="text-align:right;">
-              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteAnswerDialog.hide();" 
-                actionListener="#{questionBean.removeAnswer}" 
-                update=":questionForm:tabview:answersAccordion" />
-              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteAnswerDialog.hide();" 
-                type="button" />
+              <p:commandButton value="#{msgs.YES}" actionListener="#{questionBean.removeAnswer}" 
+                oncomplete="confirmDeleteAnswerDialog.hide();"
+                update="questionForm:tabview:reSortAnswers questionForm:tabview:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" actionListener="#{questionBean.cancelConfirmRemoveAnswer}" 
+                oncomplete="confirmDeleteAnswerDialog.hide();" update="questionForm:tabview:answersAccordion" />
             </h:panelGroup>
           </h:panelGroup>
         </h:form>
@@ -1361,11 +1405,12 @@
             styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
             
             <h:panelGroup layout="block" style="text-align:right;">
-              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteDraggableItemDialog.hide();" 
-                actionListener="#{questionBean.removeDraggableItem}" 
+              <p:commandButton value="#{msgs.YES}" actionListener="#{questionBean.removeDraggableItem}" 
+                oncomplete="confirmDeleteDraggableItemDialog.hide();" 
                 update="questionForm:tabview:reSortDraggableItems questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
-              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteDraggableItemDialog.hide();" 
-                type="button" />
+              <p:commandButton value="#{msgs.NO}" actionListener="#{questionBean.cancelConfirmRemoveDraggableItem}" 
+                oncomplete="confirmDeleteDraggableItemDialog.hide();" 
+                update="questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
             </h:panelGroup>
           </h:panelGroup>
         </h:form>
@@ -1384,11 +1429,13 @@
             styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
             
             <h:panelGroup layout="block" style="text-align:right;">
-              <p:commandButton value="#{msgs.YES}" onclick="confirmDeleteDroppableAnswerDialog.hide();" 
-                actionListener="#{questionBean.removeDroppableAnswer}" 
-                update="questionForm:tabview:reSortDroppableAnswers questionForm:tabview:answersAccordion" />
-              <p:commandButton value="#{msgs.NO}" onclick="confirmDeleteDroppableAnswerDialog.hide();" 
-                type="button" />
+              <p:commandButton value="#{msgs.YES}" actionListener="#{questionBean.removeDroppableAnswer}" 
+                oncomplete="confirmDeleteDroppableAnswerDialog.hide();" 
+                update="questionForm:tabview:reSortDroppableAnswers questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" 
+                actionListener="#{questionBean.cancelConfirmRemoveDroppableAnswer}" 
+                oncomplete="confirmDeleteDroppableAnswerDialog.hide();" 
+                update="questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
             </h:panelGroup>
           </h:panelGroup>
         </h:form>
@@ -1407,18 +1454,20 @@
             styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
             
             <h:panelGroup layout="block" style="text-align:right;">
-              <p:commandButton value="#{msgs.YES}" onclick="confirmChangePropertyDialog.hide();"
-                actionListener="#{questionBean.confirmChangeProperty}" update=":questionForm" />
-              <p:commandButton value="#{msgs.NO}" onclick="confirmChangePropertyDialog.hide();" 
-                actionListener="#{questionBean.rollbackProperty}" update=":questionForm" />
+              <p:commandButton value="#{msgs.YES}" actionListener="#{questionBean.confirmChangeProperty}"
+                oncomplete="confirmChangePropertyDialog.hide();" 
+                update="questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
+              <p:commandButton value="#{msgs.NO}" actionListener="#{questionBean.rollbackProperty}" 
+                oncomplete="confirmChangePropertyDialog.hide();"
+                update="questionForm:tabview:singleResponse questionForm:tabview:infinite questionForm:tabview:draggableItemsAccordion questionForm:tabview:answersAccordion" />
             </h:panelGroup>
           </h:panelGroup>
         </h:form>
       </p:dialog>
       
-      <p:dialog widgetVar="confirmCancelQuestionDialog" id="confirmCancelQuestionDialog"
-        styleClass="dialog" header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false"
-        resizable="false" onShow="centerDialog('confirmCancelQuestionDialog');">
+      <p:dialog widgetVar="confirmCancelQuestionDialog" id="confirmCancelQuestionDialog" styleClass="dialog" 
+        header="#{msgs.CONFIRM}" modal="true" closable="false" draggable="false" resizable="false" 
+        onShow="centerDialog('confirmCancelQuestionDialog');">
         
         <p>
           <h:panelGroup styleClass="ui-icon ui-icon-alert ui-confirm-dialog-severity" />
@@ -1430,7 +1479,9 @@
             
             <h:panelGroup layout="block" style="text-align:right;">
               <p:commandButton value="#{msgs.YES}" ajax="false" action="#{questionBean.cancelQuestion}" />
-              <p:commandButton value="#{msgs.NO}" onclick="confirmCancelQuestionDialog.hide();" type="button" />
+              <p:commandButton value="#{msgs.NO}" actionListener="#{questionBean.abortCancelQuestion}" 
+                oncomplete="confirmCancelQuestionDialog.hide();" 
+                update="questionForm:tabview:questionResourceImage questionForm:tabview:answersAccordion questionForm:tabview:draggableItemsAccordion questionForm:tabview:questionResourcesAccordion questionForm:tabview:feedbackAccordion" />
             </h:panelGroup>
           </h:panelGroup>
         </h:form>

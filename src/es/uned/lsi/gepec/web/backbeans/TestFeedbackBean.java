@@ -26,7 +26,6 @@ import es.uned.lsi.gepec.model.entities.Section;
 import es.uned.lsi.gepec.model.entities.Test;
 import es.uned.lsi.gepec.model.entities.TestFeedback;
 import es.uned.lsi.gepec.util.HtmlUtils;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.TestBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 import es.uned.lsi.gepec.web.services.LocalizationService;
@@ -44,7 +43,7 @@ public class TestFeedbackBean implements Serializable
 	
 	public TestFeedbackBean(TestBean test)
 	{
-		this(test,test.getFeedbacks(test.getCurrentUserOperation(null)).size()+1);
+		this(test,test.getFeedbacks().size()+1);
 	}
 	
 	public TestFeedbackBean(TestBean test,int position)
@@ -118,11 +117,6 @@ public class TestFeedbackBean implements Serializable
 	
 	public String getConditionString()
 	{
-		return getConditionString(null);
-	}
-	
-	private String getConditionString(Operation operation)
-	{
 		StringBuffer conditionString=new StringBuffer();
         ELContext elContext=FacesContext.getCurrentInstance().getELContext();
         LocalizationService localizationService=(LocalizationService)FacesContext.getCurrentInstance().
@@ -132,8 +126,7 @@ public class TestFeedbackBean implements Serializable
 		if (condition.getSection()!=null)
 		{
 			conditionString.append('(');
-			conditionString.append(
-				test.getNumberedSectionName(test.getCurrentUserOperation(operation),condition.getSection()));
+			conditionString.append(test.getNumberedSectionName(condition.getSection()));
 			conditionString.append(") "); 
 		}
 		if (NumberComparator.compareU(condition.getComparator(),NumberComparator.EQUAL))
@@ -202,21 +195,6 @@ public class TestFeedbackBean implements Serializable
 	 */
 	public void setFromTestFeedback(TestFeedback testFeedback)
 	{
-		setFromTestFeedback(null,testFeedback);
-	}
-	
-	/**
-	 * Set test feedback bean fields from a TestFeedback object.<br/><br/>
-	 * <b>IMPORTANT:</b> This method considers that sections beans from the test bean of this 
-	 * test feedback bean have been initialized, otherwise its fields will be initialized incorrectly.
-	 * @param operation Operation
-	 * @param testFeedback Test feedback object
-	 */
-	public void setFromTestFeedback(Operation operation,TestFeedback testFeedback)
-	{
-		// Get current user session Hibernate operation
-		operation=test.getCurrentUserOperation(operation);
-		
 		setId(testFeedback.getId());
 		setHtmlContent(testFeedback.getText());
 		setPosition(testFeedback.getPosition());
@@ -225,7 +203,7 @@ public class TestFeedbackBean implements Serializable
 		SectionBean section=null;
 		if (testFeedbackSection!=null)
 		{
-			for (SectionBean s:test.getSections(operation))
+			for (SectionBean s:test.getSections())
 			{
 				if (s.getId()>0L && testFeedbackSection.getId()>0L)
 				{
@@ -247,7 +225,7 @@ public class TestFeedbackBean implements Serializable
 		}
 		getCondition().setSection(section);
 		getCondition().setUnit(testFeedback.getScoreUnit().getUnit());
-		int maxConditionalValue=getCondition().getMaxConditionalValue(operation);
+		int maxConditionalValue=getCondition().getMaxConditionalValue();
 		int minValue=testFeedback.getMinvalue().intValue();
 		int maxValue=testFeedback.getMaxvalue().intValue();
 		getCondition().setConditionalCmp(0);
@@ -323,19 +301,6 @@ public class TestFeedbackBean implements Serializable
 	 */
 	public TestFeedback getAsTestFeedback(Test test)
 	{
-		return getAsTestFeedback(null,test);
-	}
-	
-	/**
-	 * Get a TestFeedback object with data from this test feedback bean.<br/><br/>
-	 * <b>IMPORTANT:</b> This method considers that Section objects from the received Test object 
-	 * have been initialized, otherwise fields of the TestFeedback object will be initialized incorrectly.
-	 * @param operation Operation
-	 * @param test Test object
-	 * @return TestFeedback object with data from this test feedback bean
-	 */
-	public TestFeedback getAsTestFeedback(Operation operation,Test test)
-	{
 		TestFeedback testFeedback=new TestFeedback();
 		testFeedback.setId(getId());
 		testFeedback.setTest(test);
@@ -366,8 +331,7 @@ public class TestFeedbackBean implements Serializable
 			}
 		}
 		testFeedback.setSection(section);
-		testFeedback.setScoreUnit(
-			this.test.getScoreUnit(this.test.getCurrentUserOperation(operation),getCondition().getUnit()));
+		testFeedback.setScoreUnit(this.test.getScoreUnit(getCondition().getUnit()));
 		testFeedback.setMinvalue(new Integer(getCondition().getMinValue()));
 		testFeedback.setMaxvalue(new Integer(getCondition().getMaxValue()));
 		return testFeedback;

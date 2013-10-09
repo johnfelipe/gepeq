@@ -103,4 +103,47 @@ public class MultichoiceQuestion extends Question {
 			setShuffle(((MultichoiceQuestion)otherQuestion).getShuffle());
 		}
 	}
+	
+	@Transient
+	@Override
+	public Question getQuestionCopy()
+	{
+		MultichoiceQuestion multichoiceQuestion=new MultichoiceQuestion(isSingle(),getShuffle());
+		multichoiceQuestion.setId(getId());
+		multichoiceQuestion.setVersion(getVersion());
+		multichoiceQuestion.setCategory(getCategory());
+		multichoiceQuestion.setResource(getResource());
+		multichoiceQuestion.setCorrectFeedbackResource(getCorrectFeedbackResource());
+		multichoiceQuestion.setIncorrectFeedbackResource(getIncorrectFeedbackResource());
+		multichoiceQuestion.setPassFeedbackResource(getPassFeedbackResource());
+		multichoiceQuestion.setFinalFeedbackResource(getFinalFeedbackResource());
+		multichoiceQuestion.setName(getName());
+		multichoiceQuestion.setQuestionText(getQuestionText());
+		multichoiceQuestion.setType(getType());
+		multichoiceQuestion.setCreatedBy(getCreatedBy());
+		multichoiceQuestion.setModifiedBy(getModifiedBy());
+		multichoiceQuestion.setTimecreated(getTimecreated());
+		multichoiceQuestion.setTimemodified(getTimemodified());
+		multichoiceQuestion.setTimebuild(getTimebuild());
+		multichoiceQuestion.setTimedeploy(getTimedeploy());
+		multichoiceQuestion.setTimepublished(getTimepublished());
+		multichoiceQuestion.setCorrectFeedback(getCorrectFeedback());
+		multichoiceQuestion.setIncorrectFeedback(getIncorrectFeedback());
+		multichoiceQuestion.setStillFeedback(getStillFeedback());
+		multichoiceQuestion.setPassFeedback(getPassFeedback());
+		multichoiceQuestion.setAnswerFeedback(getAnswerFeedback());
+		multichoiceQuestion.setLevel(getLevel());
+		multichoiceQuestion.setResourceWidth(getResourceWidth());
+		multichoiceQuestion.setResourceHeight(getResourceHeight());
+		multichoiceQuestion.setCorrectFeedbackResourceWidth(getCorrectFeedbackResourceWidth());
+		multichoiceQuestion.setCorrectFeedbackResourceHeight(getCorrectFeedbackResourceHeight());
+		multichoiceQuestion.setIncorrectFeedbackResourceWidth(getIncorrectFeedbackResourceWidth());
+		multichoiceQuestion.setIncorrectFeedbackResourceHeight(getIncorrectFeedbackResourceHeight());
+		multichoiceQuestion.setPassFeedbackResourceWidth(getPassFeedbackResourceWidth());
+		multichoiceQuestion.setPassFeedbackResourceHeight(getPassFeedbackResourceHeight());
+		multichoiceQuestion.setFinalFeedbackResourceWidth(getFinalFeedbackResourceWidth());
+		multichoiceQuestion.setFinalFeedbackResourceHeight(getFinalFeedbackResourceHeight());
+		multichoiceQuestion.setDisplayEquations(isDisplayEquations());
+		return multichoiceQuestion;
+	}
 }

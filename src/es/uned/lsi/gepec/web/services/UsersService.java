@@ -31,7 +31,10 @@ import javax.faces.bean.ManagedProperty;
 import es.uned.lsi.encryption.PasswordDigester;
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.UsersDao;
+import es.uned.lsi.gepec.model.entities.AddressType;
 import es.uned.lsi.gepec.model.entities.Category;
+import es.uned.lsi.gepec.model.entities.Evaluator;
+import es.uned.lsi.gepec.model.entities.SupportContact;
 import es.uned.lsi.gepec.model.entities.TestUser;
 import es.uned.lsi.gepec.model.entities.User;
 import es.uned.lsi.gepec.model.entities.UserPermission;
@@ -58,6 +61,10 @@ public class UsersService implements Serializable
 	private UserPermissionsService userPermissionsService;
 	@ManagedProperty(value="#{testUsersService}")
 	private TestUsersService testUsersService;
+	@ManagedProperty(value="#{supportContactsService}")
+	private SupportContactsService supportContactsService;
+	@ManagedProperty(value="#{evaluatorsService}")
+	private EvaluatorsService evaluatorsService;
 	@ManagedProperty(value="#{categoriesService}")
 	private CategoriesService categoriesService;
 	@ManagedProperty(value="#{categoryTypesService}")
@@ -81,6 +88,16 @@ public class UsersService implements Serializable
 	public void setTestUsersService(TestUsersService testUsersService)
 	{
 		this.testUsersService=testUsersService;
+	}
+	
+	public void setSupportContactsService(SupportContactsService supportContactsService)
+	{
+		this.supportContactsService=supportContactsService;
+	}
+	
+	public void setEvaluatorsService(EvaluatorsService evaluatorsService)
+	{
+		this.evaluatorsService=evaluatorsService;
 	}
 	
 	public void setCategoriesService(CategoriesService categoriesService)
@@ -137,14 +154,16 @@ public class UsersService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get user from DB
 			USERS_DAO.setOperation(operation);
-			User userFromDB=USERS_DAO.getUser(id);
-			
+			User userFromDB=USERS_DAO.getUser(id,true);
 			if (userFromDB!=null)
 			{
-				// As we need to change some fields it is better to use a copy
-				user=new User();
-				user.setFromOtherUser(userFromDB);
+				user=userFromDB.getUserCopy();
+				if (userFromDB.getUserType()!=null)
+				{
+					user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+				}
 				
 				// We need to get permissions of this user
 				user.setUserPermissions(userPermissionsService.getUserPermissions(operation,id));
@@ -196,17 +215,19 @@ public class UsersService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get user from DB
 			USERS_DAO.setOperation(operation);
 			User userFromDB=USERS_DAO.getUserFromOucu(oucu);
-			
 			if (userFromDB!=null)
 			{
-				// As we need to change some fields it is better to use a copy
-				user=new User();
-				user.setFromOtherUser(userFromDB);
+				user=userFromDB.getUserCopy();
+				if (userFromDB.getUserType()!=null)
+				{
+					user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+				}
 				
 				// We need to get permissions of this user
-				user.setUserPermissions(userPermissionsService.getUserPermissions(operation,user));
+				user.setUserPermissions(userPermissionsService.getUserPermissions(operation,user.getId()));
 				
 				// Password is set to empty string before returning instance for security reasons
 				user.setPassword("");
@@ -363,8 +384,7 @@ public class UsersService implements Serializable
 			}
 			
 			List<UserPermission> userPermissionsFromDB=
-				userPermissionsService.getUserPermissions(operation,user);
-			
+				userPermissionsService.getUserPermissions(operation,user.getId());
 			if (user.isGepeqUser())
 			{
 				// We delete removed permissions of the user from DB 
@@ -381,10 +401,7 @@ public class UsersService implements Serializable
 				{
 					if (userPermissionsFromDB.contains(userPermission))
 					{
-						UserPermission userPermissionFromDB=
-							userPermissionsFromDB.get(userPermissionsFromDB.indexOf(userPermission));
-						userPermissionFromDB.setFromOtherUserPermission(userPermission);
-						userPermissionsService.updateUserPermission(operation,userPermissionFromDB);
+						userPermissionsService.updateUserPermission(operation,userPermission);
 					}
 					else
 					{
@@ -404,33 +421,6 @@ public class UsersService implements Serializable
 				}
 			}
 			
-			// We get tests of an user
-			List<TestUser> userTestsFromDB=testUsersService.getUserTests(operation,user);
-			
-			// We delete removed users of a test from DB
-			for (TestUser userTest:userTestsFromDB)
-			{
-				if (!user.getUserTests().contains(userTest))
-				{
-					testUsersService.deleteTestUser(operation,userTest);
-				}
-			}
-			
-			// We add/update users of a test on DB
-			for (TestUser userTest:user.getUserTests())
-			{
-				if (userTestsFromDB.contains(userTest))
-				{
-					TestUser userTestFromDB=userTestsFromDB.get(userTestsFromDB.indexOf(userTest));
-					userTestFromDB.setFromOtherTestUser(userTest);
-					testUsersService.updateTestUser(operation,userTestFromDB);
-				}
-				else
-				{
-					testUsersService.addTestUser(operation,userTest);
-				}
-			}
-			
 			// We get user from DB
 			USERS_DAO.setOperation(operation);
 			User userFromDB=USERS_DAO.getUser(user.getId(),false);
@@ -438,20 +428,21 @@ public class UsersService implements Serializable
 			// We never change OUCU
 			user.setOucu(userFromDB.getOucu());
 			
-			// We get digested user password
-			String digestedUserPassword=null;
 			if (updatePassword)
 			{
-				digestedUserPassword=PasswordDigester.digest(user.getPassword());
+				// We need to digest the new password before saving it to DB
+				user.setPassword(PasswordDigester.digest(user.getPassword()));
 			}
 			else
 			{
-				digestedUserPassword=userFromDB.getPassword();
+				// As we are not going to update password we keep the digest for the current password
+				user.setPassword(userFromDB.getPassword());
 			}
 			
-			// We update user on DB
+			// Set fields with the updated values
 			userFromDB.setFromOtherUser(user);
-			userFromDB.setPassword(digestedUserPassword);
+			
+			// Update user
 			USERS_DAO.setOperation(operation);
 			USERS_DAO.updateUser(userFromDB);
 			
@@ -508,12 +499,14 @@ public class UsersService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// We need to work with a copy of the user because it is needed to digest password before creating
+			// the new user but we want to keep the password without digesting within the user received as argument
+			User userToAdd=user.getUserCopy();
+			
 			// We generate user's OUCU
-			generateUnusedOucuForUser(operation,user);
+			generateUnusedOucuForUser(operation,userToAdd);
 			
 			// We need to digest password before adding user
-			User userToAdd=new User();
-			userToAdd.setFromOtherUser(user);
 			userToAdd.setPassword(PasswordDigester.digest(user.getPassword()));
 			
 			// We need to include user permissions
@@ -522,8 +515,7 @@ public class UsersService implements Serializable
 			{
 				for (UserPermission userPermission:user.getUserPermissions())
 				{
-					UserPermission userPermissionToAdd=new UserPermission();
-					userPermissionToAdd.setFromOtherUserPermission(userPermission);
+					UserPermission userPermissionToAdd=userPermission.getUserPermissionCopy();
 					userPermissionToAdd.setUser(userToAdd);
 					userPermissionsToAdd.add(userPermissionToAdd);
 				}
@@ -532,21 +524,17 @@ public class UsersService implements Serializable
 			
 			// We add user with the digested password 
 			USERS_DAO.setOperation(operation);
-			long userId=USERS_DAO.saveUser(userToAdd);
+			USERS_DAO.saveUser(userToAdd);
 			
 			// If user is a GEPEQ user we also need to create a default category for the user
-			if (user.isGepeqUser())
+			if (userToAdd.isGepeqUser())
 			{
-				// We get new created user from DB
-				USERS_DAO.setOperation(operation);
-				User userFromDB=USERS_DAO.getUser(userId);
-				
 				// We create a default category for the user
 				Category defaultCategory=new Category();
 				defaultCategory.setName("DEFAULT_CATEGORY");
 				defaultCategory.setDescription("SYSTEM_CATEGORY");
 				defaultCategory.setParent(null);
-				defaultCategory.setUser(userFromDB);
+				defaultCategory.setUser(userToAdd);
 				defaultCategory.setDefaultCategory(true);
 				defaultCategory.setCategoryType(
 					categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_GENERAL"));
@@ -578,6 +566,88 @@ public class UsersService implements Serializable
 				HibernateUtil.endOperation(operation);
 			}
 		}
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param user User
+	 * @return List of support contacts with references to an user removed
+	 */
+	private List<SupportContact> getSupportContactsWithUserReferenceRemoved(Operation operation,User user)
+	{
+		List<SupportContact> supportContactsWithUserReferenceRemoved=new ArrayList<SupportContact>();
+		for (SupportContact supportContact:supportContactsService.getSupportContacts(operation,0L))
+		{
+			AddressType addressType=supportContact.getAddressType();
+			if ("USER_FILTER".equals(addressType.getType()) && "USERS_SELECTION".equals(addressType.getSubtype()) && 
+				supportContact.getFilterValue().contains(user.getOucu()))
+			{
+   				boolean addToList=false;
+				StringBuffer filterValue=new StringBuffer();
+   				for (String sOUCU:supportContact.getFilterValue().split(Pattern.quote(",")))
+   				{
+   					if (user.getOucu().equals(sOUCU))
+   					{
+   						addToList=true;
+   					}
+   					else
+   					{
+						if (filterValue.length()>0)
+						{
+							filterValue.append(',');
+						}
+   						filterValue.append(sOUCU);
+   					}
+   				}
+   				if (addToList)
+   				{
+   					supportContact.setFilterValue(filterValue.toString());
+   					supportContactsWithUserReferenceRemoved.add(supportContact);
+   				}
+			}
+		}
+		return supportContactsWithUserReferenceRemoved;
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param user User
+	 * @return List of evaluators with references to an user removed
+	 */
+	private List<Evaluator> getEvaluatorsWithUserReferenceRemoved(Operation operation,User user)
+	{
+		List<Evaluator> evaluatorsWithUserReferenceRemoved=new ArrayList<Evaluator>();
+		for (Evaluator evaluator:evaluatorsService.getEvaluators(operation,0L))
+		{
+			AddressType addressType=evaluator.getAddressType();
+			if ("USER_FILTER".equals(addressType.getType()) && "USERS_SELECTION".equals(addressType.getSubtype()) && 
+				evaluator.getFilterValue().contains(user.getOucu()))
+			{
+   				boolean addToList=false;
+				StringBuffer filterValue=new StringBuffer();
+   				for (String sOUCU:evaluator.getFilterValue().split(Pattern.quote(",")))
+   				{
+   					if (user.getOucu().equals(sOUCU))
+   					{
+   						addToList=true;
+   					}
+   					else
+   					{
+						if (filterValue.length()>0)
+						{
+							filterValue.append(',');
+						}
+   						filterValue.append(sOUCU);
+   					}
+   				}
+   				if (addToList)
+   				{
+   					evaluator.setFilterValue(filterValue.toString());
+   					evaluatorsWithUserReferenceRemoved.add(evaluator);
+   				}
+			}
+		}
+		return evaluatorsWithUserReferenceRemoved;
 	}
 	
 	//Elimina un usuario
@@ -628,11 +698,25 @@ public class UsersService implements Serializable
 				categoriesService.deleteCategory(operation,category);
 			}
 			
-			// We need to get user from DB
+			// We also need to delete all references to this user
+			for (TestUser testUser:testUsersService.getUserTests(operation,user.getId()))
+			{
+				testUsersService.deleteTestUser(operation,testUser);
+			}
+			for (SupportContact supportContact:getSupportContactsWithUserReferenceRemoved(operation,user))
+			{
+   				supportContactsService.updateSupportContact(operation,supportContact);
+			}
+			for (Evaluator evaluator:getEvaluatorsWithUserReferenceRemoved(operation,user))
+			{
+				evaluatorsService.updateEvaluator(operation,evaluator);
+			}
+			
+			// Get user from DB
 			USERS_DAO.setOperation(operation);
 			User userFromDB=USERS_DAO.getUser(user.getId());
 			
-			// We delete user
+			// Delete user
 			USERS_DAO.setOperation(operation);
 			USERS_DAO.deleteUser(userFromDB);
 			
@@ -674,28 +758,23 @@ public class UsersService implements Serializable
 		throws ServiceException
 	{
 		List<User> users=new ArrayList<User>();
-		boolean singleOp=operation==null;
 		try
 		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
+			// We get users from DB
 			USERS_DAO.setOperation(operation);
 			List<User> usersFromDB=USERS_DAO.getUsers(userTypeId,includeOmUsers,true,sortedByLogin);
 			
+			// We return new referenced users within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
 			for (User userFromDB:usersFromDB)
 			{
-				// As we need to change some fields it is better to use a copy
-				User user=new User();
-				user.setFromOtherUser(userFromDB);
+				User user=userFromDB.getUserCopy();
+				if (userFromDB.getUserType()!=null)
+				{
+					user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+				}
 				
-				// We need to get permissions of users
-				user.setUserPermissions(userPermissionsService.getUserPermissions(operation,user));
-				
-				// Users passwords are set to empty string before returning instances for security reasons
+				// Password is set to empty string before returning instance for security reasons
 				user.setPassword("");
 				
 				// We add user to users list
@@ -705,14 +784,6 @@ public class UsersService implements Serializable
 		catch (DaoException de)
 		{
 			throw new ServiceException(de.getMessage(),de);
-		}
-		finally
-		{
-			if (singleOp)
-			{	
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
 		}
 		return users;
 	}
@@ -820,28 +891,19 @@ public class UsersService implements Serializable
 		throws ServiceException
 	{
 		List<User> users=new ArrayList<User>();
-		boolean singleOp=operation==null;
 		try
 		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
+			// We get users without user type from DB
 			USERS_DAO.setOperation(operation);
-			List<User> usersFromDB=USERS_DAO.getUsersWithoutUserType(includeOmUsers,true,sortedByLogin);
+			List<User> usersFromDB=USERS_DAO.getUsersWithoutUserType(includeOmUsers,sortedByLogin);
 			
+			// We return new referenced users without user type within a new list to avoid 
+			// shared collection references and object references to unsaved transient instances
 			for (User userFromDB:usersFromDB)
 			{
-				// As we need to change some fields it is better to use a copy
-				User user=new User();
-				user.setFromOtherUser(userFromDB);
+				User user=userFromDB.getUserCopy();
 				
-				// We need to get permissions of users
-				user.setUserPermissions(userPermissionsService.getUserPermissions(operation,user));
-				
-				// Users passwords are set to empty string before returning instances for security reasons
+				// Password is set to empty string before returning instance for security reasons
 				user.setPassword("");
 				
 				// We add user to users list
@@ -851,14 +913,6 @@ public class UsersService implements Serializable
 		catch (DaoException de)
 		{
 			throw new ServiceException(de.getMessage(),de);
-		}
-		finally
-		{
-			if (singleOp)
-			{	
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
 		}
 		return users;
 	}
@@ -944,9 +998,9 @@ public class UsersService implements Serializable
 	 * @return true if exists an user with the indicated login, false otherwise
 	 * @throws ServiceException
 	 */
-	public boolean checkUser(String login) throws ServiceException
+	public boolean checkUserLogin(String login) throws ServiceException
 	{
-		return checkUser(null,login);
+		return checkUserLogin(null,login);
 	}
 	
 	/**
@@ -956,13 +1010,46 @@ public class UsersService implements Serializable
 	 * @return true if exists an user with the indicated login, false otherwise
 	 * @throws ServiceException
 	 */
-	public boolean checkUser(Operation operation,String login) throws ServiceException
+	public boolean checkUserLogin(Operation operation,String login) throws ServiceException
 	{
 		boolean userFound=false;
 		try
 		{
 			USERS_DAO.setOperation(operation);
-			userFound=USERS_DAO.checkUser(login);
+			userFound=USERS_DAO.checkUserLogin(login);
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return userFound;
+	}
+	
+	/**
+	 * Checks if exists an user with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists an user with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkUserId(long id) throws ServiceException
+	{
+		return checkUserId(null,id);
+	}
+	
+	/**
+	 * Checks if exists an user with the indicated identifier
+	 * @param operation Operation
+	 * @param id Identifier
+	 * @return true if exists an user with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkUserId(Operation operation,long id) throws ServiceException
+	{
+		boolean userFound=false;
+		try
+		{
+			USERS_DAO.setOperation(operation);
+			userFound=USERS_DAO.checkUserId(id);
 		}
 		catch (DaoException de)
 		{
@@ -990,33 +1077,36 @@ public class UsersService implements Serializable
 	public List<String> getGroups(Operation operation,long userId) throws ServiceException
 	{
 		List<String> groups=new ArrayList<String>();
-		List<User> users=null;
-		if (userId>0L)
+		List<User> usersFromDB=null;
+		try
 		{
-			users=new ArrayList<User>();
-			try
+			if (userId>0L)
 			{
+				usersFromDB=new ArrayList<User>();
+					// Get user from DB
+					USERS_DAO.setOperation(operation);
+					User userFromDB=USERS_DAO.getUser(userId,false);
+					if (userFromDB!=null)
+					{
+						usersFromDB.add(userFromDB);
+					}
+			}
+			else
+			{
+				// Get all users from DB
 				USERS_DAO.setOperation(operation);
-				User user=USERS_DAO.getUser(userId,false);
-				if (user!=null)
-				{
-					users.add(user);
-				}
-			}
-			catch (DaoException de)
-			{
-				throw new ServiceException(de.getMessage(),de);
+				usersFromDB=USERS_DAO.getUsers(0,true,false,false);
 			}
 		}
-		else
+		catch (DaoException de)
 		{
-			users=getUsers(operation,0L,true,false);
+			throw new ServiceException(de.getMessage(),de);
 		}
-		for (User user:users)
+		for (User userFromDB:usersFromDB)
 		{
-			if (user.getGroups()!=null && !"".equals(user.getGroups()))
+			if (userFromDB.getGroups()!=null && !"".equals(userFromDB.getGroups()))
 			{
-				for (String userGroup:user.getGroups().split(Pattern.quote(";")))
+				for (String userGroup:userFromDB.getGroups().split(Pattern.quote(";")))
 				{
 					if (!groups.contains(userGroup))
 					{
@@ -1064,30 +1154,63 @@ public class UsersService implements Serializable
 	 * @return List of users filtered by group
 	 * @throws ServiceException
 	 */
-	public List<User> getUsersWithGroup(Operation operation,String group)
+	public List<User> getUsersWithGroup(Operation operation,String group) throws ServiceException
 	{
 		List<User> usersWithGroup=new ArrayList<User>();
-		List<User> users=getUsers(operation,0L,true,false);
+		List<User> usersFromDB=null;
+		try
+		{
+			// Get all users from DB
+			USERS_DAO.setOperation(operation);
+			usersFromDB=USERS_DAO.getUsers(0,true,true,false);
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
 		if (group==null)
 		{
-			for (User user:users)
+			for (User userFromDB:usersFromDB)
 			{
-				if (user.getGroups()==null || "".equals(user.getGroups()))
+				if (userFromDB.getGroups()==null || "".equals(userFromDB.getGroups()))
 				{
+					// We return new referenced users without group within a new list to avoid 
+					// shared collection references and object references to unsaved transient instances
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
 					usersWithGroup.add(user);
 				}
 			}
 		}
 		else
 		{
-			for (User user:users)
+			for (User userFromDB:usersFromDB)
 			{
-				if (user.getGroups()!=null && !"".equals(user.getGroups()) && user.getGroups().contains(group))
+				if (userFromDB.getGroups()!=null && !"".equals(userFromDB.getGroups()) && 
+					userFromDB.getGroups().contains(group))
 				{
-					for (String userGroup:user.getGroups().split(Pattern.quote(";")))
+					for (String userGroup:userFromDB.getGroups().split(Pattern.quote(";")))
 					{
 						if (group.equals(userGroup))
 						{
+							// We return new referenced users with the indicated group within a new list to avoid 
+							// shared collection references and object references to unsaved transient instances
+							User user=userFromDB.getUserCopy();
+							if (userFromDB.getUserType()!=null)
+							{
+								user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+							}
+							
+							// Password is set to empty string before returning instance for security reasons
+							user.setPassword("");
+							
 							usersWithGroup.add(user);
 							break;
 						}
@@ -1102,8 +1225,9 @@ public class UsersService implements Serializable
 	 * Generate an unused OUCU for an user.
 	 * @param operation Operation
 	 * @param user User
+	 * @throws ServiceException
 	 */
-	private void generateUnusedOucuForUser(Operation operation,User user)
+	private void generateUnusedOucuForUser(Operation operation,User user) throws ServiceException
 	{
 		boolean foundUnusedOucu=false;
 		String oucu=null;

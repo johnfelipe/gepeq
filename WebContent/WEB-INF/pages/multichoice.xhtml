@@ -70,7 +70,7 @@
                 <h:panelGrid columns="3" columnClasses="columnThumb,columnImageName,columnImageButton" 
                   rendered="#{answer.resource!=null}">
                   
-                  <p:graphicImage value="#{answer.resource.fileName}" width="35" height="20" />
+                  <h:graphicImage value="#{answer.resource.fileName}" styleClass="graphics" width="35" height="20" />
                   <h:outputText style="margin-right:5px;" value="#{answer.resource.name}" />
                   <p:commandButton id="selectImageAnswerButton" value="#{msgs.SELECT_IMAGE}" styleClass="button" 
                     actionListener="#{questionBean.showSelectImage}" immediate="true" 

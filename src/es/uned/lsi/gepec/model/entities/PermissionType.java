@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 09-jul-2012 14:56:59 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,7 +39,6 @@ public class PermissionType implements java.io.Serializable {
 
 	private long id;
 	private String type;
-	private Set<Permission> permissions = new HashSet<Permission>(0);
 
 	public PermissionType() {
 	}
@@ -73,15 +68,6 @@ public class PermissionType implements java.io.Serializable {
 		this.type = type;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "permissionType")
-	public Set<Permission> getPermissions() {
-		return this.permissions;
-	}
-
-	public void setPermissions(Set<Permission> permissions) {
-		this.permissions = permissions;
-	}
-
 	/**
 	 * Set the fields of this permission type with the values from fields from other permission type.
 	 * @param otherPermissionType Other permission type
@@ -94,6 +80,15 @@ public class PermissionType implements java.io.Serializable {
 			setId(otherPermissionType.getId());
 			setType(otherPermissionType.getType());
 		}
+	}
+	
+	/**
+	 * @return A copy of this permission type.
+	 */
+	@Transient
+	public PermissionType getPermissionTypeCopy()
+	{
+		return new PermissionType(getId(),getType());
 	}
 	
 	@Override

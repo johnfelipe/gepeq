@@ -59,6 +59,11 @@ public class CategoriesService implements Serializable
 	{
 		private Operation operation;
 		
+		/**
+		 * Class to compare categories by their localized long name.<br/><br/>
+		 * <b>IMPORTANT</b>: Operation must be started before calling this constructor.   
+		 * @param operation Operation
+		 */
 		public CategoryLocalizedCategoryLongNameComparator(Operation operation)
 		{
 			this.operation=operation;
@@ -141,37 +146,40 @@ public class CategoriesService implements Serializable
 	public Category getCategory(Operation operation,long id) throws ServiceException
 	{
 		Category category=null;
-		boolean singleOp=operation==null;
 		try
 		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
-			// Get category
+			// Get category from DB
 			CATEGORIES_DAO.setOperation(operation);
-			category=CATEGORIES_DAO.getCategory(id,true,true,true);
-			if (category!=null)
+			Category categoryFromDB=CATEGORIES_DAO.getCategory(id,true,true,true);
+			if (categoryFromDB!=null)
 			{
-				category.setCategoryType(
-					categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
-				category.setVisibility(
-					visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+				category=categoryFromDB.getCategoryCopy();
+				if (categoryFromDB.getParent()!=null)
+				{
+					category.setParent(categoryFromDB.getParent().getCategoryCopy());
+				}
+				if (categoryFromDB.getUser()!=null)
+				{
+					User categoryUser=categoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					categoryUser.setPassword("");
+					
+					category.setUser(categoryUser);
+				}
+				if (categoryFromDB.getCategoryType()!=null)
+				{
+					category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+				}
+				if (categoryFromDB.getVisibility()!=null)
+				{
+					category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+				}
 			}
 		}
 		catch (DaoException de)
 		{
 			throw new ServiceException(de.getMessage(),de);
-		}
-		finally
-		{
-			if (singleOp)
-			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
 		}
 		return category;
 	}
@@ -195,14 +203,48 @@ public class CategoriesService implements Serializable
 	 */
 	public void updateCategory(Operation operation,Category category) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get category from DB
 			CATEGORIES_DAO.setOperation(operation);
-			CATEGORIES_DAO.updateCategory(category);
+			Category categoryFromDB=CATEGORIES_DAO.getCategory(category.getId(),true,true,true);
+			
+			// Set fields with the updated values
+			categoryFromDB.setFromOtherCategory(category);
+			
+			// Update category
+			CATEGORIES_DAO.setOperation(operation);
+			CATEGORIES_DAO.updateCategory(categoryFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -228,6 +270,7 @@ public class CategoriesService implements Serializable
 		long categoryId=0L;
 		try
 		{
+			// Add a new answer
 			CATEGORIES_DAO.setOperation(operation);
 			categoryId=CATEGORIES_DAO.saveCategory(category);
 		}
@@ -258,14 +301,45 @@ public class CategoriesService implements Serializable
 	 */
 	public void deleteCategory(Operation operation,Category category) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get category from DB
 			CATEGORIES_DAO.setOperation(operation);
-			CATEGORIES_DAO.deleteCategory(category);
+			Category categoryFromDB=CATEGORIES_DAO.getCategory(category.getId(),true,true,true);
+			
+			// Delete category
+			CATEGORIES_DAO.setOperation(operation);
+			CATEGORIES_DAO.deleteCategory(categoryFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -291,45 +365,9 @@ public class CategoriesService implements Serializable
 	 */
 	public void deleteCategory(Operation operation,long categoryId) throws ServiceException
 	{
-		boolean singleOp=operation==null;
-		try
-		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
-			// Check if it is not the default category
-			CATEGORIES_DAO.setOperation(operation);
-			Category category=CATEGORIES_DAO.getCategory(categoryId,false,true,true);
-			
-			// Delete category
-			deleteCategory(operation,category);
-			
-			if (singleOp)
-			{
-				// Do commit
-				operation.commit();
-			}
-		}
-		catch (DaoException de)
-		{
-			if (singleOp)
-			{
-				// Do rollback
-				operation.rollback();
-			}
-			throw new ServiceException(de.getMessage(),de); 
-		}
-		finally
-		{
-			if (singleOp)
-			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
-		}
+		Category categoryToDelete=new Category();
+		categoryToDelete.setId(categoryId);
+		deleteCategory(operation,categoryToDelete);
 	}
 	
 	/**
@@ -360,13 +398,28 @@ public class CategoriesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get default category of an user from DB
 			CATEGORIES_DAO.setOperation(operation);
-			defaultCategory=CATEGORIES_DAO.getDefaultCategory(user.getId(),true,true,true);
-			
-			defaultCategory.setCategoryType(
-				categoryTypesService.getCategoryType(operation,defaultCategory.getCategoryType().getId()));
-			defaultCategory.setVisibility(
-				visibilitiesService.getVisibility(operation,defaultCategory.getVisibility().getId()));
+			Category defaultCategoryFromDB=CATEGORIES_DAO.getDefaultCategory(user.getId(),false,true,true);
+			if (defaultCategoryFromDB!=null)
+			{
+				defaultCategory=defaultCategoryFromDB.getCategoryCopy();
+				if (defaultCategoryFromDB.getParent()!=null)
+				{
+					defaultCategory.setParent(defaultCategoryFromDB.getParent().getCategoryCopy());
+				}
+				defaultCategory.setUser(user);
+				if (defaultCategoryFromDB.getCategoryType()!=null)
+				{
+					defaultCategory.setCategoryType(categoryTypesService.getCategoryTypeFromCategoryId(
+						operation,defaultCategoryFromDB.getId()));
+				}
+				if (defaultCategoryFromDB.getVisibility()!=null)
+				{
+					defaultCategory.setVisibility(
+						visibilitiesService.getVisibilityFromCategoryId(operation,defaultCategoryFromDB.getId()));
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -381,6 +434,177 @@ public class CategoriesService implements Serializable
 			}
 		}
 		return defaultCategory;
+	}
+	
+	/**
+	 * @param resourceId Resource identifier
+	 * @return Category from a resource
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromResourceId(long resourceId) throws ServiceException
+	{
+		return getCategoryFromResourceId(null,resourceId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param resourceId Resource identifier
+	 * @return Category from a resource
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromResourceId(Operation operation,long resourceId) throws ServiceException
+	{
+		Category category=null;
+		try
+		{
+			// Get category from DB
+			CATEGORIES_DAO.setOperation(operation);
+			Category categoryFromDB=CATEGORIES_DAO.getCategoryFromResourceId(resourceId,true,true,true);
+			if (categoryFromDB!=null)
+			{
+				category=categoryFromDB.getCategoryCopy();
+				if (categoryFromDB.getParent()!=null)
+				{
+					category.setParent(categoryFromDB.getParent().getCategoryCopy());
+				}
+				if (categoryFromDB.getUser()!=null)
+				{
+					User categoryUser=categoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					categoryUser.setPassword("");
+					
+					category.setUser(categoryUser);
+				}
+				if (categoryFromDB.getCategoryType()!=null)
+				{
+					category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+				}
+				if (categoryFromDB.getVisibility()!=null)
+				{
+					category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+				}
+			}
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return category;
+	}
+	
+	/**
+	 * @param questionId Question identifier
+	 * @return Category from a question
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromQuestionId(long questionId) throws ServiceException
+	{
+		return getCategoryFromQuestionId(null,questionId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param questionId Question identifier
+	 * @return Category from a question
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromQuestionId(Operation operation,long questionId) throws ServiceException
+	{
+		Category category=null;
+		try
+		{
+			// Get category from DB
+			CATEGORIES_DAO.setOperation(operation);
+			Category categoryFromDB=CATEGORIES_DAO.getCategoryFromQuestionId(questionId,true,true,true);
+			if (categoryFromDB!=null)
+			{
+				category=categoryFromDB.getCategoryCopy();
+				if (categoryFromDB.getParent()!=null)
+				{
+					category.setParent(categoryFromDB.getParent().getCategoryCopy());
+				}
+				if (categoryFromDB.getUser()!=null)
+				{
+					User categoryUser=categoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					categoryUser.setPassword("");
+					
+					category.setUser(categoryUser);
+				}
+				if (categoryFromDB.getCategoryType()!=null)
+				{
+					category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+				}
+				if (categoryFromDB.getVisibility()!=null)
+				{
+					category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+				}
+			}
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return category;
+	}
+	
+	/**
+	 * @param testId Test identifier
+	 * @return Category from a test
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromTestId(long testId) throws ServiceException
+	{
+		return getCategoryFromTestId(null,testId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param testId Test identifier
+	 * @return Category from a test
+	 * @throws ServiceException
+	 */
+	public Category getCategoryFromTestId(Operation operation,long testId) throws ServiceException
+	{
+		Category category=null;
+		try
+		{
+			// Get category from DB
+			CATEGORIES_DAO.setOperation(operation);
+			Category categoryFromDB=CATEGORIES_DAO.getCategoryFromTestId(testId,true,true,true);
+			if (categoryFromDB!=null)
+			{
+				category=categoryFromDB.getCategoryCopy();
+				if (categoryFromDB.getParent()!=null)
+				{
+					category.setParent(categoryFromDB.getParent().getCategoryCopy());
+				}
+				if (categoryFromDB.getUser()!=null)
+				{
+					User categoryUser=categoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					categoryUser.setPassword("");
+					
+					category.setUser(categoryUser);
+				}
+				if (categoryFromDB.getCategoryType()!=null)
+				{
+					category.setCategoryType(categoryFromDB.getCategoryType().getCategoryTypeCopy());
+				}
+				if (categoryFromDB.getVisibility()!=null)
+				{
+					category.setVisibility(categoryFromDB.getVisibility().getVisibilityCopy());
+				}
+			}
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return category;
 	}
 	
 	/**
@@ -405,32 +629,61 @@ public class CategoriesService implements Serializable
 			}
 			
 			CATEGORIES_DAO.setOperation(operation);
-			categories=CATEGORIES_DAO.getUserCategories(user.getId(),sortedByName,false,true,true);
+			List<Category> categoriesFromDB=
+				CATEGORIES_DAO.getUserCategories(user.getId(),sortedByName,false,true,true);
+			
+			// We return new referenced categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			categories=new ArrayList<Category>(categoriesFromDB.size());
+			List<Category> categoriesAndAncestors=new ArrayList<Category>();
+			for (Category categoryFromDB:categoriesFromDB)
+			{
+				Category category=categoryFromDB.getCategoryCopy();
+				if (categoryFromDB.getParent()!=null)
+				{
+					category.setParent(categoryFromDB.getParent().getCategoryCopy());
+				}
+				categories.add(category);
+				categoriesAndAncestors.add(category);
+			}
+			for (Category category:categories)
+			{
+				if (category.getParent()!=null)
+				{
+					category.setParent(getParentCopy(operation,category.getParent(),categoriesAndAncestors));
+				}
+			}
+			
+			User userCopy=user.getUserCopy();
+			
+			// Password is set to empty string before returning instance for security reasons
+			userCopy.setPassword("");
+			
 			if (categoryType==null)
 			{
 				for (Category category:categories)
 				{
-					category.setUser(user);
+					category.setUser(userCopy);
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
 					category.setVisibility(
-						visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 				}
 			}
 			else
 			{
-				// Remove categories with a category type that cannot derive from/to the required category type
 				List<Category> categoriesToRemove=new ArrayList<Category>();
 				for (Category category:categories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+					// Remove categories with a category type that cannot derive from/to the required category type
 					if (categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
 						categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType))
 					{
-						category.setUser(user);
+						category.setUser(userCopy);
 						category.setVisibility(
-							visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+							visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 					}
 					else
 					{
@@ -574,31 +827,63 @@ public class CategoriesService implements Serializable
 			}
 			
 			CATEGORIES_DAO.setOperation(operation);
-			globalCategories=
+			List<Category> globalCategoriesFromDB=
 				CATEGORIES_DAO.getGlobalCategories(user==null?0L:user.getId(),sortedByName,true,true,true);
+			
+			// We return new referenced categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			globalCategories=new ArrayList<Category>(globalCategoriesFromDB.size());
+			List<Category> globalCategoriesAndAncestors=new ArrayList<Category>();
+			for (Category globalCategoryFromDB:globalCategoriesFromDB)
+			{
+				Category globalCategory=globalCategoryFromDB.getCategoryCopy();
+				if (globalCategoryFromDB.getParent()!=null)
+				{
+					globalCategory.setParent(globalCategoryFromDB.getParent().getCategoryCopy());
+				}
+				if (globalCategoryFromDB.getUser()!=null)
+				{
+					User globalCategoryUser=globalCategoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					globalCategoryUser.setPassword("");
+					
+					globalCategory.setUser(globalCategoryUser);
+				}
+				globalCategories.add(globalCategory);
+				globalCategoriesAndAncestors.add(globalCategory);
+			}
+			for (Category globalCategory:globalCategories)
+			{
+				if (globalCategory.getParent()!=null)
+				{
+					globalCategory.setParent(
+						getParentCopy(operation,globalCategory.getParent(),globalCategoriesAndAncestors));
+				}
+			}
 			if (categoryType==null)
 			{
 				for (Category category:globalCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
 					category.setVisibility(
-						visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 				}
 			}
 			else
 			{
-				// Remove categories with a category type that cannot derive from/to the required category type
 				List<Category> categoriesToRemove=new ArrayList<Category>();
 				for (Category category:globalCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+					// Remove categories with a category type that cannot derive from/to the required category type
 					if (categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
 						categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType))
 					{
 						category.setVisibility(
-							visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+							visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 					}
 					else
 					{
@@ -822,31 +1107,63 @@ public class CategoriesService implements Serializable
 			}
 			
 			CATEGORIES_DAO.setOperation(operation);
-			nonGlobalCategories=
+			List<Category> nonGlobalCategoriesFromDB=
 				CATEGORIES_DAO.getNonGlobalCategories(user==null?0L:user.getId(),sortedByName,true,true,true);
+			
+			// We return new referenced categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			nonGlobalCategories=new ArrayList<Category>(nonGlobalCategoriesFromDB.size());
+			List<Category> nonGlobalCategoriesAndAncestors=new ArrayList<Category>();
+			for (Category nonGlobalCategoryFromDB:nonGlobalCategoriesFromDB)
+			{
+				Category nonGlobalCategory=nonGlobalCategoryFromDB.getCategoryCopy();
+				if (nonGlobalCategoryFromDB.getParent()!=null)
+				{
+					nonGlobalCategory.setParent(nonGlobalCategoryFromDB.getParent().getCategoryCopy());
+				}
+				if (nonGlobalCategoryFromDB.getUser()!=null)
+				{
+					User nonGlobalCategoryUser=nonGlobalCategoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					nonGlobalCategoryUser.setPassword("");
+					
+					nonGlobalCategory.setUser(nonGlobalCategoryUser);
+				}
+				nonGlobalCategories.add(nonGlobalCategory);
+				nonGlobalCategoriesAndAncestors.add(nonGlobalCategory);
+			}
+			for (Category nonGlobalCategory:nonGlobalCategories)
+			{
+				if (nonGlobalCategory.getParent()!=null)
+				{
+					nonGlobalCategory.setParent(
+						getParentCopy(operation,nonGlobalCategory.getParent(),nonGlobalCategoriesAndAncestors));
+				}
+			}
 			if (categoryType==null)
 			{
 				for (Category category:nonGlobalCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
 					category.setVisibility(
-						visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 				}
 			}
 			else
 			{
-				// Remove categories with a category type that cannot derive from/to the required category type
 				List<Category> categoriesToRemove=new ArrayList<Category>();
 				for (Category category:nonGlobalCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+					// Remove categories with a category type that cannot derive from/to the required category type
 					if (categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
 						categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType))
 					{
 						category.setVisibility(
-							visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+							visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 					}
 					else
 					{
@@ -1070,32 +1387,64 @@ public class CategoriesService implements Serializable
 			}
 			
 			CATEGORIES_DAO.setOperation(operation);
-			publicCategories=CATEGORIES_DAO.getVisibleCategories(false,
-				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC").getLevel(),
-				sortedByName,true,true,true);
+			List<Category> publicCategoriesFromDB=CATEGORIES_DAO.getVisibleCategories(false,
+				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC").getLevel(),sortedByName,
+				true,true,true);
+			
+			// We return new referenced categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			publicCategories=new ArrayList<Category>(publicCategoriesFromDB.size());
+			List<Category> publicCategoriesAndAncestors=new ArrayList<Category>();
+			for (Category publicCategoryFromDB:publicCategoriesFromDB)
+			{
+				Category publicCategory=publicCategoryFromDB.getCategoryCopy();
+				if (publicCategoryFromDB.getParent()!=null)
+				{
+					publicCategory.setParent(publicCategoryFromDB.getParent().getCategoryCopy());
+				}
+				if (publicCategoryFromDB.getUser()!=null)
+				{
+					User publicCategoryUser=publicCategoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					publicCategoryUser.setPassword("");
+					
+					publicCategory.setUser(publicCategoryUser);
+				}
+				publicCategories.add(publicCategory);
+				publicCategoriesAndAncestors.add(publicCategory);
+			}
+			for (Category publicCategory:publicCategories)
+			{
+				if (publicCategory.getParent()!=null)
+				{
+					publicCategory.setParent(
+						getParentCopy(operation,publicCategory.getParent(),publicCategoriesAndAncestors));
+				}
+			}
 			if (categoryType==null)
 			{
 				for (Category category:publicCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
 					category.setVisibility(
-						visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 				}
 			}
 			else
 			{
-				// Remove categories with a category type that cannot derive from/to the required category type
 				List<Category> categoriesToRemove=new ArrayList<Category>();
 				for (Category category:publicCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+					// Remove categories with a category type that cannot derive from/to the required category type
 					if (categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
 						categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType))
 					{
 						category.setVisibility(
-							visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+							visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 					}
 					else
 					{
@@ -1226,32 +1575,64 @@ public class CategoriesService implements Serializable
 			}
 			
 			CATEGORIES_DAO.setOperation(operation);
-			privateCategories=CATEGORIES_DAO.getNonVisibleCategories(false,
+			List<Category> privateCategoriesFromDB=CATEGORIES_DAO.getNonVisibleCategories(false,
 				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC").getLevel(),
 				sortedByName,true,true,true);
+			
+			// We return new referenced categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			privateCategories=new ArrayList<Category>(privateCategoriesFromDB.size());
+			List<Category> privateCategoriesAndAncestors=new ArrayList<Category>();
+			for (Category privateCategoryFromDB:privateCategoriesFromDB)
+			{
+				Category privateCategory=privateCategoryFromDB.getCategoryCopy();
+				if (privateCategoryFromDB.getParent()!=null)
+				{
+					privateCategory.setParent(privateCategoryFromDB.getParent().getCategoryCopy());
+				}
+				if (privateCategoryFromDB.getUser()!=null)
+				{
+					User privateCategoryUser=privateCategoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					privateCategoryUser.setPassword("");
+					
+					privateCategory.setUser(privateCategoryUser);
+				}
+				privateCategories.add(privateCategory);
+				privateCategoriesAndAncestors.add(privateCategory);
+			}
+			for (Category privateCategory:privateCategories)
+			{
+				if (privateCategory.getParent()!=null)
+				{
+					privateCategory.setParent(
+						getParentCopy(operation,privateCategory.getParent(),privateCategoriesAndAncestors));
+				}
+			}
 			if (categoryType==null)
 			{
 				for (Category category:privateCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
 					category.setVisibility(
-						visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+						visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 				}
 			}
 			else
 			{
-				// Remove categories with a category type that cannot derive from/to the required category type
 				List<Category> categoriesToRemove=new ArrayList<Category>();
 				for (Category category:privateCategories)
 				{
 					category.setCategoryType(
-						categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+					// Remove categories with a category type that cannot derive from/to the required category type
 					if (categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
 						categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType))
 					{
 						category.setVisibility(
-							visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
+							visibilitiesService.getVisibilityFromCategoryId(operation,category.getId()));
 					}
 					else
 					{
@@ -1384,8 +1765,31 @@ public class CategoriesService implements Serializable
 		try
 		{
 			CATEGORIES_DAO.setOperation(operation);
-			childCategories=
+			List<Category> childCategoriesFromDB=
 				CATEGORIES_DAO.getChildCategories(parent==null?0L:parent.getId(),false,true,true,true);
+			
+			// We return new referenced child categories within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			childCategories=new ArrayList<Category>(childCategoriesFromDB.size());
+			for (Category childCategoryFromDB:childCategoriesFromDB)
+			{
+				Category childCategory=childCategoryFromDB.getCategoryCopy();
+				childCategory.setParent(parent);
+				if (childCategoryFromDB.getUser()!=null)
+				{
+					User childCategoryUser=childCategoryFromDB.getUser().getUserCopy();
+					
+					// Password is set to empty string before returning instance for security reasons
+					childCategoryUser.setPassword("");
+					
+					childCategory.setUser(childCategoryUser);
+				}
+				childCategory.setCategoryType(
+					categoryTypesService.getCategoryTypeFromCategoryId(operation,childCategory.getId()));
+				childCategory.setVisibility(
+					visibilitiesService.getVisibilityFromCategoryId(operation,childCategory.getId()));
+				childCategories.add(childCategory);
+			}
 		}
 		catch (DaoException de)
 		{
@@ -1425,16 +1829,14 @@ public class CategoriesService implements Serializable
 				// If we are filtering by category type we will not add default category and 
 				// its derived categories if its category type cannot derive from/to the required category type
 				if (categoryType==null || 
-					categoryTypesService.isDerivedFrom(
-					operation,categoryType,defaultCategory.getCategoryType()) || 
-					categoryTypesService.isDerivedFrom(
-					operation,defaultCategory.getCategoryType(),categoryType))
+					categoryTypesService.isDerivedFrom(operation,categoryType,defaultCategory.getCategoryType()) || 
+					categoryTypesService.isDerivedFrom(operation,defaultCategory.getCategoryType(),categoryType))
 				{
 					// Add default category
 					allMyCategoriesIds.add(Long.valueOf(defaultCategory.getId()));
 					
 					// Now we add all categories derived from default category
-					addDerivedCategoriesIds(userCategories,defaultCategory,allMyCategoriesIds);
+					addFilteredDerivedCategoriesIds(userCategories,defaultCategory,allMyCategoriesIds);
 				}
 			}
 			
@@ -1451,7 +1853,7 @@ public class CategoriesService implements Serializable
 						allMyCategoriesIds.add(Long.valueOf(category.getId()));
 						
 						// Now we add all global categories derived from this root global category
-						addDerivedCategoriesIds(userCategories,category,allMyCategoriesIds);
+						addFilteredDerivedCategoriesIds(userCategories,category,allMyCategoriesIds);
 					}
 				}
 			}
@@ -1598,8 +2000,7 @@ public class CategoriesService implements Serializable
 			{
 				allVisibleCategoriesIds.add(globalCategoryId);
 			}
-			for (Long publicCategoryOfOtherUser:getAllPublicCategoriesOfOtherUsersIds(
-				operation,user,categoryType))
+			for (Long publicCategoryOfOtherUser:getAllPublicCategoriesOfOtherUsersIds(operation,user,categoryType))
 			{
 				allVisibleCategoriesIds.add(publicCategoryOfOtherUser);
 			}
@@ -1698,7 +2099,7 @@ public class CategoriesService implements Serializable
 				allGlobalCategoriesIds.add(Long.valueOf(globalCategory.getId()));
 				
 				// Now we add all global categories derived from this root global category
-				addDerivedCategoriesIds(globalCategories,globalCategory,allGlobalCategoriesIds);
+				addFilteredDerivedCategoriesIds(globalCategories,globalCategory,allGlobalCategoriesIds);
 			}
 		}
 		return allGlobalCategoriesIds;
@@ -1737,7 +2138,7 @@ public class CategoriesService implements Serializable
 				allUserGlobalCategoriesIds.add(Long.valueOf(globalCategory.getId()));
 				
 				// Now we add all global categories derived from this root global category
-				addDerivedCategoriesIds(userGlobalCategories,globalCategory,allUserGlobalCategoriesIds);
+				addFilteredDerivedCategoriesIds(userGlobalCategories,globalCategory,allUserGlobalCategoriesIds);
 			}
 		}
 		return allUserGlobalCategoriesIds;
@@ -1783,7 +2184,7 @@ public class CategoriesService implements Serializable
 			User userToCheck=publicCategory.getUser();
 			if (!checkedUsers.contains(userToCheck))
 			{
-				Category rootPublicCategory=getUserDefaultCategory(publicCategories,userToCheck);
+				Category rootPublicCategory=findUserDefaultCategory(publicCategories,userToCheck);
 				checkedUsers.add(userToCheck);
 				if (rootPublicCategory!=null)
 				{
@@ -1797,8 +2198,7 @@ public class CategoriesService implements Serializable
 			allPublicCategoriesOfOtherUsersIds.add(Long.valueOf(rootPublicCategory.getId()));
 			
 			// Now we add all public categories derived from this root private category of other user
-			addDerivedCategoriesIds(
-				publicCategories,rootPublicCategory,allPublicCategoriesOfOtherUsersIds);
+			addFilteredDerivedCategoriesIds(publicCategories,rootPublicCategory,allPublicCategoriesOfOtherUsersIds);
 		}
 		return allPublicCategoriesOfOtherUsersIds;
 	}
@@ -1901,14 +2301,13 @@ public class CategoriesService implements Serializable
 			// We need to find default categories of other users without a parent category 
 			// (root categories of other users)
 			List<Category> rootPrivateCategories=new ArrayList<Category>();
-			Visibility publicVisibility=
-				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC");
+			Visibility publicVisibility=visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC");
 			for (Category privateCategory:privateCategories)
 			{
 				User userToCheck=privateCategory.getUser();
 				if (!checkedUsers.contains(userToCheck))
 				{
-					Category rootPrivateCategory=getUserDefaultCategory(privateCategories,userToCheck);
+					Category rootPrivateCategory=findUserDefaultCategory(privateCategories,userToCheck);
 					checkedUsers.add(userToCheck);
 					if (rootPrivateCategory!=null)
 					{
@@ -1932,7 +2331,7 @@ public class CategoriesService implements Serializable
 				allPrivateCategoriesOfOtherUsersIds.add(Long.valueOf(rootPrivateCategory.getId()));
 				
 				// Now we add all private categories derived from this root private category of other user
-				addDerivedCategoriesIds(
+				addFilteredDerivedCategoriesIds(
 					privateCategories,rootPrivateCategory,allPrivateCategoriesOfOtherUsersIds);
 			}
 		}
@@ -2049,7 +2448,7 @@ public class CategoriesService implements Serializable
 				User userToCheck=nonGlobalCategory.getUser();
 				if (!checkedUsers.contains(userToCheck))
 				{
-					Category rootNonGlobalCategory=getUserDefaultCategory(nonGlobalCategories,userToCheck);
+					Category rootNonGlobalCategory=findUserDefaultCategory(nonGlobalCategories,userToCheck);
 					checkedUsers.add(userToCheck);
 					if (rootNonGlobalCategory!=null)
 					{
@@ -2063,7 +2462,8 @@ public class CategoriesService implements Serializable
 				allCategoriesOfOtherUsersIds.add(Long.valueOf(rootNonGlobalCategory.getId()));
 				
 				// Now we add all private categories derived from this root private category of other user
-				addDerivedCategoriesIds(nonGlobalCategories,rootNonGlobalCategory,allCategoriesOfOtherUsersIds);
+				addFilteredDerivedCategoriesIds(
+					nonGlobalCategories,rootNonGlobalCategory,allCategoriesOfOtherUsersIds);
 			}
 		}
 		finally
@@ -2221,9 +2621,8 @@ public class CategoriesService implements Serializable
 		boolean includeAdminsPrivateCategories,boolean includeSuperadminsPrivateCategories)
 		throws ServiceException
 	{
-		return getCategoriesSortedByHierarchy(null,user,categoryType,includeUserCategories,
-			includeGlobalCategories,includeOtherUserCategories,includeAdminsPrivateCategories,
-			includeSuperadminsPrivateCategories);
+		return getCategoriesSortedByHierarchy(null,user,categoryType,includeUserCategories,includeGlobalCategories,
+			includeOtherUserCategories,includeAdminsPrivateCategories,includeSuperadminsPrivateCategories);
 	}
 	
 	/**
@@ -2272,17 +2671,15 @@ public class CategoriesService implements Serializable
 				{
 					// If we are filtering by category type we will not add default category and its derived
 					// categories if its category type cannot derive from/to the required category type
-					if (categoryType==null || 
-						categoryTypesService.isDerivedFrom(
+					if (categoryType==null || categoryTypesService.isDerivedFrom(
 						operation,categoryType,defaultCategory.getCategoryType()) ||
-						categoryTypesService.isDerivedFrom(
-						operation,defaultCategory.getCategoryType(),categoryType))
+						categoryTypesService.isDerivedFrom(operation,defaultCategory.getCategoryType(),categoryType))
 					{
 						// Add default category
 						sortedCategories.add(defaultCategory);
 						
 						// Now we add all categories derived from default category
-						addDerivedCategories(userCategories,defaultCategory,sortedCategories);
+						addFilteredDerivedCategories(userCategories,defaultCategory,sortedCategories);
 					}
 				}
 			}
@@ -2302,7 +2699,7 @@ public class CategoriesService implements Serializable
 						sortedCategories.add(globalCategory);
 						
 						// Now we add all global categories derived from this root global category
-						addDerivedCategories(globalCategories,globalCategory,sortedCategories);
+						addFilteredDerivedCategories(globalCategories,globalCategory,sortedCategories);
 					}
 				}
 			}
@@ -2330,8 +2727,7 @@ public class CategoriesService implements Serializable
 							}
 							else
 							{
-								removeAdminsAndSuperadminsPrivateCategories(
-									operation,otherUserCategories,false);
+								removeAdminsAndSuperadminsPrivateCategories(operation,otherUserCategories,false);
 							}
 						}
 						else if (!includeSuperadminsPrivateCategories)
@@ -2381,7 +2777,7 @@ public class CategoriesService implements Serializable
 					User userToCheck=otherUserCategory.getUser();
 					if (!checkedUsers.contains(userToCheck))
 					{
-						Category rootOtherUserCategory=getUserDefaultCategory(otherUserCategories,userToCheck);
+						Category rootOtherUserCategory=findUserDefaultCategory(otherUserCategories,userToCheck);
 						checkedUsers.add(userToCheck);
 						if (rootOtherUserCategory!=null)
 						{
@@ -2397,8 +2793,7 @@ public class CategoriesService implements Serializable
 					{
 						if (!user.equals(otherUserCategory.getUser()) && otherUserCategory.getParent()!=null &&
 							(otherUserCategory.getParent().getVisibility().isGlobal() || 
-							otherUserCategory.getParent().getVisibility().getLevel()<=
-							publicVisibility.getLevel()))
+							otherUserCategory.getParent().getVisibility().getLevel()<=publicVisibility.getLevel()))
 						{
 							rootOtherUserCategories.add(otherUserCategory);
 						}
@@ -2413,7 +2808,7 @@ public class CategoriesService implements Serializable
 					
 					// Now we add all categories of other users derived from this root category 
 					// of other users
-					addDerivedCategories(otherUserCategories,rootOtherUserCategory,sortedCategories);
+					addFilteredDerivedCategories(otherUserCategories,rootOtherUserCategory,sortedCategories);
 				}
 			}
 		}
@@ -2429,19 +2824,51 @@ public class CategoriesService implements Serializable
 	}
 	
 	/**
+	 * Checks if exists a category with the indicated identifier.
+	 * @param id Identifier
+	 * @return true if exists a category with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkCategoryId(long id) throws ServiceException
+	{
+		return checkCategoryId(null,id);
+	}
+	
+	/**
+	 * Checks if exists a category with the indicated identifier.
+	 * @param operation Operation
+	 * @param id Identifier
+	 * @return true if exists a category with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkCategoryId(Operation operation,long id) throws ServiceException
+	{
+		boolean categoryFound=false;
+		try
+		{
+			CATEGORIES_DAO.setOperation(operation);
+			categoryFound=CATEGORIES_DAO.checkCategoryId(id);
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return categoryFound;
+	}
+	
+	/**
 	 * @param categories List of categories
 	 * @param user User
-	 * @return User default category
+	 * @return User default category from a list of categories or null if not found
 	 */
-	private Category getUserDefaultCategory(List<Category> categories,User user)
+	private Category findUserDefaultCategory(List<Category> categories,User user)
 	{
 		Category defaultCategory=null;
 		if (user!=null)
 		{
 			for (Category category:categories)
 			{
-				if (category.isDefaultCategory() && category.getParent()==null && 
-					user.equals(category.getUser()))
+				if (category.isDefaultCategory() && category.getParent()==null && user.equals(category.getUser()))
 				{
 					defaultCategory=category;
 					break;
@@ -2452,47 +2879,49 @@ public class CategoriesService implements Serializable
 	}
 	
 	/**
-	 * Add derived categories sorted hierarchically to the list of sorted categories.
-	 * @param categories List of available categories
+	 * Add the derived categories found within a list of filtering categories to the end of other list of 
+	 * categories.
+	 * @param filteringCategories List of categories that can be added
 	 * @param parent Parent category
-	 * @param sortedCategories List of sorted categories where to add the derived categories
+	 * @param categories List of categories where to add the derived categories
 	 */
-	private void addDerivedCategories(List<Category> categories,Category parent,List<Category> sortedCategories)
+	private void addFilteredDerivedCategories(List<Category> filteringCategories,Category parent,
+		List<Category> categories)
 	{
-		for (Category category:getChildsCategories(categories,parent))
+		for (Category category:getChildsCategories(filteringCategories,parent))
 		{
 			// Check to avoid infinite recursivity (can occur due to corrupted data in DB)
-			if (!sortedCategories.contains(category))
+			if (!categories.contains(category))
 			{
-				sortedCategories.add(category);
-				addDerivedCategories(categories,category,sortedCategories);
+				categories.add(category);
+				addFilteredDerivedCategories(filteringCategories,category,categories);
 			}
 		}
 	}
 	
 	/**
-	 * Add derived categories identifiers sorted hierarchically to the list of sorted categories.
-	 * @param categories List of available categories
+	 * Add the identifiers of the derived categories to the end of the list of categories identifiers.
+	 * @param filteringCategories List of categories that can be added
 	 * @param parent Parent category
-	 * @param sortedCategoriesIds List of sorted categories identifiers where to add the derived categories
+	 * @param categoriesIds List of categories identifiers where to add the identifiers of the derived categories
 	 */
-	private void addDerivedCategoriesIds(List<Category> categories,Category parent,List<Long> sortedCategoriesIds)
+	private void addFilteredDerivedCategoriesIds(List<Category> filteringCategories,Category parent,
+		List<Long> categoriesIds)
 	{
-		for (Category category:getChildsCategories(categories,parent))
+		for (Category category:getChildsCategories(filteringCategories,parent))
 		{
 			// Check to avoid infinite recursivity (can occur due to corrupted data in DB)
-			if (!sortedCategoriesIds.contains(Long.valueOf(category.getId())))
+			if (!categoriesIds.contains(Long.valueOf(category.getId())))
 			{
-				sortedCategoriesIds.add(Long.valueOf(category.getId()));
-				addDerivedCategoriesIds(categories,category,sortedCategoriesIds);
+				categoriesIds.add(Long.valueOf(category.getId()));
+				addFilteredDerivedCategoriesIds(filteringCategories,category,categoriesIds);
 			}
 		}
 	}
 	
 	/**
 	 * Checks if category derives from indicated category.<br/><br/>
-	 * Note that this method keep track of previously checked categories to avoid an infinite recursivity.
-	 * <br/><br/>
+	 * Note that this method keep track of previously checked categories to avoid an infinite recursivity.<br/><br/>
 	 * This case can occur if there is corrupted data within DB and then this method will break recursivity
 	 * returning false.
 	 * @param operation Operation
@@ -2506,14 +2935,34 @@ public class CategoriesService implements Serializable
 		Category from) throws ServiceException
 	{
 		boolean isDerived=false;
+		
 		if (category!=null && !checkedCategories.contains(category))
 		{
 			isDerived=category.equals(from);
 			if (!isDerived)
 			{
 				checkedCategories.add(category);
-				isDerived=isDerivedFrom(operation,checkedCategories,
-					category.getParent()==null?null:getCategory(operation,category.getParent().getId()),from);
+				
+				boolean singleOp=operation==null;
+				try
+				{
+					if (singleOp)
+					{
+						// Start Hibernate operation
+						operation=HibernateUtil.startOperation();
+					}
+					
+					isDerived=isDerivedFrom(operation,checkedCategories,
+						category.getParent()==null?null:getCategory(operation,category.getParent().getId()),from);
+				}
+				finally
+				{
+					if (singleOp)
+					{
+						// End Hibernate operation
+						HibernateUtil.endOperation(operation);
+					}
+				}
 			}
 		}
 		else if (category==null)
@@ -2564,10 +3013,10 @@ public class CategoriesService implements Serializable
 	 * category identifier allowing to filter by category type
 	 * @throws ServiceException
 	 */
-	public List<Long> getDerivedCategoriesIds(long categoryId,User user,CategoryType categoryType)
+	public List<Long> getDerivedCategoriesIds(long categoryId,User user,CategoryType categoryType) 
 		throws ServiceException
 	{
-		return getDerivedCategoriesIds(null,categoryId,user,categoryType,true);
+		return getDerivedCategoriesIds(null,categoryId,user,categoryType);
 	}
 	
 	/**
@@ -2575,45 +3024,12 @@ public class CategoriesService implements Serializable
 	 * @param categoryId Category identifier
 	 * @param user User
 	 * @param categoryType Category type to check or null if we don't want to check it
-	 * @return List of idenfiers from categories derived from a category also including that 
-	 * category identifier allowing to filter by category type
+	 * @return List of idenfiers from categories derived from a category also including that category identifier 
+	 * allowing to filter by category type
 	 * @throws ServiceException
 	 */
 	public List<Long> getDerivedCategoriesIds(Operation operation,long categoryId,User user,
 		CategoryType categoryType) throws ServiceException
-	{
-		return getDerivedCategoriesIds(operation,categoryId,user,categoryType,true);
-	}
-	
-	/**
-	 * @param categoryId Category identifier
-	 * @param user User
-	 * @param categoryType Category type to check or null if we don't want to check it
-	 * @param checkVisibility Flag to indicate that if we are going to include only visible categories 
-	 * within results (true) or we are going to include all categories (false)
-	 * @return List of idenfiers from categories derived from a category also including that 
-	 * category identifier allowing to filter by category type
-	 * @throws ServiceException
-	 */
-	public List<Long> getDerivedCategoriesIds(long categoryId,User user,CategoryType categoryType,
-		boolean checkVisibility) throws ServiceException
-	{
-		return getDerivedCategoriesIds(null,categoryId,user,categoryType,checkVisibility);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param categoryId Category identifier
-	 * @param user User
-	 * @param categoryType Category type to check or null if we don't want to check it
-	 * @param checkVisibility Flag to indicate that if we are going to include only visible categories 
-	 * within results (true) or we are going to include all categories (false)
-	 * @return List of idenfiers from categories derived from a category also including that 
-	 * category identifier allowing to filter by category type
-	 * @throws ServiceException
-	 */
-	public List<Long> getDerivedCategoriesIds(Operation operation,long categoryId,User user,CategoryType categoryType,
-		boolean checkVisibility) throws ServiceException
 	{
 		List<Long> derivedCategoriesIds=new ArrayList<Long>();
 		boolean singleOp=operation==null;
@@ -2628,28 +3044,24 @@ public class CategoriesService implements Serializable
 			// Get category
 			Category from=getCategory(operation,categoryId);
 			
-			// Get public visibility if needed
-			Visibility publicVisibility=
-				checkVisibility?visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PUBLIC"):null;			
-			
 			CATEGORIES_DAO.setOperation(operation);
-			for (Category category:CATEGORIES_DAO.getCategories(false,true,true,true))
+			List<Category> categories=CATEGORIES_DAO.getCategories(false,true,true,true);
+			if (categoryType==null)
 			{
-				category.setCategoryType(
-					categoryTypesService.getCategoryType(operation,category.getCategoryType().getId()));
-				category.setVisibility(
-					visibilitiesService.getVisibility(operation,category.getVisibility().getId()));
-				boolean typeOk=
-					categoryType==null || 
-					categoryTypesService.isDerivedFrom(operation,categoryType,category.getCategoryType()) ||
-					categoryTypesService.isDerivedFrom(operation,category.getCategoryType(),categoryType);
-				if (typeOk)
+				for (Category category:categories)
 				{
-					boolean visible=
-						!checkVisibility || user==null || category.getUser().equals(user) || 
-						category.getVisibility().isGlobal() ||
-						category.getVisibility().getLevel()<=publicVisibility.getLevel(); 
-					if (visible && isDerivedFrom(operation,category,from))
+					derivedCategoriesIds.add(Long.valueOf(category.getId()));
+				}
+			}
+			else
+			{
+				for (Category category:categories)
+				{
+					CategoryType categoryCategoryType=
+						categoryTypesService.getCategoryTypeFromCategoryId(operation,categoryId);
+					boolean typeOk=categoryTypesService.isDerivedFrom(operation,categoryType,categoryCategoryType) ||
+						categoryTypesService.isDerivedFrom(operation,categoryCategoryType,categoryType);
+					if (typeOk && isDerivedFrom(operation,category,from))
 					{
 						derivedCategoriesIds.add(Long.valueOf(category.getId()));
 					}
@@ -2690,6 +3102,72 @@ public class CategoriesService implements Serializable
 	}
 	
 	/**
+	 * @param operation Operation
+	 * @param parent Parent category
+	 * @param categoriesDone List with categories already done (used to avoid infinite recursivity)
+	 * @return Copy of parent category
+	 */
+	private Category getParentCopy(Operation operation,Category parent,List<Category> categoriesDone)
+	{
+		Category parentCopy=null;
+		if (parent!=null)
+		{
+			if (categoriesDone.contains(parent))
+			{
+				parentCopy=categoriesDone.get(categoriesDone.indexOf(parent));
+			}
+			else
+			{
+				boolean singleOp=operation==null;
+				try
+				{
+					if (singleOp)
+					{
+						// Start Hibernate operation
+						operation=HibernateUtil.startOperation();
+					}
+					
+					// Get parent category from DB
+					CATEGORIES_DAO.setOperation(operation);
+					Category parentFromDB=CATEGORIES_DAO.getCategory(parent.getId(),false,true,true);
+					if (parentFromDB!=null)
+					{
+						parentCopy=parentFromDB.getCategoryCopy();
+						if (parentFromDB.getParent()!=null)
+						{
+							parentCopy.setParent(parentFromDB.getParent().getCategoryCopy());
+						}
+						if (parentFromDB.getCategoryType()!=null)
+						{
+							parentCopy.setCategoryType(
+								categoryTypesService.getCategoryTypeFromCategoryId(operation,parentFromDB.getId()));
+						}
+						if (parentFromDB.getVisibility()!=null)
+						{
+							parentCopy.setVisibility(
+								visibilitiesService.getVisibilityFromCategoryId(operation,parentFromDB.getId()));
+						}
+						categoriesDone.add(parentCopy);
+						if (parentCopy.getParent()!=null)
+						{
+							parentCopy.setParent(getParentCopy(operation,parentCopy.getParent(),categoriesDone));
+						}
+					}
+				}
+				finally
+				{
+					if (singleOp)
+					{
+						// End Hibernate operation
+						HibernateUtil.endOperation(operation);
+					}
+				}
+			}
+		}
+		return parentCopy;
+	}
+	
+	/**
 	 * @param categoryId Category identifier
 	 * @return Localized category name
 	 * @throws ServiceException
@@ -2707,50 +3185,24 @@ public class CategoriesService implements Serializable
 	 */
 	public String getLocalizedCategoryName(Operation operation,long categoryId) throws ServiceException
 	{
-		String localizedCategoryName="";
-		boolean singleOp=operation==null;
-		try
-		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
-			localizedCategoryName=getLocalizedCategoryName(operation,getCategory(operation,categoryId));
-		}
-		catch (DaoException de)
-		{
-			throw new ServiceException(de.getMessage(),de);
-		}
-		finally
-		{
-			if (singleOp)
-			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
-		}
-		return localizedCategoryName;
+		return getLocalizedCategoryName(getCategory(operation,categoryId));
 	}
 	
 	//Obtiene el nombre localizado de la categoría
 	/**
-	 * @param operation Operation
 	 * @param category Category
 	 * @return Localized category long name
 	 * @throws ServiceException
 	 */
-	private String getLocalizedCategoryName(Operation operation,Category category) throws ServiceException
+	private String getLocalizedCategoryName(Category category) throws ServiceException
 	{
 		StringBuffer localizedCategoryName=new StringBuffer();
 		if (category.isDefaultCategory())
 		{
 			FacesContext context=FacesContext.getCurrentInstance();
-			UserSessionService userSessionService=
-				(UserSessionService)context.getApplication().getELResolver().getValue(
-				context.getELContext(),null,"userSessionService");
-			if (userSessionService.getCurrentUser(operation).equals(category.getUser()))
+			UserSessionService userSessionService=(UserSessionService)context.getApplication().getELResolver().
+				getValue(context.getELContext(),null,"userSessionService");
+			if (userSessionService.getCurrentUserId()==category.getUser().getId())
 			{
 				localizedCategoryName.append(localizationService.getLocalizedMessage("MY_CATEGORIES"));
 			}
@@ -2828,7 +3280,7 @@ public class CategoriesService implements Serializable
 			FacesContext context=FacesContext.getCurrentInstance();
 			UserSessionService userSessionService=(UserSessionService)context.getApplication().getELResolver().
 				getValue(context.getELContext(),null,"userSessionService");
-			if (userSessionService.getCurrentUser(operation).equals(category.getUser()))
+			if (userSessionService.getCurrentUserId()==category.getUser().getId())
 			{
 				localizedCategoryLongName.append(localizationService.getLocalizedMessage("MY_CATEGORIES"));
 			}
@@ -2907,9 +3359,9 @@ public class CategoriesService implements Serializable
 	 * @return Localized category long name, if length is greater than maximum length it will be abbreviated
 	 * @throws ServiceException
 	 */
-	public String getLocalizedCategoryLongName(long categoryId,int maxLevels)
+	public String getLocalizedCategoryLongName(long categoryId,int maxLength)
 	{
-		return getLocalizedCategoryLongName(null,categoryId,maxLevels);
+		return getLocalizedCategoryLongName(null,categoryId,maxLength);
 	}
 	
 	/**
@@ -2962,44 +3414,6 @@ public class CategoriesService implements Serializable
 		}
 		return localizedCategoryLongName.toString();
 	}
-	/*
-	public String getLocalizedCategoryLongName(Operation operation,long categoryId,int maxLevels)
-	{
-		StringBuffer localizedCategoryLongName=new StringBuffer();
-		String fullLocalizedCategoryLongName=getLocalizedCategoryLongName(operation,categoryId);
-		if (maxLevels>0)
-		{
-			int iStartAbbreviate=-1;
-			for (int iLevel=1;(iLevel==1 || iStartAbbreviate!=-1) && iLevel<maxLevels;iLevel++)
-			{
-				iStartAbbreviate=fullLocalizedCategoryLongName.indexOf('/',iStartAbbreviate+1);
-			}
-			if (iStartAbbreviate!=-1)
-			{
-				int iEndAbbreviate=fullLocalizedCategoryLongName.lastIndexOf('/');
-				if (iStartAbbreviate<iEndAbbreviate)
-				{
-					localizedCategoryLongName.append(fullLocalizedCategoryLongName.substring(0,iStartAbbreviate));
-					localizedCategoryLongName.append("/ ... ");
-					localizedCategoryLongName.append(fullLocalizedCategoryLongName.substring(iEndAbbreviate));
-				}
-				else
-				{
-					localizedCategoryLongName.append(fullLocalizedCategoryLongName);
-				}
-			}
-			else
-			{
-				localizedCategoryLongName.append(fullLocalizedCategoryLongName);
-			}
-		}
-		else
-		{
-			localizedCategoryLongName.append(fullLocalizedCategoryLongName);
-		}
-		return localizedCategoryLongName.toString();
-	}
-	*/
 	
 	/**
 	 * Sort categories by localized category long name.
@@ -3052,7 +3466,8 @@ public class CategoriesService implements Serializable
 	 * @param checkVisibility Flag to indicate if we want to perform visibility checks to be sure that we only
 	 * remove private categories (true) or we don't want to perform that checks (false)
 	 */
-	private void removeAdminsPrivateCategories(Operation operation,List<Category> categories,boolean checkVisibility)
+	private void removeAdminsPrivateCategories(Operation operation,List<Category> categories,
+		boolean checkVisibility)
 	{
 		boolean singleOp=operation==null;
 		try

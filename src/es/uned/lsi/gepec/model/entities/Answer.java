@@ -195,6 +195,16 @@ public class Answer implements java.io.Serializable {
 	}
 	
 	/**
+	 * @return A copy of this answer.
+	 */
+	@Transient
+	public Answer getAnswerCopy()
+	{
+		return new Answer(getId(),getQuestion(),getResource(),getResourceWidth(),getResourceHeight(),getText(),
+			getCorrect(),getFixed(),getPosition(),getName());
+	}
+	
+	/**
 	 * @return OM answer component identifier
 	 */
 	@Transient

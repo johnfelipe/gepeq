@@ -23,7 +23,7 @@
     <h:outputStylesheet library="css" name="administration.css" />
     
     <h:form id="administrationForm" onkeypress="preventEnterSubmit(event);">
-      <p:messages id="messages"/>
+      <p:growl id="messages" showDetail="true" sticky="#{administrationBean.criticalErrorMessage}" />
       <h:panelGroup layout="block" styleClass="ui-messages ui-widget" 
         rendered="#{!administrationBean.isAdminEnabled()}">
         
@@ -39,9 +39,10 @@
         </h:panelGroup>
       </h:panelGroup>
       <p:tabView id="administrationTabs" rendered="#{administrationBean.isAdminEnabled()}">
+        <p:ajax event="tabChange" listener="#{administrationBean.changeActiveAdministrationTab}" process="@this" 
+          update="@this" />
         <p:tab id="usersTab" title="#{msgs.USERS}" rendered="#{administrationBean.isAdminUsersEnabled()}">
           <h:inputHidden value="#{administrationBean.userId}" />
-          
           <p:panel id="usersFilterPanel" styleClass="filterPanel">
             <h:panelGrid columns="5" cellpadding="5" rowClasses="topAlignRow"
               columnClasses="#{localizationService.getLocalizedStyleClasses('columnRoleLabel,columnRoleInput,columnIncludeOmUsersLabel,columnIncludeOmUsersInput,columnApplyFilterButton')}">
@@ -58,15 +59,14 @@
               </p:selectOneMenu>
               <h:outputText value="#{msgs.INCLUDE_OM_USERS}" 
                 rendered="#{administrationBean.filterUserTypeId&lt;=0}" />
-              <p:selectBooleanCheckbox id="includeOmUsers" 
-                value="#{administrationBean.filterIncludeOmUsers}" 
+              <p:selectBooleanCheckbox id="includeOmUsers" value="#{administrationBean.filterIncludeOmUsers}" 
                 rendered="#{administrationBean.filterUserTypeId&lt;=0}" />
               <h:outputText value="" rendered="#{administrationBean.filterUserTypeId&gt;0}" />
               <h:outputText value="" rendered="#{administrationBean.filterUserTypeId&gt;0}" />
               <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
                 actionListener="#{administrationBean.applyUsersFilter}" 
                 process="administrationForm:administrationTabs:usersFilterPanel" 
-                update="administrationForm:messages administrationForm:administrationTabs:usersTable" />
+                update="administrationForm:messages administrationForm:administrationTabs:usersFilterPanel administrationForm:administrationTabs:usersTable" />
             </h:panelGrid>
           </p:panel>
           
@@ -77,11 +77,11 @@
           </h:panelGroup>
           
           <p:dataTable id="usersTable" styleClass="usersTable" rowStyleClass="dataRow" 
-            emptyMessage="#{msgs.NO_USER}" value="#{administrationBean.users}" var="user"
-            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}" 
-            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            emptyMessage="#{msgs.NO_USER}" value="#{administrationBean.users}" var="user" 
+            paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+            rowsPerPageTemplate="10,25,50">
             
-            <p:column styleClass="columnLogin" sortBy="#{user.login}">
+            <p:column styleClass="columnUser" sortBy="#{user.login}">
               <f:facet name="header">#{msgs.USER}</f:facet>
               <h:outputText id="userLogin" value="#{user.login}"/>
               <p:tooltip for="userLogin">
@@ -116,24 +116,23 @@
                 rendered="#{!user.gepeqUser}" />
             </p:column>
             <p:column styleClass="columnEdit">
-              <h:commandLink action="#{administrationBean.editUser}"
-                rendered="#{administrationBean.isEditUserAllowed(user)}">
+              <h:commandLink action="#{administrationBean.editUser(user)}"
+                rendered="#{administrationBean.isEditUserAllowed(user)}" onclick="editUserTooltip.hide();">
                 
                 <f:param name="userId" value="#{user.id}" />
                 <h:graphicImage id="editUserImage" styleClass="links" value="#{resource['images:edit16.png']}" />
-                <p:tooltip for="editUserImage">
+                <p:tooltip widgetVar="editUserTooltip" for="editUserImage">
                   #{msgs.EDIT_USER}
                 </p:tooltip>
               </h:commandLink>
             </p:column>
             <p:column styleClass="columnDelete">
-              <p:commandLink update=":confirmDialog" actionListener="#{administrationBean.confirm}" 
-                rendered="#{administrationBean.isDeleteUserAllowed(user)}">
+              <p:commandLink update="confirmDialog administrationForm" 
+                actionListener="#{administrationBean.confirmDeleteUser(user)}" 
+                rendered="#{administrationBean.isDeleteUserAllowed(user)}" onstart="deleteUserTooltip.hide();">
                 
-                <f:attribute name="userId" value="#{user.id}" />
-                <h:graphicImage id="deleteUserImage" styleClass="links" 
-                  value="#{resource['images:delete.png']}" />
-                <p:tooltip for="deleteUserImage">
+                <h:graphicImage id="deleteUserImage" styleClass="links" value="#{resource['images:delete.png']}" />
+                <p:tooltip widgetVar="deleteUserTooltip" for="deleteUserImage">
                   #{msgs.DELETE_USER}
                 </p:tooltip>
               </p:commandLink>
@@ -151,8 +150,8 @@
           
           <p:dataTable id="rolesTable" styleClass="rolesTable" rowStyleClass="dataRow" 
             emptyMessage="#{msgs.NO_ROLES}" value="#{administrationBean.userTypes}" var="userType" 
-            paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-            paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+            paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+            rowsPerPageTemplate="10,25,50">
             
             <p:column styleClass="columnRole" sortBy="#{userType.type}">
               <f:facet name="header">#{msgs.ROLE}</f:facet>
@@ -164,24 +163,23 @@
                 escape="false" />
             </p:column>
             <p:column styleClass="columnEdit">
-              <h:commandLink action="#{administrationBean.editUserType}" 
-                rendered="#{administrationBean.isEditUserTypeAllowed(userType)}">
+              <h:commandLink action="#{administrationBean.editUserType(userType)}" 
+                rendered="#{administrationBean.isEditUserTypeAllowed(userType)}" onclick="editRoleTooltip.hide();">
                 
                 <f:param name="userTypeId" value="#{userType.id}" />
                 <h:graphicImage id="editRoleImage" styleClass="links" value="#{resource['images:edit16.png']}" />
-                <p:tooltip for="editRoleImage">
+                <p:tooltip widgetVar="editRoleTooltip" for="editRoleImage">
                   #{msgs.EDIT_ROLE}
                 </p:tooltip>
               </h:commandLink>
             </p:column>
             <p:column styleClass="columnDelete">
-              <p:commandLink update=":confirmDialog" actionListener="#{administrationBean.confirm}" 
-                rendered="#{administrationBean.isDeleteUserTypeAllowed(userType)}">
+              <p:commandLink update="confirmDialog administrationForm" 
+                actionListener="#{administrationBean.confirmDeleteUserType(userType)}" 
+                rendered="#{administrationBean.isDeleteUserTypeAllowed(userType)}" onstart="deleteRoleTooltip.hide();">
                 
-                <f:attribute name="userTypeId" value="#{userType.id}" />
-                <h:graphicImage id="deleteRoleImage" styleClass="links" 
-                  value="#{resource['images:delete.png']}" />
-                <p:tooltip for="deleteRoleImage">
+                <h:graphicImage id="deleteRoleImage" styleClass="links" value="#{resource['images:delete.png']}" />
+                <p:tooltip widgetVar="deleteRoleTooltip" for="deleteRoleImage">
                   #{msgs.DELETE_ROLE}
                 </p:tooltip>
               </p:commandLink>
@@ -208,14 +206,20 @@
         <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
           <h:panelGroup layout="block" style="text-align:right;">
             <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
-              actionListener="#{administrationBean.deleteUser}" 
-              update="administrationForm:messages administrationForm:administrationTabs:newUserButton administrationForm:administrationTabs:usersTable" 
+              actionListener="#{administrationBean.deleteUser}" update="administrationForm" 
               rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_USER'}" />
+            <!-- update="administrationForm:messages administrationForm:administrationTabs:newUserButton administrationForm:administrationTabs:usersTable" -->
             <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide()" 
               actionListener="#{administrationBean.deleteUserType}" 
               update="administrationForm:messages administrationForm:administrationTabs:newRoleButton administrationForm:administrationTabs:rolesTable" 
               rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_ROLE'}" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+            <!-- update="administrationForm:messages administrationForm:administrationTabs:newRoleButton administrationForm:administrationTabs:rolesTable" -->
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide()" 
+              actionListener="#{administrationBean.cancelConfirmDeleteUser}" update="administrationForm" 
+              rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_USER'}" />
+            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide()" 
+              actionListener="#{administrationBean.cancelConfirmDeleteUserType}" update="administrationForm" 
+              rendered="#{administrationBean.confirmType=='CONFIRM_DELETE_ROLE'}" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>

@@ -22,7 +22,6 @@ import java.io.Serializable;
 import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.QuestionOrder;
 import es.uned.lsi.gepec.model.entities.Section;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.TestBean;
 
 /**
@@ -133,35 +132,21 @@ public class QuestionOrderBean implements Serializable
 	 */
 	public Question getQuestion()
 	{
-		return getQuestion(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Question
-	 */
-	private Question getQuestion(Operation operation)
-	{
 		if (questionId==0L)
 		{
 			question=null;
 		}
 		else if (question==null || question.getId()!=questionId)
 		{
-			question=test.getQuestion(test.getCurrentUserOperation(operation),questionId);
+			question=test.getQuestion(questionId);
 		}
 		return question;
 	}
 	
 	public int getSectionOrder()
 	{
-		return getSectionOrder(null);
-	}
-	
-	public int getSectionOrder(Operation operation)
-	{
 		int sectionOrder=-1;
-		for (SectionBean section:test.getSections(test.getCurrentUserOperation(operation)))
+		for (SectionBean section:test.getSections())
 		{
 			if (section.getQuestionOrders().contains(this))
 			{
@@ -192,19 +177,9 @@ public class QuestionOrderBean implements Serializable
 	 */
 	public QuestionOrder getAsQuestionOrder(Section section)
 	{
-		return getAsQuestionOrder(null,section);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param section Section object
-	 * @return QuestionOrder object with data from this QuestionOrderBean
-	 */
-	public QuestionOrder getAsQuestionOrder(Operation operation,Section section)
-	{
 		QuestionOrder questionOrder=new QuestionOrder();
 		questionOrder.setId(getId());
-		questionOrder.setQuestion(getQuestion(test.getCurrentUserOperation(operation)));
+		questionOrder.setQuestion(getQuestion());
 		questionOrder.setOrder(getOrder());
 		questionOrder.setWeight(getWeight());
 		questionOrder.setSection(section);

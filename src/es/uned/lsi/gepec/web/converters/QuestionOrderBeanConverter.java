@@ -27,7 +27,6 @@ import javax.faces.convert.FacesConverter;
 import es.uned.lsi.gepec.web.TestBean;
 import es.uned.lsi.gepec.web.backbeans.QuestionOrderBean;
 import es.uned.lsi.gepec.web.backbeans.SectionBean;
-import es.uned.lsi.gepec.web.services.UserSessionService;
 
 /**
  * JSF 2 converter for question references (question orders)
@@ -52,7 +51,7 @@ public class QuestionOrderBeanConverter implements Converter
 		TestBean testBean=(TestBean)resolver.getValue(elContext,null,"testBean");
 		
 		SectionBean sectionBean=null;
-		for (SectionBean sb:testBean.getSections(testBean.getCurrentUserOperation(null)))
+		for (SectionBean sb:testBean.getSections())
 		{
 			if (sb.getOrder()==sectionPos)
 			{
@@ -78,18 +77,9 @@ public class QuestionOrderBeanConverter implements Converter
 	@Override
 	public String getAsString(FacesContext context,UIComponent component,Object value)
 	{
-		// Get EL context
-		ELContext elContext=context.getELContext();
-		
-		// Get EL resolver
-		ELResolver resolver=context.getApplication().getELResolver();
-		
-		// We get UserSessionService from EL resolver
-		UserSessionService userSessionService=(UserSessionService)resolver.getValue(elContext,null,"userSessionService");
-		
 		QuestionOrderBean questionOrder=(QuestionOrderBean)value;
 		StringBuffer questionOrderStr=new StringBuffer();
-		questionOrderStr.append(questionOrder.getSectionOrder(userSessionService.getCurrentUserOperation()));
+		questionOrderStr.append(questionOrder.getSectionOrder());
 		questionOrderStr.append(':');
 		questionOrderStr.append(questionOrder.getOrder());
 		return questionOrderStr.toString();

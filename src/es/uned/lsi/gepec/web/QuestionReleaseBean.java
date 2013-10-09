@@ -50,6 +50,7 @@ import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.QuestionRelease;
 import es.uned.lsi.gepec.model.entities.User;
 import es.uned.lsi.gepec.model.entities.UserType;
+import es.uned.lsi.gepec.model.entities.Visibility;
 import es.uned.lsi.gepec.om.OmHelper;
 import es.uned.lsi.gepec.om.QuestionGenerator;
 import es.uned.lsi.gepec.om.TestGenerator;
@@ -57,14 +58,17 @@ import es.uned.lsi.gepec.util.StringUtils;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.backbeans.UserGroupBean;
 import es.uned.lsi.gepec.web.services.CategoriesService;
+import es.uned.lsi.gepec.web.services.CategoryTypesService;
 import es.uned.lsi.gepec.web.services.ConfigurationService;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 import es.uned.lsi.gepec.web.services.PermissionsService;
 import es.uned.lsi.gepec.web.services.QuestionReleasesService;
 import es.uned.lsi.gepec.web.services.QuestionsService;
+import es.uned.lsi.gepec.web.services.ServiceException;
 import es.uned.lsi.gepec.web.services.UserSessionService;
 import es.uned.lsi.gepec.web.services.UserTypesService;
 import es.uned.lsi.gepec.web.services.UsersService;
+import es.uned.lsi.gepec.web.services.VisibilitiesService;
 
 /**
  * Managed bean for publishing a question.
@@ -87,6 +91,10 @@ public class QuestionReleaseBean implements Serializable
 	private ConfigurationService configurationService;
 	@ManagedProperty(value="#{categoriesService}")
 	private CategoriesService categoriesService;
+	@ManagedProperty(value="#{categoryTypesService}")
+	private CategoryTypesService categoryTypesService;
+	@ManagedProperty(value="#{visibilitiesService}")
+	private VisibilitiesService visibilitiesService;
 	@ManagedProperty(value="#{questionsService}")
 	private QuestionsService questionsService;
 	@ManagedProperty(value="#{questionReleasesService}")
@@ -107,9 +115,6 @@ public class QuestionReleaseBean implements Serializable
 	private String cancelPublishQuestionTarget;
 	
 	private String activeQuestionReleaseTabName;
-	
-	private boolean publishAllowed;
-	private String lastErrorMessage;
 	
 	private boolean restrictDates;
 	private String startDateHidden;
@@ -147,8 +152,6 @@ public class QuestionReleaseBean implements Serializable
 		userGroupsDualList=null;
 		enabledCheckboxesSetters=true;
 		activeQuestionReleaseTabName=GENERAL_WIZARD_TAB;
-		publishAllowed=true;
-		lastErrorMessage=null;
 	}
 	
 	public void setLocalizationService(LocalizationService localizationService)
@@ -164,6 +167,16 @@ public class QuestionReleaseBean implements Serializable
 	public void setCategoriesService(CategoriesService categoriesService)
 	{
 		this.categoriesService=categoriesService;
+	}
+	
+	public void setCategoryTypesService(CategoryTypesService categoryTypesService)
+	{
+		this.categoryTypesService=categoryTypesService;
+	}
+	
+	public void setVisibilitiesService(VisibilitiesService visibilitiesService)
+	{
+		this.visibilitiesService=visibilitiesService;
 	}
 	
 	public void setQuestionsService(QuestionsService questionsService)
@@ -198,28 +211,45 @@ public class QuestionReleaseBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && questionRelease==null)
+    	{
+    		getQuestionRelease();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
     
+	private boolean isFilterGlobalQuestionsEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(
+			getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED");
+	}
+    
+	private boolean isFilterOtherUsersQuestionsEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(
+			getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED");
+	}
+	
 	private boolean isPublishEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_QUESTIONS_ENABLED");
 	}
 	
-	private boolean isPublishOtherUsersEnabled(Operation operation)
+	private boolean isPublishOtherUsersQuestionsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_OTHER_USERS_QUESTIONS_ENABLED");
 	}
 	
-	private boolean isPublishAdminsEnabled(Operation operation)
+	private boolean isPublishAdminsQuestionsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_ADMINS_QUESTIONS_ENABLED");
 	}
 	
-	private boolean isPublishSuperadminsEnabled(Operation operation)
+	private boolean isPublishSuperadminsQuestionsEnabled(Operation operation)
 	{
 		return userSessionService.isGranted(
 			getCurrentUserOperation(operation),"PERMISSION_PUBLICATION_PUBLISH_SUPERADMINS_USERS_QUESTIONS_ENABLED");
@@ -237,22 +267,38 @@ public class QuestionReleaseBean implements Serializable
 			getCurrentUserOperation(operation),user,"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED");
 	}
 	
-	public QuestionRelease getQuestionRelease()
+	private boolean isViewQuestionsFromOtherUsersPrivateCategoriesEnabled(Operation operation)
 	{
-		return getQuestionRelease(null);
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
 	}
 	
-	private QuestionRelease getQuestionRelease(Operation operation)
+	private boolean isViewQuestionsFromAdminsPrivateCategoriesEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED");
+	}
+	
+	private boolean isViewQuestionsFromSuperadminsPrivateCategoriesEnabled(Operation operation)
+	{
+		return userSessionService.isGranted(getCurrentUserOperation(operation),
+			"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED");
+	}
+	
+	public QuestionRelease getQuestionRelease()
 	{
 		if (questionRelease==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
     		// We seek parameters
     		FacesContext context=FacesContext.getCurrentInstance();
     		Map<String,String> params=context.getExternalContext().getRequestParameterMap();
     		long questionId=Long.parseLong(params.get("questionId"));
-    		
-    		// Get current user session Hibernate operation
-    		operation=getCurrentUserOperation(operation);
     		
     		questionRelease=questionReleasesService.getQuestionRelease(operation,questionId);
     		User currentUser=userSessionService.getCurrentUser(operation);
@@ -299,30 +345,21 @@ public class QuestionReleaseBean implements Serializable
 	
 	public boolean isAllUsersAllowed()
 	{
-		return isAllUsersAllowed(null);
+		return getQuestionRelease().isAllUsersAllowed();
 	}
 	
 	public void setAllUsersAllowed(boolean allUsersAllowed)
 	{
-		setAllUsersAllowed(null,allUsersAllowed);
-	}
-	
-	private boolean isAllUsersAllowed(Operation operation)
-	{
-		return getQuestionRelease(getCurrentUserOperation(operation)).isAllUsersAllowed();
-	}
-	
-	private void setAllUsersAllowed(Operation operation,boolean allUsersAllowed)
-	{
 		if (isEnabledChecboxesSetters())
 		{
-			getQuestionRelease(getCurrentUserOperation(operation)).setAllUsersAllowed(allUsersAllowed);
+			getQuestionRelease().setAllUsersAllowed(allUsersAllowed);
 		}
 	}
 	
 	public boolean isRestrictDates()
 	{
-		return isRestrictDates(null);
+		getQuestionRelease();
+		return restrictDates;
 	}
 	
 	public void setRestrictDates(boolean restrictDates)
@@ -331,12 +368,6 @@ public class QuestionReleaseBean implements Serializable
 		{
 			this.restrictDates=restrictDates;
 		}
-	}
-	
-	private boolean isRestrictDates(Operation operation)
-	{
-		getQuestionRelease(getCurrentUserOperation(operation));
-		return restrictDates;
 	}
 	
 	public String getStartDateHidden()
@@ -391,17 +422,7 @@ public class QuestionReleaseBean implements Serializable
 	
 	public Date getStartDate()
 	{
-		return getStartDate(null);
-	}
-	
-	public void setStartDate(Date startDate)
-	{
-		setStartDate(null,startDate);
-	}
-	
-	private Date getStartDate(Operation operation)
-	{
-		QuestionRelease questionRelease=getQuestionRelease(getCurrentUserOperation(operation));
+		QuestionRelease questionRelease=getQuestionRelease();
 		if (getStartDateHidden()!=null && !getStartDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -417,9 +438,9 @@ public class QuestionReleaseBean implements Serializable
 		return questionRelease.getStartDate();
 	}
 	
-	private void setStartDate(Operation operation,Date startDate)
+	public void setStartDate(Date startDate)
 	{
-		getQuestionRelease(getCurrentUserOperation(operation)).setStartDate(startDate);
+		getQuestionRelease().setStartDate(startDate);
 	}
 	
 	public void changeStartDate(DateSelectEvent event)
@@ -438,17 +459,7 @@ public class QuestionReleaseBean implements Serializable
 	
 	public Date getCloseDate()
 	{
-		return getCloseDate(null);
-	}
-	
-	public void setCloseDate(Date closeDate)
-	{
-		setCloseDate(null,closeDate);
-	}
-	
-	private Date getCloseDate(Operation operation)
-	{
-		QuestionRelease questionRelease=getQuestionRelease(getCurrentUserOperation(operation));
+		QuestionRelease questionRelease=getQuestionRelease();
 		if (getCloseDateHidden()!=null && !getCloseDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -464,9 +475,9 @@ public class QuestionReleaseBean implements Serializable
 		return questionRelease.getCloseDate();
 	}
 	
-	private void setCloseDate(Operation operation,Date closeDate)
+	public void setCloseDate(Date closeDate)
 	{
-		getQuestionRelease(getCurrentUserOperation(operation)).setCloseDate(closeDate);
+		getQuestionRelease().setCloseDate(closeDate);
 	}
 	
 	public void changeCloseDate(DateSelectEvent event)
@@ -485,17 +496,7 @@ public class QuestionReleaseBean implements Serializable
 	
 	public Date getWarningDate()
 	{
-		return getWarningDate(null);
-	}
-	
-	public void setWarningDate(Date warningDate)
-	{
-		setWarningDate(null,warningDate);
-	}
-	
-	private Date getWarningDate(Operation operation)
-	{
-		QuestionRelease questionRelease=getQuestionRelease(getCurrentUserOperation(operation));
+		QuestionRelease questionRelease=getQuestionRelease();
 		if (getWarningDateHidden()!=null && !getWarningDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -511,9 +512,9 @@ public class QuestionReleaseBean implements Serializable
 		return questionRelease.getWarningDate();
 	}
 	
-	private void setWarningDate(Operation operation,Date warningDate)
+	public void setWarningDate(Date warningDate)
 	{
-		getQuestionRelease(getCurrentUserOperation(operation)).setWarningDate(warningDate);
+		getQuestionRelease().setWarningDate(warningDate);
 	}
 	
 	public void changeWarningDate(DateSelectEvent event)
@@ -532,17 +533,7 @@ public class QuestionReleaseBean implements Serializable
 	
 	public Date getDeleteDate()
 	{
-		return getDeleteDate(null);
-	}
-	
-	public void setDeleteDate(Date deleteDate)
-	{
-		setDeleteDate(null,deleteDate);
-	}
-	
-	private Date getDeleteDate(Operation operation)
-	{
-		QuestionRelease questionRelease=getQuestionRelease(getCurrentUserOperation(operation));
+		QuestionRelease questionRelease=getQuestionRelease();
 		if (getDeleteDateHidden()!=null && !getDeleteDateHidden().equals(""))
 		{
 			DateFormat df=new SimpleDateFormat(DATE_HIDDEN_PATTERN);
@@ -558,9 +549,9 @@ public class QuestionReleaseBean implements Serializable
 		return questionRelease.getDeleteDate();
 	}
 	
-	private void setDeleteDate(Operation operation,Date deleteDate)
+	public void setDeleteDate(Date deleteDate)
 	{
-		getQuestionRelease(getCurrentUserOperation(operation)).setDeleteDate(deleteDate);
+		getQuestionRelease().setDeleteDate(deleteDate);
 	}
 	
 	public void changeDeleteDate(DateSelectEvent event)
@@ -579,12 +570,7 @@ public class QuestionReleaseBean implements Serializable
 	
 	public String getDisplayEquations()
 	{
-		return getDisplayEquations(null);
-	}
-	
-	private String getDisplayEquations(Operation operation)
-	{
-		return getQuestionRelease(getCurrentUserOperation(operation)).getQuestion().isDisplayEquations()?
+		return getQuestionRelease().getQuestion().isDisplayEquations()?
 			localizationService.getLocalizedMessage("YES"):localizationService.getLocalizedMessage("NO");
 	}
 	
@@ -700,7 +686,11 @@ public class QuestionReleaseBean implements Serializable
 	 */
 	public List<UserGroupBean> getQuestionUsersGroups()
 	{
-		return getQuestionUsersGroups(null);
+    	if (questionUsersGroups==null)
+    	{
+    		getQuestionRelease();
+    	}
+    	return questionUsersGroups;
 	}
 	
 	/**
@@ -709,19 +699,6 @@ public class QuestionReleaseBean implements Serializable
 	public void setQuestionUsersGroups(List<UserGroupBean> questionUsersGroups)
 	{
 		this.questionUsersGroups=questionUsersGroups;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Users and groups with permission to do this question
-	 */
-	private List<UserGroupBean> getQuestionUsersGroups(Operation operation)
-	{
-    	if (questionUsersGroups==null)
-    	{
-    		getQuestionRelease(operation);
-    	}
-    	return questionUsersGroups;
 	}
 	
     /**
@@ -737,14 +714,6 @@ public class QuestionReleaseBean implements Serializable
     	if (CALENDAR_WIZARD_TAB.equals(oldStep))
     	{
     		ok=USERS_WIZARD_TAB.equals(nextStep) || checkCalendarInputFields();
-    	}
-    	else if (CONFIRMATION_WIZARD_TAB.equals(oldStep))
-    	{
-    		if (!publishAllowed)
-    		{
-    			ok=false;
-    			addErrorMessage(lastErrorMessage);
-    		}
     	}
     	if (!ok)
     	{
@@ -782,26 +751,18 @@ public class QuestionReleaseBean implements Serializable
     	return categoriesService.getLocalizedCategoryLongName(getCurrentUserOperation(operation),category.getId());
     }
     
-	private boolean checkCalendarInputFields()
-	{
-		return checkCalendarInputFields(null);
-	}
-	
-    private boolean checkCalendarInputFields(Operation operation)
+    private boolean checkCalendarInputFields()
     {
     	boolean ok=true;
     	
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-    	if (isRestrictDates(operation))
+    	if (isRestrictDates())
     	{
     		String startDateHidden=getStartDateHidden();
     		String closeDateHidden=getCloseDateHidden();
     		String warningDateHidden=getWarningDateHidden();
-    		Date startDate=getStartDate(operation);
-    		Date closeDate=getCloseDate(operation);
-    		Date warningDate=getWarningDate(operation);
+    		Date startDate=getStartDate();
+    		Date closeDate=getCloseDate();
+    		Date warningDate=getWarningDate();
     		if (startDate!=null && closeDate!=null && !closeDate.after(startDate))
     		{
    				addErrorMessage("TEST_CLOSE_DATE_NOT_AFTER_START_DATE");
@@ -868,13 +829,12 @@ public class QuestionReleaseBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		List<User> questionReleaseUsers=getQuestionRelease(operation).getUsers();
+		List<User> questionReleaseUsers=getQuestionRelease().getUsers();
 		for (User user:getFilteredUsersForAddingUsers(operation))
 		{
 			if (!questionReleaseUsers.contains(user))
 			{
-				User availableUser=new User();
-				availableUser.setFromOtherUser(user);
+				User availableUser=user.getUserCopy();
 				availableUsers.add(availableUser);
 		}
 		}
@@ -978,11 +938,8 @@ public class QuestionReleaseBean implements Serializable
 	{
 		if (userGroupsDualList==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			List<String> availableUserGroups=usersService.getGroups(operation);
-			for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+			List<String> availableUserGroups=usersService.getGroups(getCurrentUserOperation(operation));
+			for (UserGroupBean userGroup:getQuestionUsersGroups())
 			{
 				if (!userGroup.isTestUser())
 				{
@@ -1040,7 +997,7 @@ public class QuestionReleaseBean implements Serializable
 		refreshUserGroupsDualList(operation,event.getComponent());
     	
 		// Add selected groups
-		List<UserGroupBean> questionUsersGroups=getQuestionUsersGroups(operation);
+		List<UserGroupBean> questionUsersGroups=getQuestionUsersGroups();
    		for (String userGroup:getUserGroupsDualList(operation).getTarget())
   		{
   			questionUsersGroups.add(new UserGroupBean(usersService,userSessionService,userGroup));
@@ -1080,12 +1037,9 @@ public class QuestionReleaseBean implements Serializable
      */
     public void acceptAddUsers(ActionEvent event)
     {
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-		QuestionRelease questionRelease=getQuestionRelease(operation);
-		List<UserGroupBean> questionUserGroups=getQuestionUsersGroups(operation);
-   		for (User user:getUsersDualList(operation).getTarget())
+		QuestionRelease questionRelease=getQuestionRelease();
+		List<UserGroupBean> questionUserGroups=getQuestionUsersGroups();
+   		for (User user:getUsersDualList(getCurrentUserOperation(null)).getTarget())
   		{
    			questionRelease.getUsers().add(user);
    			questionUserGroups.add(new UserGroupBean(user));
@@ -1098,10 +1052,7 @@ public class QuestionReleaseBean implements Serializable
      */
     public void removeUserGroup(ActionEvent event)
     {
-    	// Get current user session operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	QuestionRelease questionRelease=getQuestionRelease(operation);
+    	QuestionRelease questionRelease=getQuestionRelease();
     	UserGroupBean userGroup=(UserGroupBean)event.getComponent().getAttributes().get("userGroup");
     	if (userGroup!=null)
     	{
@@ -1113,7 +1064,7 @@ public class QuestionReleaseBean implements Serializable
     		{
     			questionRelease.getUserGroups().remove(userGroup.getGroup());
     		}
-    		getQuestionUsersGroups(operation).remove(userGroup);
+    		getQuestionUsersGroups().remove(userGroup);
     	}
 	}
 	
@@ -1290,7 +1241,7 @@ public class QuestionReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+				for (UserGroupBean userGroup:getQuestionUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -1323,7 +1274,7 @@ public class QuestionReleaseBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
+				for (UserGroupBean userGroup:getQuestionUsersGroups())
 				{
 					if (!userGroup.isTestUser() && getUserGroup().equals(userGroup.getGroup()))
 					{
@@ -1417,11 +1368,106 @@ public class QuestionReleaseBean implements Serializable
     	deleteDateHidden.popComponentFromEL(context);
     }
     
-	public boolean isPublishAllowed()
-	{
-		return publishAllowed;
-	}
+	/**
+	 * @param operation Operation
+	 * @param category Category
+	 * @return true if a category is usable by current user, false otherwise
+	 */
+    private boolean checkCategory(Operation operation,Category category)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	// Check category type
+    	boolean ok=category!=null && categoryTypesService.isDerivedFrom(operation,
+    		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_QUESTIONS"),
+    		categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+    	
+    	// Check visibility
+    	if (ok)
+    	{
+    		ok=false;
+    		Question question=getQuestionRelease().getQuestion();
+    		User questionAuthor=question.getCreatedBy();
+    		Visibility categoryVisibility=visibilitiesService.getVisibilityFromCategoryId(operation,category.getId());
+    		if (categoryVisibility.isGlobal())	
+    		{
+    			ok=isFilterGlobalQuestionsEnabled(operation);
+    		}
+    		else if (questionAuthor.equals(category.getUser()))
+    		{
+    			if (questionAuthor.getId()==userSessionService.getCurrentUserId())
+    			{
+    				ok=true;
+    			}
+    			else if (isFilterOtherUsersQuestionsEnabled(operation)) 
+    			{
+    				if (categoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+    					operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    				{
+    					ok=isViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation) && 
+    						(!isAdmin(operation,questionAuthor) || 
+    						isViewQuestionsFromAdminsPrivateCategoriesEnabled(operation)) && 
+    						(!isSuperadmin(operation,questionAuthor) || 
+    						isViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation));
+    				}
+    				else
+    				{
+    					ok=true;
+    				}
+    			}
+    		}
+    	}
+    	return ok;
+    }
     
+	/**
+	 * @param operation Operation
+	 * @return true if current category of the question we are publishing is usable by current user, false otherwise
+	 */
+    private boolean checkCurrentCategory(Operation operation)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(operation,categoriesService.getCategoryFromQuestionId(
+    		operation,getQuestionRelease().getQuestion().getId()));
+    }
+	
+	private boolean checkPublishQuestion(Operation operation)
+	{
+		boolean ok=false;
+		
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		Question question=getQuestionRelease().getQuestion();
+		if (isPublishEnabled(operation))
+		{
+			User questionAuthor=question.getCreatedBy();
+			if (questionAuthor.getId()==userSessionService.getCurrentUserId())
+			{
+				ok=true;
+			}
+			else
+			{
+				ok=isPublishOtherUsersQuestionsEnabled(operation) && 
+					(!isAdmin(operation,questionAuthor) || isPublishAdminsQuestionsEnabled(operation)) && 
+					(!isSuperadmin(operation,questionAuthor) || isPublishSuperadminsQuestionsEnabled(operation));
+			}
+		}
+		return ok;
+	}
+	
+	private boolean checkQuestionNotChanged(Operation operation)
+	{
+		Question question=getQuestionRelease().getQuestion();
+		Date timeModified=question.getTimemodified();
+		Date timeModifiedFromDB=
+			questionsService.getTimeModifiedFromQuestionId(getCurrentUserOperation(operation),question.getId());
+		return timeModified.equals(timeModifiedFromDB);
+	}
+	
 	/**
 	 * Publish question to production navigator environment.
 	 * @return Next wiew (publication page if save is sucessful, otherwise we keep actual view)
@@ -1429,63 +1475,60 @@ public class QuestionReleaseBean implements Serializable
 	public String publishQuestion()
 	{
 		String nextView="publication?faces-redirect=true";
-		QuestionRelease questionRelease=null;
-		Date startDateAux=null;
-		Date closeDateAux=null;
-		Date warningDateAux=null;
-		User currentUser=null;
 		
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		if (isPublishEnabled(operation))
-		{
-			// Get question release
-			questionRelease=getQuestionRelease(operation);
-			User questionAuthor=questionRelease.getQuestion().getCreatedBy();
-			currentUser=userSessionService.getCurrentUser(operation);			
-			
-			if (!currentUser.equals(questionAuthor) && !isPublishOtherUsersEnabled(operation) && 
-				(isAdmin(operation,questionAuthor) || !isPublishAdminsEnabled(operation)) &&
-				(isSuperadmin(operation,questionAuthor) || !isPublishSuperadminsEnabled(operation)))
-			{
-				addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-				nextView=null;
-			}
-			else
-			{
-				startDateAux=questionRelease.getStartDate();
-				closeDateAux=questionRelease.getCloseDate();
-				warningDateAux=questionRelease.getWarningDate();
-				if (!isRestrictDates(operation))
-				{
-					questionRelease.setStartDate(null);
-					questionRelease.setCloseDate(null);
-					questionRelease.setWarningDate(null);
-				}
-				questionRelease.getUsers().clear();
-				questionRelease.getUserGroups().clear();
-				for (UserGroupBean userGroup:getQuestionUsersGroups(operation))
-				{
-					if (userGroup.isTestUser())
-					{
-						questionRelease.getUsers().add(userGroup.getUser());
-					}
-					else
-					{
-						questionRelease.getUserGroups().add(userGroup.getGroup());
-					}
-				}
-			}
-		}
-		if (!checkQuestion(operation,questionRelease.getQuestion()))
-		{
-			publishAllowed=false;
-			nextView=null;
-		}
+		Date startDateAux=null;
+		Date closeDateAux=null;
+		Date warningDateAux=null;
+		QuestionRelease questionRelease=getQuestionRelease();
+		Question question=questionRelease.getQuestion();
+		User currentUser=userSessionService.getCurrentUser(operation);
+		long questionId=question.getId();
 		
-		if (nextView!=null)
+		if (!questionsService.checkQuestionId(operation,questionId))
 		{
+			nextView=null;
+			displayErrorPage(
+				"QUESTION_PUBLISH_NOT_FOUND_ERROR","The question you are trying to publish no longer exists.");
+		}
+		else if (!checkPublishQuestion(operation) || !checkCurrentCategory(operation))
+		{
+			nextView=null;
+	    	displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
+		}
+		else if (!checkQuestionNotChanged(operation))
+		{
+			nextView=null;
+			displayErrorPage(
+				"QUESTION_PUBLISH_CHANGED_ERROR","The question you are trying to publish has been modified.");
+		}
+		else
+		{
+			startDateAux=questionRelease.getStartDate();
+			closeDateAux=questionRelease.getCloseDate();
+			warningDateAux=questionRelease.getWarningDate();
+			if (!isRestrictDates())
+			{
+				questionRelease.setStartDate(null);
+				questionRelease.setCloseDate(null);
+				questionRelease.setWarningDate(null);
+			}
+			questionRelease.getUsers().clear();
+			questionRelease.getUserGroups().clear();
+			for (UserGroupBean userGroup:getQuestionUsersGroups())
+			{
+				if (userGroup.isTestUser())
+				{
+					questionRelease.getUsers().add(userGroup.getUser());
+				}
+				else
+				{
+					questionRelease.getUserGroups().add(userGroup.getGroup());
+				}
+			}
+			
 			// Get package's name and destination path
 			String packageName=questionRelease.getQuestion().getPackage();
 			String path=configurationService.getOmQuestionsPath();
@@ -1604,35 +1647,13 @@ public class QuestionReleaseBean implements Serializable
 				}
 			}
 		}
-		if (nextView==null && questionRelease!=null)
+		if (nextView==null)
 		{
 			questionRelease.setStartDate(startDateAux);
 			questionRelease.setCloseDate(closeDateAux);
 			questionRelease.setWarningDate(warningDateAux);
 		}
 		return nextView;
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param question Question
-	 * @return true if question has not been modified nor deleted while publishing it
-	 */
-	private boolean checkQuestion(Operation operation,Question question)
-	{
-		boolean ok=true;
-		Question questionFromDB=questionsService.getQuestion(getCurrentUserOperation(operation),question.getId());
-		if (questionFromDB==null)
-		{
-			ok=false;
-			addErrorMessage("PUBLISH_QUESTION_DELETED_ERROR");
-		}
-		else if (!questionFromDB.getTimemodified().equals(question.getTimemodified()))
-		{
-			ok=false;
-			addErrorMessage("PUBLISH_QUESTION_CHANGED_ERROR");
-		}
-		return ok;
 	}
 	
 	/**
@@ -1696,52 +1717,9 @@ public class QuestionReleaseBean implements Serializable
 	 */
 	public void showConfirmCancelPublishQuestionDialog(ActionEvent event)
 	{
-		String target=(String)event.getComponent().getAttributes().get("target");
-		if (isPublishAllowed())
-		{
-			setCancelPublishQuestionTarget(target);
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("confirmCancelPublishQuestionDialog.show()");
-		}
-		else
-		{
-	        FacesContext context=FacesContext.getCurrentInstance();
-	        if ("logout".equals(target))
-	        {
-				LoginBean loginBean=null;
-				try
-				{
-					loginBean=(LoginBean)context.getApplication().getELResolver().getValue(
-						context.getELContext(),null,"loginBean");
-				}
-				catch (Exception e)
-				{
-					loginBean=null;
-					target=null;
-				}
-				if (loginBean!=null)
-				{
-					target=loginBean.logout();
-				}
-	        }
-	        if (target!=null)
-	        {
-		        ExternalContext externalContext=context.getExternalContext();
-		        StringBuffer targetXhtml=new StringBuffer("/pages/");
-		        targetXhtml.append(target);
-		        targetXhtml.append(".xhtml");
-		        String url=externalContext.encodeActionURL(
-		        	context.getApplication().getViewHandler().getActionURL(context,targetXhtml.toString()));
-		        try 
-		        {
-		        	externalContext.redirect(url);
-		        }
-		        catch (IOException ioe)
-		        {
-		            throw new FacesException(ioe);
-		        }
-	        }
-		}
+		setCancelPublishQuestionTarget((String)event.getComponent().getAttributes().get("target"));
+		RequestContext rq=RequestContext.getCurrentInstance();
+		rq.execute("confirmCancelPublishQuestionDialog.show()");
 	}
 	
 	/**
@@ -1806,6 +1784,42 @@ public class QuestionReleaseBean implements Serializable
 	{
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("window.scrollTo(0,0)");
+	}
+	
+	/**
+	 * Displays the error page with the indicated message.<br/><br/>
+	 * Be careful that this method can only be invoked safely from non ajax actions.
+	 * @param errorCode Error message (before localization)
+	 * @param plainMessage Plain error message (used if it is not possible to localize error message)
+	 */
+	private void displayErrorPage(String errorCode,String plainMessage)
+	{
+		FacesContext context=FacesContext.getCurrentInstance();
+		ExternalContext externalContext=context.getExternalContext();
+		Map<String,Object> requestMap=externalContext.getRequestMap();
+		requestMap.put("errorCode",errorCode);
+		requestMap.put("plainMessage",plainMessage);
+		try
+		{
+			externalContext.dispatch("/pages/error");
+		}
+		catch (IOException ioe)
+		{
+			String errorMessage=null;
+			try
+			{
+				errorMessage=localizationService.getLocalizedMessage(errorCode);
+			}
+			catch (ServiceException se)
+			{
+				errorMessage=null;
+			}
+			if (errorMessage==null)
+			{
+				errorMessage=plainMessage;
+			}
+			throw new FacesException(errorMessage,ioe);
+		}
 	}
 	
 	/**

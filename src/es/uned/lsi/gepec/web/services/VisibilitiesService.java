@@ -89,8 +89,7 @@ public class VisibilitiesService implements Serializable
 		// We don't want caller accessing directly to a cached visibility so we return a copy
 		if (visibilityFromCache!=null)
 		{
-			visibility=new Visibility();
-			visibility.setFromOtherVisibility(visibilityFromCache);
+			visibility=visibilityFromCache.getVisibilityCopy();
 		}
 		return visibility;
 	}
@@ -135,8 +134,46 @@ public class VisibilitiesService implements Serializable
 		// We don't want caller accessing directly to a cached visibility so we return a copy
 		if (visibilityFromCache!=null)
 		{
-			visibility=new Visibility();
-			visibility.setFromOtherVisibility(visibilityFromCache);
+			visibility=visibilityFromCache.getVisibilityCopy();
+		}
+		return visibility;
+	}
+	
+	/**
+	 * @param categoryId Category identifier
+	 * @return Visibility from a category
+	 * @throws ServiceException
+	 */
+	public Visibility getVisibilityFromCategoryId(long categoryId) throws ServiceException
+	{
+		return getVisibilityFromCategoryId(null,categoryId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param categoryId Category identifier
+	 * @return Visibility from a category
+	 * @throws ServiceException
+	 */
+	public Visibility getVisibilityFromCategoryId(Operation operation,long categoryId) throws ServiceException
+	{
+		Visibility visibility=null;
+		if (categoryId>0L)
+		{
+			Visibility visibilityFromDB=null;
+			try
+			{
+				VISIBILITIES_DAO.setOperation(operation);
+				visibilityFromDB=VISIBILITIES_DAO.getVisibilityFromCategoryId(categoryId);
+			}
+			catch (DaoException de)
+			{
+				throw new ServiceException(de.getMessage(),de);
+			}
+			if (visibilityFromDB!=null)
+			{
+				visibility=visibilityFromDB.getVisibilityCopy();
+			}
 		}
 		return visibility;
 	}
@@ -189,8 +226,7 @@ public class VisibilitiesService implements Serializable
 			Visibility visibility=null;
 			if (visibilityFromCache!=null)
 			{
-				visibility=new Visibility();
-				visibility.setFromOtherVisibility(visibilityFromCache);
+				visibility=visibilityFromCache.getVisibilityCopy();
 			}
 			visibilities.add(visibility);
 		}

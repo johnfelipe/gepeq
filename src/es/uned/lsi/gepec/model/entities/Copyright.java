@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 06-jun-2012 10:17:53 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,7 +39,6 @@ public class Copyright implements java.io.Serializable {
 
 	private long id;
 	private String copyright;
-	private Set<Resource> resources = new HashSet<Resource>(0);
 
 	public Copyright() {
 	}
@@ -52,10 +47,9 @@ public class Copyright implements java.io.Serializable {
 		this.id = id;
 	}
 
-	public Copyright(long id, String copyright, Set<Resource> resources) {
+	public Copyright(long id, String copyright) {
 		this.id = id;
 		this.copyright = copyright;
-		this.resources = resources;
 	}
 
 	@Id
@@ -78,15 +72,6 @@ public class Copyright implements java.io.Serializable {
 		this.copyright = copyright;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "copyright")
-	public Set<Resource> getResources() {
-		return this.resources;
-	}
-
-	public void setResources(Set<Resource> resources) {
-		this.resources = resources;
-	}
-
 	/**
 	 * Set the fields of this copyright with the values from fields from other copyright.
 	 * @param otherCopyright Other copyright
@@ -99,6 +84,15 @@ public class Copyright implements java.io.Serializable {
 			setId(otherCopyright.getId());
 			setCopyright(otherCopyright.getCopyright());
 		}
+	}
+	
+	/**
+	 * @return A copy of this copyright.
+	 */
+	@Transient
+	public Copyright getCopyrightCopy()
+	{
+		return new Copyright(getId(),getCopyright());
 	}
 	
 	@Override

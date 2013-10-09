@@ -45,7 +45,7 @@ public class DragDropAnswerConverter implements Converter
 		int position=Integer.parseInt(splittedNewValue[2]);
 		QuestionBean questionBean=(QuestionBean)context.getApplication().getELResolver().getValue(
 			context.getELContext(),null,"questionBean");
-		Question question=questionBean.getQuestion(questionBean.getCurrentUserOperation(null));
+		Question question=questionBean.getQuestion();
 		if (question!=null)
 		{
 			for (Answer a:question.getAnswers())

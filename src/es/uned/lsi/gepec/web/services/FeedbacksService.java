@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,6 +28,7 @@ import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.FeedbacksDao;
 import es.uned.lsi.gepec.model.entities.Feedback;
 import es.uned.lsi.gepec.model.entities.Question;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -64,8 +66,25 @@ public class FeedbacksService implements Serializable
 		Feedback feedback=null;
 		try
 		{
+			// Get feedback from DB
 			FEEDBACKS_DAO.setOperation(operation);
-			feedback=FEEDBACKS_DAO.getFeedback(id);
+			Feedback feedbackFromDB=FEEDBACKS_DAO.getFeedback(id);
+			if (feedbackFromDB!=null)
+			{
+				feedback=feedbackFromDB.getFeedbackCopy();
+				if (feedbackFromDB.getQuestion()!=null)
+				{
+					feedback.setQuestion(feedbackFromDB.getQuestion().getQuestionCopy());
+				}
+				if (feedbackFromDB.getResource()!=null)
+				{
+					feedback.setResource(feedbackFromDB.getResource().getResourceCopy());
+				}
+				if (feedbackFromDB.getFeedbackType()!=null)
+				{
+					feedback.setFeedbackType(feedbackFromDB.getFeedbackType().getFeedbackTypeCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -92,14 +111,48 @@ public class FeedbacksService implements Serializable
 	 */
 	public void updateFeedback(Operation operation,Feedback feedback) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get feedback from DB
 			FEEDBACKS_DAO.setOperation(operation);
-			FEEDBACKS_DAO.updateFeedback(feedback);
+			Feedback feedbackFromDB=FEEDBACKS_DAO.getFeedback(feedback.getId());
+			
+			// Set fields with the updated values
+			feedbackFromDB.setFromOtherFeedback(feedback);
+			
+			// Update feedback
+			FEEDBACKS_DAO.setOperation(operation);
+			FEEDBACKS_DAO.updateFeedback(feedbackFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -123,6 +176,7 @@ public class FeedbacksService implements Serializable
 	{
 		try
 		{
+			// Add a new feedback
 			FEEDBACKS_DAO.setOperation(operation);
 			FEEDBACKS_DAO.saveFeedback(feedback);
 		}
@@ -150,14 +204,45 @@ public class FeedbacksService implements Serializable
 	 */
 	public void deleteFeedback(Operation operation,Feedback feedback) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get feedback from DB
 			FEEDBACKS_DAO.setOperation(operation);
-			FEEDBACKS_DAO.deleteFeedback(feedback);
+			Feedback feedbackFromDB=FEEDBACKS_DAO.getFeedback(feedback.getId());
+			
+			// Delete feedback
+			FEEDBACKS_DAO.setOperation(operation);
+			FEEDBACKS_DAO.deleteFeedback(feedbackFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -204,7 +289,28 @@ public class FeedbacksService implements Serializable
 		try
 		{
 			FEEDBACKS_DAO.setOperation(operation);
-			feedbacks=FEEDBACKS_DAO.getFeedbacks(questionId);
+			List<Feedback> feedbacksFromDB=FEEDBACKS_DAO.getFeedbacks(questionId);
+			
+			// We return new referenced feedbacks within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			feedbacks=new ArrayList<Feedback>(feedbacksFromDB.size());
+			for (Feedback feedbackFromDB:feedbacksFromDB)
+			{
+				Feedback feedback=feedbackFromDB.getFeedbackCopy();
+				if (feedbackFromDB.getQuestion()!=null)
+				{
+					feedback.setQuestion(feedbackFromDB.getQuestion().getQuestionCopy());
+				}
+				if (feedbackFromDB.getResource()!=null)
+				{
+					feedback.setResource(feedbackFromDB.getResource().getResourceCopy());
+				}
+				if (feedbackFromDB.getFeedbackType()!=null)
+				{
+					feedback.setFeedbackType(feedbackFromDB.getFeedbackType().getFeedbackTypeCopy());
+				}
+				feedbacks.add(feedback);
+			}
 		}
 		catch (DaoException de)
 		{

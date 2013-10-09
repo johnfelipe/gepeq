@@ -19,15 +19,11 @@ package es.uned.lsi.gepec.model.entities;
 
 // Generated 16-mar-2012 12:07:33 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -43,7 +39,6 @@ public class FeedbackType implements java.io.Serializable {
 
 	private long id;
 	private String type;
-	private Set<Feedback> feedbacks = new HashSet<Feedback>(0);
 
 	public FeedbackType() {
 	}
@@ -51,12 +46,6 @@ public class FeedbackType implements java.io.Serializable {
 	public FeedbackType(long id, String type) {
 		this.id = id;
 		this.type = type;
-	}
-
-	public FeedbackType(long id, String type, Set<Feedback> feedbacks) {
-		this.id = id;
-		this.type = type;
-		this.feedbacks = feedbacks;
 	}
 
 	@Id
@@ -79,15 +68,6 @@ public class FeedbackType implements java.io.Serializable {
 		this.type = type;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "feedbackType")
-	public Set<Feedback> getFeedbacks() {
-		return this.feedbacks;
-	}
-
-	public void setFeedbacks(Set<Feedback> feedbacks) {
-		this.feedbacks = feedbacks;
-	}
-
 	/**
 	 * Set the fields of this feedback type with the values from fields from other feedback type.
 	 * @param otherFeedbackType Other feedback type
@@ -100,6 +80,15 @@ public class FeedbackType implements java.io.Serializable {
 			setId(otherFeedbackType.getId());
 			setType(otherFeedbackType.getType());
 		}
+	}
+	
+	/**
+	 * @return A copy of this feedback type.
+	 */
+	@Transient
+	public FeedbackType getFeedbackTypeCopy()
+	{
+		return new FeedbackType(getId(),getType());
 	}
 	
 	@Override

@@ -38,7 +38,7 @@ public class FeedbackBeanConverter implements Converter
 		QuestionBean questionBean=
 			(QuestionBean)context.getApplication().getELResolver().getValue(context.getELContext(),null,"questionBean");
 		FeedbackBean feedbackBean=null;
-		for (FeedbackBean fb:questionBean.getFeedbacks(questionBean.getCurrentUserOperation(null)))
+		for (FeedbackBean fb:questionBean.getFeedbacks())
 		{
 			if (fb.getPosition()==feedbackPos)
 			{

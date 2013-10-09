@@ -32,7 +32,6 @@ import javax.faces.bean.ManagedProperty;
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.PermissionsDao;
 import es.uned.lsi.gepec.model.entities.Permission;
-import es.uned.lsi.gepec.model.entities.PermissionType;
 import es.uned.lsi.gepec.model.entities.User;
 import es.uned.lsi.gepec.model.entities.UserPermission;
 import es.uned.lsi.gepec.model.entities.UserType;
@@ -58,6 +57,8 @@ public class PermissionsService implements Serializable
 	private UserPermissionsService userPermissionsService;
 	@ManagedProperty(value="#{userTypePermissionsService}")
 	private UserTypePermissionsService userTypePermissionsService;
+	@ManagedProperty(value="#{userTypesService}")
+	private UserTypesService userTypesService;
 	@ManagedProperty(value="#{localizationService}")
 	private LocalizationService localizationService;
 	
@@ -73,6 +74,11 @@ public class PermissionsService implements Serializable
 	public void setUserTypePermissionsService(UserTypePermissionsService userTypePermissionsService)
 	{
 		this.userTypePermissionsService=userTypePermissionsService;
+	}
+	
+	public void setUserTypesService(UserTypesService userTypesService)
+	{
+		this.userTypesService=userTypesService;
 	}
 	
 	public void setLocalizationService(LocalizationService localizationService)
@@ -120,9 +126,11 @@ public class PermissionsService implements Serializable
 		// We don't want caller accessing directly to a cached permission so we return a copy
 		if (permissionFromCache!=null)
 		{
-			permission=new Permission();
-			permission.setFromOtherPermission(permissionFromCache);
-			permission.setPermissionType(getPermissionTypeCopy(permission.getPermissionType()));
+			permission=permissionFromCache.getPermissionCopy();
+			if (permissionFromCache.getPermissionType()!=null)
+			{
+				permission.setPermissionType(permissionFromCache.getPermissionType().getPermissionTypeCopy());
+			}
 		}
 		return permission;
 	}
@@ -167,9 +175,11 @@ public class PermissionsService implements Serializable
 		// We don't want caller accessing directly to a cached permission so we return a copy
 		if (permissionFromCache!=null)
 		{
-			permission=new Permission();
-			permission.setFromOtherPermission(permissionFromCache);
-			permission.setPermissionType(getPermissionTypeCopy(permission.getPermissionType()));
+			permission=permissionFromCache.getPermissionCopy();
+			if (permissionFromCache.getPermissionType()!=null)
+			{
+				permission.setPermissionType(permissionFromCache.getPermissionType().getPermissionTypeCopy());
+			}
 		}
 		return permission;
 	}
@@ -218,19 +228,15 @@ public class PermissionsService implements Serializable
 		}
 		
 		// We don't want caller accessing directly to cached permissions so we return copies of all them
-		List<PermissionType> permissionTypeCopies=new ArrayList<PermissionType>();
 		for (Permission permissionFromCache:PERMISSIONS_CACHED)
 		{
 			Permission permission=null;
 			if (permissionFromCache!=null)
 			{
-				permission=new Permission();
-				permission.setFromOtherPermission(permissionFromCache);
-				permission.setPermissionType(
-					getPermissionTypeCopy(permission.getPermissionType(),permissionTypeCopies));
-				if (!permissionTypeCopies.contains(permission.getPermissionType()))
+				permission=permissionFromCache.getPermissionCopy();
+				if (permissionFromCache.getPermissionType()!=null)
 				{
-					permissionTypeCopies.add(permission.getPermissionType());
+					permission.setPermissionType(permissionFromCache.getPermissionType().getPermissionTypeCopy());
 				}
 			}
 			permissions.add(permission);
@@ -243,16 +249,6 @@ public class PermissionsService implements Serializable
 			@Override
 			public int compare(Permission o1,Permission o2)
 			{
-				try
-				{
-				localizationService.getLocalizedMessage(o1.getName()).compareTo(
-						localizationService.getLocalizedMessage(o2.getName()));
-				}
-				catch (NullPointerException npe)
-				{
-					System.out.println("NullPointerException al comparar "+ o1.getName() + " con " + o2.getName());
-				}
-				
 				return localizationService.getLocalizedMessage(o1.getName()).compareTo(
 					localizationService.getLocalizedMessage(o2.getName()));
 			}
@@ -271,47 +267,13 @@ public class PermissionsService implements Serializable
 	}
 	
 	/**
-	 * @param permissionType Permission type
-	 * @param permissionTypeCopies List with copies of permission types already done
-	 * @return Copy of permission type
-	 */
-	private PermissionType getPermissionTypeCopy(PermissionType permissionType,
-		List<PermissionType> permissionTypeCopies)
-	{
-		PermissionType permissionTypeCopy=null;
-		if (permissionType!=null)
-		{
-			if (permissionTypeCopies.contains(permissionType))
-			{
-				permissionTypeCopy=permissionTypeCopies.get(permissionTypeCopies.indexOf(permissionType));
-			}
-			else
-			{
-				permissionTypeCopy=new PermissionType();
-				permissionTypeCopy.setFromOtherPermissionType(permissionType);
-			}
-		}
-		return permissionTypeCopy;
-	}
-	
-	/**
-	 * @param permissionType Permission type
-	 * @return Copy of permission type
-	 */
-	private PermissionType getPermissionTypeCopy(PermissionType permissionType)
-	{
-		return getPermissionTypeCopy(permissionType,new ArrayList<PermissionType>());
-	}
-	
-	/**
 	 * Check that the permission indicated exists and its type is boolean. 
 	 * @param operation Operation
 	 * @param permissionName Permission name
 	 * @return Permission
 	 * @throws ServiceException
 	 */
-	private Permission checkBooleanPermission(Operation operation,String permissionName) 
-		throws ServiceException
+	private Permission checkBooleanPermission(Operation operation,String permissionName) throws ServiceException
 	{
 		Permission permission=null;
 		try
@@ -470,13 +432,14 @@ public class PermissionsService implements Serializable
 				UserPermission userPermission=userPermissionsService.getUserPermission(operation,user,permission);
 				if (userPermission==null)
 				{
-					if (user.getUserType()==null)
+					UserType userType=userTypesService.getUserTypeFromUserId(operation,user.getId());
+					if (userType==null)
 					{
 						granted=Boolean.valueOf(permission.getDefaultValue()).booleanValue();
 					}
 					else
 					{
-						granted=isGranted(operation,user.getUserType(),permission);
+						granted=isGranted(operation,userType,permission);
 					}
 				}
 				else
@@ -768,13 +731,14 @@ public class PermissionsService implements Serializable
 				UserPermission userPermission=userPermissionsService.getUserPermission(operation,user,permission);
 				if (userPermission==null)
 				{
-					if (user.getUserType()==null)
+					UserType userType=userTypesService.getUserTypeFromUserId(operation,user.getId());
+					if (userType==null)
 					{
 						value=permission.getDefaultValue();
 					}
 					else
 					{
-						value=getIntegerPermission(operation,user.getUserType(),permission);
+						value=getIntegerPermission(operation,userType,permission);
 					}
 				}
 				else
@@ -959,7 +923,8 @@ public class PermissionsService implements Serializable
 	 * false otherwise
 	 * @throws ServiceException
 	 */
-	public boolean isIntegerBetween(User user,String permissionName,int minValue,int maxValue) throws ServiceException
+	public boolean isIntegerBetween(User user,String permissionName,int minValue,int maxValue) 
+		throws ServiceException
 	{
 		return isIntegerBetween(null,user,permissionName,minValue,maxValue);
 	}
@@ -999,7 +964,8 @@ public class PermissionsService implements Serializable
 	 * @return Integer value of the permission
 	 * @throws ServiceException
 	 */
-	public int getIntegerPermission(Operation operation,UserType userType,String permissionName) throws ServiceException
+	public int getIntegerPermission(Operation operation,UserType userType,String permissionName) 
+		throws ServiceException
 	{
 		int intValue=0;
 		boolean singleOp=operation==null;
@@ -1034,7 +1000,8 @@ public class PermissionsService implements Serializable
 					}
 					if (errorMessage==null)
 					{
-						errorMessage="Fatal error. A permission has been assigned a value inconsistent with its type.";
+						errorMessage=
+							"Fatal error. A permission has been assigned a value inconsistent with its type.";
 					}
 					throw new ServiceException(errorMessage);
 				}

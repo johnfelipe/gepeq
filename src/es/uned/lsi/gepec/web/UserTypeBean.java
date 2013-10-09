@@ -138,23 +138,24 @@ public class UserTypeBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && userType==null)
+    	{
+    		getUserType();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
 	public UserType getUserType()
 	{
-		return getUserType(null);
-	}
-	
-	public void setUserType(UserType userType)
-	{
-		this.userType=userType;
-	}
-	
-	private UserType getUserType(Operation operation)
-	{
 		if (userType==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
     		// We seek parameters
     		FacesContext context=FacesContext.getCurrentInstance();
     		Map<String,String> params=context.getExternalContext().getRequestParameterMap();
@@ -162,8 +163,7 @@ public class UserTypeBean implements Serializable
     		// Check if we are creating a new user or editing an existing one
     		if (params.containsKey("userTypeId"))
     		{
-    			userType=userTypesService.getUserType(
-    				getCurrentUserOperation(operation),Long.parseLong(params.get("userTypeId")));
+    			userType=userTypesService.getUserType(operation,Long.parseLong(params.get("userTypeId")));
     		}
     		else
     		{
@@ -172,6 +172,11 @@ public class UserTypeBean implements Serializable
     		}
 		}
 		return userType;
+	}
+	
+	public void setUserType(UserType userType)
+	{
+		this.userType=userType;
 	}
 	
 	/**
@@ -189,7 +194,7 @@ public class UserTypeBean implements Serializable
 			operation=getCurrentUserOperation(operation);
 			
 			List<Permission> rawPermissions=permissionsService.getPermissions(operation);
-			UserType userType=getUserType(operation);
+			UserType userType=getUserType();
 			if (userType.getId()==0L)
 			{
 				for (Permission rawPermission:rawPermissions)
@@ -462,7 +467,7 @@ public class UserTypeBean implements Serializable
 			operation=getCurrentUserOperation(operation);
 			
 			List<Permission> rawPermissions=permissionsService.getPermissions(operation);
-			List<UserTypePermission> userTypePermissions=getUserType(operation).getUserTypePermissions();
+			List<UserTypePermission> userTypePermissions=getUserType().getUserTypePermissions();
 			for (Permission rawPermission:rawPermissions)
 			{
 				PermissionBean permission=null;
@@ -737,15 +742,14 @@ public class UserTypeBean implements Serializable
 	
 	/**
 	 * Process general tab input fields.
-	 * @param operation Operation
 	 */
-	private void processGeneralInputFields(Operation operation,UIComponent component)
+	private void processGeneralInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String userTypeTypeId=null;
 		String userTypeDescriptionId=null;
 		
-		UserType userType=getUserType(getCurrentUserOperation(operation));
+		UserType userType=getUserType();
 		if (userType.getId()==0L)
 		{
 			userTypeTypeId="userTypeForm:userTypeType";
@@ -867,7 +871,7 @@ public class UserTypeBean implements Serializable
 	private boolean checkUnusedForUserTypeRoleName(Operation operation,String roleName)
 	{
     	boolean ok=true;
-    	if (userTypesService.checkUserType(getCurrentUserOperation(operation),roleName))
+    	if (userTypesService.checkUserTypeType(getCurrentUserOperation(operation),roleName))
 		{
 			addErrorMessage("ROLE_NAME_ALREADY_DECLARED");
 			ok=false;
@@ -919,14 +923,11 @@ public class UserTypeBean implements Serializable
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
 		// We only need to check role name and only if we are creating a new role
-		UserType userType=getUserType(operation);
+		UserType userType=getUserType();
 		if (userType.getId()==0L)
 		{
-			ok=checkUserTypeRoleName(operation,userType.getType());
+			ok=checkUserTypeRoleName(getCurrentUserOperation(operation),userType.getType());
 		}
 		return ok;
 	}
@@ -992,13 +993,8 @@ public class UserTypeBean implements Serializable
 	
     public String getActiveUserTypeTabName()
     {
-    	return getActiveUserTypeTabName(null);
-    }
-    
-    private String getActiveUserTypeTabName(Operation operation)
-    {
     	String activeUserTypeTabName=null;
-    	if (getUserType(getCurrentUserOperation(operation)).getId()>0L)
+    	if (getUserType().getId()>0L)
     	{
     		switch (activeUserTypeTabIndex)
     		{
@@ -1033,7 +1029,7 @@ public class UserTypeBean implements Serializable
         	if (activeUserTypeTabIndex==GENERAL_TABVIEW_TAB)
         	{
         		// We need to process some input fields
-        		processGeneralInputFields(operation,userTypeFormTab);
+        		processGeneralInputFields(userTypeFormTab);
         		
         		ok=checkGeneralInputFields(operation);
         	}
@@ -1114,12 +1110,9 @@ public class UserTypeBean implements Serializable
     {
     	PermissionBean permission=(PermissionBean)event.getObject();
     	
-    	// Get current user session Hibernate operation
-    	Operation operation=getCurrentUserOperation(null);
-    	
-    	if (checkPermissionValueAllowed(operation,permission))
+    	if (checkPermissionValueAllowed(getCurrentUserOperation(null),permission))
     	{
-    		UserType userType=getUserType(operation);
+    		UserType userType=getUserType();
         	UserTypePermission userTypePermission=null;
         	for (UserTypePermission userTypePerm:userType.getUserTypePermissions())
         	{
@@ -1154,12 +1147,11 @@ public class UserTypeBean implements Serializable
     
     /**
      * Reset a permission to its default value.
-     * @param operation Operation
      * @param permission Permission
      */
-    private void resetPermission(Operation operation,PermissionBean permission)
+    private void resetPermission(PermissionBean permission)
     {
-    	UserType userType=getUserType(getCurrentUserOperation(operation));
+    	UserType userType=getUserType();
     	UserTypePermission userTypePermission=null;
     	for (UserTypePermission userTypePerm:userType.getUserTypePermissions())
     	{
@@ -1186,7 +1178,7 @@ public class UserTypeBean implements Serializable
     public void resetPermission(ActionEvent event)
     {
     	PermissionBean permission=(PermissionBean)event.getComponent().getAttributes().get("permission");
-    	resetPermission(getCurrentUserOperation(null),permission);
+    	resetPermission(permission);
     }
     
     /**
@@ -1210,7 +1202,7 @@ public class UserTypeBean implements Serializable
     			ok=false;
     			if (resetInvalidPermissions)
     			{
-    				resetPermission(operation,permission);
+    				resetPermission(permission);
     			}
     			else
     			{
@@ -1245,7 +1237,7 @@ public class UserTypeBean implements Serializable
     		if ("true".equals(getCurrentPermission(operation,rawRolesAdministrationPermission).getValue()))
     		{
         		Permission rawAddOrEditRoleAllowedPermission=null;
-        		if (getUserType(operation).getId()>0L)
+        		if (getUserType().getId()>0L)
         		{
         			rawAddOrEditRoleAllowedPermission=
         				permissionsService.getPermission(operation,"PERMISSION_ADMINISTRATION_EDIT_ROLE_ENABLED");
@@ -1294,8 +1286,8 @@ public class UserTypeBean implements Serializable
 				}
 				if (userTypePermissionToSave==null)
 				{
-					userTypePermissionToSave=new UserTypePermission(
-						0L,getUserType(operation),permission.getPermission(),permission.getValue());
+					userTypePermissionToSave=
+						new UserTypePermission(0L,getUserType(),permission.getPermission(),permission.getValue());
 					userTypePermissionsToSave.add(userTypePermissionToSave);
 				}
 				else
@@ -1327,7 +1319,7 @@ public class UserTypeBean implements Serializable
     	{
     		if (checkGeneralInputFields(operation))
     		{
-    			UserType userType=getUserType(operation);
+    			UserType userType=getUserType();
         		if (userType.getId()>0L) // Update user type
         		{
         			boolean updateOk=true;

@@ -90,7 +90,6 @@ public abstract class Question implements java.io.Serializable {
 	protected List<Answer> answers = new ArrayList<Answer>(0);
 	protected List<QuestionResource> questionResources = new ArrayList<QuestionResource>(0);
 	protected List<Feedback> feedbacks = new ArrayList<Feedback>(0);
-	protected List<QuestionOrder> questionOrders = new ArrayList<QuestionOrder>(0);
 
 	public Question() {
 		this.name = "";
@@ -178,7 +177,7 @@ public abstract class Question implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_category", nullable = false)
+	@JoinColumn(name = "id_category")
 	public Category getCategory() {
 		return this.category;
 	}
@@ -265,7 +264,7 @@ public abstract class Question implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_createdby", nullable = false)
+	@JoinColumn(name = "id_createdby")
 	public User getCreatedBy() {
 		return this.createdBy;
 	}
@@ -496,15 +495,6 @@ public abstract class Question implements java.io.Serializable {
 		this.displayEquations = displayEquations;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "question")
-	public List<QuestionOrder> getSection_questions() {
-		return this.questionOrders;
-	}
-
-	public void setSection_questions(List<QuestionOrder> questionOrders) {
-		this.questionOrders = questionOrders;
-	}
-	
 	@OneToMany(fetch = FetchType.LAZY, mappedBy = "question", cascade = CascadeType.ALL)
 	public List<Answer> getAnswers() {
 		return this.answers;
@@ -792,6 +782,12 @@ public abstract class Question implements java.io.Serializable {
 			setDisplayEquations(otherQuestion.isDisplayEquations());
 		}
 	}
+	
+	/**
+	 * @return A copy of this question.
+	 */
+	@Transient
+	public abstract Question getQuestionCopy();
 	
 	@Override
 	public boolean equals(Object obj)

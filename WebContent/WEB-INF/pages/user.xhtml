@@ -92,9 +92,9 @@
             </h:panelGroup>
             <p:outputPanel id="userGroupsPanel">
               <p:dataTable id="userGroupsTable" styleClass="userGroupsTable" rowStyleClass="dataRow" 
-                emptyMessage="#{msgs.NO_USER_GROUPS}" value="#{userBean.userGroups}" var="userGroup"
-                paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-                paginator="true" rows="5" rowsPerPageTemplate="5,10,25,50">
+                emptyMessage="#{msgs.NO_USER_GROUPS}" value="#{userBean.userGroups}" var="userGroup" 
+                paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="5" 
+                rowsPerPageTemplate="5,10,25,50">
                 
                 <p:column styleClass="columnUserGroup" sortBy="#{userGroup}">
                   <f:facet name="header">#{msgs.USER_GROUP}</f:facet>
@@ -121,8 +121,9 @@
                   update="userForm:generalConfirmButtons userForm:userFormWizard" />
               </p:selectBooleanCheckbox>
             </h:panelGrid>
-            <h:panelGroup id="generalConfirmButtons" layout="block" styleClass="rightAlign" 
-              style="margin-top:-10px;margin-bottom:-10px;" rendered="#{!userBean.displayUserPermissions}">
+            <h:panelGroup id="generalConfirmButtons" layout="block" 
+              styleClass="#{userBean.user.gepeqUser ? 'commonDataNewUserButtonsRightAlign' : 'commonDataNewOmUserButtonsRightAlign' }" 
+              rendered="#{!userBean.displayUserPermissions}">
               
               <p:commandButton value="#{msgs.SAVE}" ajax="false" styleClass="confirmButtons" 
                 image="ui-icon ui-icon-disk" action="#{userBean.saveUser}" />
@@ -136,8 +137,8 @@
             <p:messages id="permissionsMessages" rendered="#{userBean.activeUserTabName=='permissions'}" />
             <p:dataTable id="permissionsTable" styleClass="permissionsTable" rowStyleClass="dataRow" 
               emptyMessage="#{msgs.NO_PERMISSIONS}" value="#{userBean.permissions}" var="permission" 
-              paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-              paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+              paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+              rowsPerPageTemplate="10,25,50">
               
               <p:ajax event="rowEdit" listener="#{userBean.changePermission}" 
                 update="permissionStatus userForm:messages" />

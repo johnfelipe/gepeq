@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,6 +28,7 @@ import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.SupportContactsDao;
 import es.uned.lsi.gepec.model.entities.SupportContact;
 import es.uned.lsi.gepec.model.entities.Test;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -60,8 +62,21 @@ public class SupportContactsService implements Serializable
 		SupportContact supportContact=null;
 		try
 		{
+			// Get support contact from DB
 			SUPPORT_CONTACTS_DAO.setOperation(operation);
-			supportContact=SUPPORT_CONTACTS_DAO.getSupportContact(id);
+			SupportContact supportContactFromDB=SUPPORT_CONTACTS_DAO.getSupportContact(id);
+			if (supportContactFromDB!=null)
+			{
+				supportContact=supportContactFromDB.getSupportContactCopy();
+				if (supportContactFromDB.getTest()!=null)
+				{
+					supportContact.setTest(supportContactFromDB.getTest().getTestCopy());
+				}
+				if (supportContactFromDB.getAddressType()!=null)
+				{
+					supportContact.setAddressType(supportContactFromDB.getAddressType().getAddressTypeCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -88,14 +103,48 @@ public class SupportContactsService implements Serializable
 	 */
 	public void updateSupportContact(Operation operation,SupportContact supportContact) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get support contact from DB
+			SUPPORT_CONTACTS_DAO.setOperation(operation);
+			SupportContact supportContactFromDB=SUPPORT_CONTACTS_DAO.getSupportContact(supportContact.getId(),false);
+			
+			// Set fields with the updated values
+			supportContactFromDB.setFromOtherSupportContact(supportContact);
+			
+			// Update support contact
 			SUPPORT_CONTACTS_DAO.setOperation(operation);
 			SUPPORT_CONTACTS_DAO.updateSupportContact(supportContact);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -119,6 +168,7 @@ public class SupportContactsService implements Serializable
 	{
 		try
 		{
+			// Add a new support contact
 			SUPPORT_CONTACTS_DAO.setOperation(operation);
 			SUPPORT_CONTACTS_DAO.saveSupportContact(supportContact);
 		}
@@ -146,14 +196,45 @@ public class SupportContactsService implements Serializable
 	 */
 	public void deleteSupportContact(Operation operation,SupportContact supportContact) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get support contact from DB
 			SUPPORT_CONTACTS_DAO.setOperation(operation);
-			SUPPORT_CONTACTS_DAO.deleteSupportContact(supportContact);
+			SupportContact supportContactFromDB=SUPPORT_CONTACTS_DAO.getSupportContact(supportContact.getId(),false);
+			
+			// Delete support contact
+			SUPPORT_CONTACTS_DAO.setOperation(operation);
+			SUPPORT_CONTACTS_DAO.deleteSupportContact(supportContactFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -199,8 +280,26 @@ public class SupportContactsService implements Serializable
 		List<SupportContact> supportContacts=null;
 		try
 		{
+			// We get support contacts from DB
 			SUPPORT_CONTACTS_DAO.setOperation(operation);
-			supportContacts=SUPPORT_CONTACTS_DAO.getSupportContacts(testId,true);
+			List<SupportContact> supportContactsFromDB=SUPPORT_CONTACTS_DAO.getSupportContacts(testId,true);
+			
+			// We return new referenced support contacts within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			supportContacts=new ArrayList<SupportContact>(supportContactsFromDB.size());
+			for (SupportContact supportContactFromDB:supportContactsFromDB)
+			{
+				SupportContact supportContact=supportContactFromDB.getSupportContactCopy();
+				if (supportContactFromDB.getTest()!=null)
+				{
+					supportContact.setTest(supportContactFromDB.getTest().getTestCopy());
+				}
+				if (supportContactFromDB.getAddressType()!=null)
+				{
+					supportContact.setAddressType(supportContactFromDB.getAddressType().getAddressTypeCopy());
+				}
+				supportContacts.add(supportContact);
+			}
 		}
 		catch (DaoException de)
 		{

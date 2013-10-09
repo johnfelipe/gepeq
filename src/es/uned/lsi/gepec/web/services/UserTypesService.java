@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -81,14 +82,12 @@ public class UserTypesService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get user from DB
 			USER_TYPES_DAO.setOperation(operation);
 			UserType userTypeFromDB=USER_TYPES_DAO.getUserType(id);
-			
 			if (userTypeFromDB!=null)
 			{
-				// As we need to change some fields it is better to use a copy
-				userType=new UserType();
-				userType.setFromOtherUserType(userTypeFromDB);
+				userType=userTypeFromDB.getUserTypeCopy();
 				
 				// We need to get permissions of this user type
 				userType.setUserTypePermissions(userTypePermissionsService.getUserTypePermissions(operation,id));
@@ -104,6 +103,45 @@ public class UserTypesService implements Serializable
 			{
 				// End Hibernate operation
 				HibernateUtil.endOperation(operation);
+			}
+		}
+		return userType;
+	}
+	
+	/**
+	 * @param userId User identifier
+	 * @return User type from an user
+	 * @throws ServiceException
+	 */
+	public UserType getUserTypeFromUserId(long userId) throws ServiceException
+	{
+		return getUserTypeFromUserId(null,userId);
+	}
+	
+	/**
+	 * @param operation Operation
+	 * @param userId User identifier
+	 * @return User type from an user
+	 * @throws ServiceException
+	 */
+	public UserType getUserTypeFromUserId(Operation operation,long userId) throws ServiceException
+	{
+		UserType userType=null;
+		if (userId>0L)
+		{
+			UserType userTypeFromDB=null;
+			try
+			{
+				USER_TYPES_DAO.setOperation(operation);
+				userTypeFromDB=USER_TYPES_DAO.getUserTypeFromUserId(userId);
+			}
+			catch (DaoException de)
+			{
+				throw new ServiceException(de.getMessage(),de);
+			}
+			if (userTypeFromDB!=null)
+			{
+				userType=userTypeFromDB.getUserTypeCopy();
 			}
 		}
 		return userType;
@@ -175,10 +213,7 @@ public class UserTypesService implements Serializable
 			{
 				if (userTypePermissionsFromDB.contains(userTypePermission))
 				{
-					UserTypePermission userTypePermissionFromDB=
-						userTypePermissionsFromDB.get(userTypePermissionsFromDB.indexOf(userTypePermission));
-					userTypePermissionFromDB.setFromOtherUserTypePermission(userTypePermission);
-					userTypePermissionsService.updateUserTypePermission(operation,userTypePermissionFromDB);
+					userTypePermissionsService.updateUserTypePermission(operation,userTypePermission);
 				}
 				else
 				{
@@ -190,8 +225,10 @@ public class UserTypesService implements Serializable
 			USER_TYPES_DAO.setOperation(operation);
 			UserType userTypeFromDB=USER_TYPES_DAO.getUserType(userType.getId());
 			
-			// We update user type on DB
+			// Set fields with the updated values
 			userTypeFromDB.setFromOtherUserType(userType);
+			
+			// Update user type
 			USER_TYPES_DAO.setOperation(operation);
 			USER_TYPES_DAO.updateUserType(userTypeFromDB);
 			
@@ -240,6 +277,7 @@ public class UserTypesService implements Serializable
 	{
 		try
 		{
+			// Add a new user type
 			USER_TYPES_DAO.setOperation(operation);
 			USER_TYPES_DAO.saveUserType(userType);
 		}
@@ -267,14 +305,45 @@ public class UserTypesService implements Serializable
 	 */
 	public void deleteUserType(Operation operation,UserType userType) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get user type from DB
 			USER_TYPES_DAO.setOperation(operation);
-			USER_TYPES_DAO.deleteUserType(userType);
+			UserType userTypeFromDB=USER_TYPES_DAO.getUserType(userType.getId());
+			
+			// Delete user type
+			USER_TYPES_DAO.setOperation(operation);
+			USER_TYPES_DAO.deleteUserType(userTypeFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -295,37 +364,59 @@ public class UserTypesService implements Serializable
 	public List<UserType> getUserTypes(Operation operation) throws ServiceException
 	{
 		List<UserType> userTypes=null;
-		boolean singleOp=operation==null;
 		try
 		{
-			if (singleOp)
-			{
-				// Start Hibernate operation
-				operation=HibernateUtil.startOperation();
-			}
-			
+			// We get user types from DB
 			USER_TYPES_DAO.setOperation(operation);
-			userTypes=USER_TYPES_DAO.getUserTypes();
+			List<UserType> userTypesFromDB=USER_TYPES_DAO.getUserTypes();
 			
-			// We need to get permissions of user types
-			for (UserType userType:userTypes)
+			// We return new references to all user types within a new list to avoid shared collection references 
+			// or object references to unsaved transient instances
+			userTypes=new ArrayList<UserType>(userTypesFromDB.size());
+			for (UserType userTypeFromDB:userTypesFromDB)
 			{
-				userType.setUserTypePermissions(userTypePermissionsService.getUserTypePermissions(operation,userType));
+				UserType userType=userTypeFromDB.getUserTypeCopy();
+				userTypes.add(userType);
 			}
 		}
 		catch (DaoException de)
 		{
 			throw new ServiceException(de.getMessage(),de);
 		}
-		finally
-		{
-			if (singleOp)
-			{	
-				// End Hibernate operation
-				HibernateUtil.endOperation(operation);
-			}
-		}
 		return userTypes; 
+	}
+	
+	/**
+	 * Checks if exists an user type  with the indicated identifier.
+	 * @param id Identifier
+	 * @return true if exists an user type with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkUserTypeId(long id) throws ServiceException
+	{
+		return checkUserTypeId(null,id);
+	}
+	
+	/**
+	 * Checks if exists an user type with the indicated identifier.
+	 * @param operation Operation
+	 * @param id Identifier
+	 * @return true if exists an user type with the indicated identifier, false otherwise
+	 * @throws ServiceException
+	 */
+	public boolean checkUserTypeId(Operation operation,long id) throws ServiceException
+	{
+		boolean userTypeFound=false;
+		try
+		{
+			USER_TYPES_DAO.setOperation(operation);
+			userTypeFound=USER_TYPES_DAO.checkUserTypeId(id);
+		}
+		catch (DaoException de)
+		{
+			throw new ServiceException(de.getMessage(),de);
+		}
+		return userTypeFound;
 	}
 	
 	/**
@@ -334,9 +425,9 @@ public class UserTypesService implements Serializable
 	 * @return true if exists an user type with the indicated type, false otherwise
 	 * @throws ServiceException
 	 */
-	public boolean checkUserType(String type) throws ServiceException
+	public boolean checkUserTypeType(String type) throws ServiceException
 	{
-		return checkUserType(null,type);
+		return checkUserTypeType(null,type);
 	}
 	
 	/**
@@ -346,13 +437,13 @@ public class UserTypesService implements Serializable
 	 * @return true if exists an user type with the indicated type, false otherwise
 	 * @throws ServiceException
 	 */
-	public boolean checkUserType(Operation operation,String type) throws ServiceException
+	public boolean checkUserTypeType(Operation operation,String type) throws ServiceException
 	{
 		boolean userTypeFound=false;
 		try
 		{
 			USER_TYPES_DAO.setOperation(operation);
-			userTypeFound=USER_TYPES_DAO.checkUserType(type);
+			userTypeFound=USER_TYPES_DAO.checkUserTypeType(type);
 		}
 		catch (DaoException de)
 		{

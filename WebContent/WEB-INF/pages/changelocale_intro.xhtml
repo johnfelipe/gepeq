@@ -15,7 +15,7 @@
       <f:selectItems value="#{localeBean.locales}" var="l" itemValue="#{l}"
         itemLabel="#{localeBean.getDisplayLanguage(l)}" />
       <p:column styleClass="columnLevel"> 
-        <p:graphicImage value="/resources/images/#{locale}.png" width="32" height="16" />
+        <h:graphicImage value="/resources/images/#{locale}.png" styleClass="graphics" width="32" height="16" />
       </p:column>
       <p:column>
         #{localeBean.getDisplayLanguage(locale)}

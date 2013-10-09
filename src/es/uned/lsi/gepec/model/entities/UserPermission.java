@@ -68,7 +68,7 @@ public class UserPermission implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_user", nullable = false)
+	@JoinColumn(name = "id_user")
 	public User getUser() {
 		return this.user;
 	}
@@ -78,7 +78,7 @@ public class UserPermission implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_permission", nullable = false)
+	@JoinColumn(name = "id_permission")
 	public Permission getPermission() {
 		return this.permission;
 	}
@@ -110,6 +110,15 @@ public class UserPermission implements java.io.Serializable {
 			setPermission(otherUserPermission.getPermission());
 			setValue(otherUserPermission.getValue());
 		}
+	}
+	
+	/**
+	 * @return A copy of this permission of an user.
+	 */
+	@Transient
+	public UserPermission getUserPermissionCopy()
+	{
+		return new UserPermission(getId(),getUser(),getPermission(),getValue());
 	}
 	
 	@Override

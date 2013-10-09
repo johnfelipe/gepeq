@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -28,6 +29,7 @@ import es.uned.lsi.gepec.model.dao.TestUsersDao;
 import es.uned.lsi.gepec.model.entities.Test;
 import es.uned.lsi.gepec.model.entities.TestUser;
 import es.uned.lsi.gepec.model.entities.User;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -65,8 +67,61 @@ public class TestUsersService implements Serializable
 		TestUser testUser=null;
 		try
 		{
+			// Get user of test from DB
 			TEST_USERS_DAO.setOperation(operation);
-			testUser=TEST_USERS_DAO.getTestUser(id,true);
+			TestUser testUserFromDB=TEST_USERS_DAO.getTestUser(id,true);
+			if (testUserFromDB!=null)
+			{
+				testUser=testUserFromDB.getTestUserCopy();
+				if (testUserFromDB.getTest()!=null)
+				{
+					Test testFromDB=testUserFromDB.getTest();
+					Test test=testFromDB.getTestCopy();
+					if (testFromDB.getCreatedBy()!=null)
+					{
+						User testAuthorFromDB=testFromDB.getCreatedBy();
+						User testAuthor=testAuthorFromDB.getUserCopy();
+						if (testAuthorFromDB.getUserType()!=null)
+						{
+							testAuthor.setUserType(testAuthorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testAuthor.setPassword("");
+						
+						test.setCreatedBy(testAuthor);
+					}
+					if (testFromDB.getModifiedBy()!=null)
+					{
+						User testLastEditorFromDB=testFromDB.getModifiedBy();
+						User testLastEditor=testLastEditorFromDB.getUserCopy();
+						if (testLastEditorFromDB.getUserType()!=null)
+						{
+							testLastEditor.setUserType(testLastEditorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testLastEditor.setPassword("");
+						
+						test.setModifiedBy(testLastEditor);
+					}
+					testUser.setTest(test);		
+				}
+				if (testUserFromDB.getUser()!=null)
+				{
+					User userFromDB=testUserFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					testUser.setUser(user);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -167,8 +222,61 @@ public class TestUsersService implements Serializable
 		TestUser testUser=null;
 		try
 		{
+			// Get user of test from DB
 			TEST_USERS_DAO.setOperation(operation);
-			testUser=TEST_USERS_DAO.getTestUser(testId,userId,true);
+			TestUser testUserFromDB=TEST_USERS_DAO.getTestUser(testId,userId,true);
+			if (testUserFromDB!=null)
+			{
+				testUser=testUserFromDB.getTestUserCopy();
+				if (testUserFromDB.getTest()!=null)
+				{
+					Test testFromDB=testUserFromDB.getTest();
+					Test test=testFromDB.getTestCopy();
+					if (testFromDB.getCreatedBy()!=null)
+					{
+						User testAuthorFromDB=testFromDB.getCreatedBy();
+						User testAuthor=testAuthorFromDB.getUserCopy();
+						if (testAuthorFromDB.getUserType()!=null)
+						{
+							testAuthor.setUserType(testAuthorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testAuthor.setPassword("");
+						
+						test.setCreatedBy(testAuthor);
+					}
+					if (testFromDB.getModifiedBy()!=null)
+					{
+						User testLastEditorFromDB=testFromDB.getModifiedBy();
+						User testLastEditor=testLastEditorFromDB.getUserCopy();
+						if (testLastEditorFromDB.getUserType()!=null)
+						{
+							testLastEditor.setUserType(testLastEditorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testLastEditor.setPassword("");
+						
+						test.setModifiedBy(testLastEditor);
+					}
+					testUser.setTest(test);		
+				}
+				if (testUserFromDB.getUser()!=null)
+				{
+					User userFromDB=testUserFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					testUser.setUser(user);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -197,6 +305,7 @@ public class TestUsersService implements Serializable
 	{
 		try
 		{
+			// Add a new user of test
 			TEST_USERS_DAO.setOperation(operation);
 			TEST_USERS_DAO.saveTestUser(testUser);
 		}
@@ -224,14 +333,48 @@ public class TestUsersService implements Serializable
 	 */
 	public void updateTestUser(Operation operation,TestUser testUser) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get user of test from DB
 			TEST_USERS_DAO.setOperation(operation);
-			TEST_USERS_DAO.updateTestUser(testUser);
+			TestUser testUserFromDB=TEST_USERS_DAO.getTestUser(testUser.getId(),false);
+			
+			// Set fields with the updated values
+			testUserFromDB.setFromOtherTestUser(testUser);
+			
+			// Update user of test
+			TEST_USERS_DAO.setOperation(operation);
+			TEST_USERS_DAO.updateTestUser(testUserFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -253,10 +396,22 @@ public class TestUsersService implements Serializable
 	 */
 	public void deleteTestUser(Operation operation,TestUser testUser) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get user of test from DB
 			TEST_USERS_DAO.setOperation(operation);
-			TEST_USERS_DAO.deleteTestUser(testUser);
+			TestUser testUserFromDB=TEST_USERS_DAO.getTestUser(testUser.getId(),false);
+			
+			// Delete user of test
+			TEST_USERS_DAO.setOperation(operation);
+			TEST_USERS_DAO.deleteTestUser(testUserFromDB);
 		}
 		catch (DaoException de)
 		{
@@ -281,8 +436,66 @@ public class TestUsersService implements Serializable
 		List<TestUser> testUsers=null;
 		try
 		{
+			// We get users of tests from DB
 			TEST_USERS_DAO.setOperation(operation);
-			testUsers=TEST_USERS_DAO.getTestUsers(testId,omUser,omAdmin,sorted,sorted,true);
+			List<TestUser> testUsersFromDB=TEST_USERS_DAO.getTestUsers(testId,omUser,omAdmin,sorted,sorted,true);
+			
+			// We return new referenced users of a test (or all users of any test if testId==0) within a new list 
+			// to avoid shared collection references and object references to unsaved transient instances
+			testUsers=new ArrayList<TestUser>(testUsersFromDB.size());
+			for (TestUser testUserFromDB:testUsersFromDB)
+			{
+				TestUser testUser=testUserFromDB.getTestUserCopy();
+				if (testUserFromDB.getTest()!=null)
+				{
+					Test testFromDB=testUserFromDB.getTest();
+					Test test=testFromDB.getTestCopy();
+					if (testFromDB.getCreatedBy()!=null)
+					{
+						User testAuthorFromDB=testFromDB.getCreatedBy();
+						User testAuthor=testAuthorFromDB.getUserCopy();
+						if (testAuthorFromDB.getUserType()!=null)
+						{
+							testAuthor.setUserType(testAuthorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testAuthor.setPassword("");
+						
+						test.setCreatedBy(testAuthor);
+					}
+					if (testFromDB.getModifiedBy()!=null)
+					{
+						User testLastEditorFromDB=testFromDB.getModifiedBy();
+						User testLastEditor=testLastEditorFromDB.getUserCopy();
+						if (testLastEditorFromDB.getUserType()!=null)
+						{
+							testLastEditor.setUserType(testLastEditorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testLastEditor.setPassword("");
+						
+						test.setModifiedBy(testLastEditor);
+					}
+					testUser.setTest(test);
+				}
+				if (testUserFromDB.getUser()!=null)
+				{
+					User userFromDB=testUserFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					testUser.setUser(user);
+				}
+				testUsers.add(testUser);
+			}
 		}
 		catch (DaoException de)
 		{
@@ -512,8 +725,66 @@ public class TestUsersService implements Serializable
 		List<TestUser> userTests=null;
 		try
 		{
+			// We get tests of an user from DB
 			TEST_USERS_DAO.setOperation(operation);
-			userTests=TEST_USERS_DAO.getUserTests(userId,omUser,omAdmin,sorted,sorted,true);
+			List<TestUser> userTestsFromDB=TEST_USERS_DAO.getUserTests(userId,omUser,omAdmin,sorted,sorted,true);
+			
+			// We return new referenced tests of an user (or all tests of any user if userId==0) within a new list 
+			// to avoid shared collection references and object references to unsaved transient instances
+			userTests=new ArrayList<TestUser>(userTestsFromDB.size());
+			for (TestUser userTestFromDB:userTestsFromDB)
+			{
+				TestUser userTest=userTestFromDB.getTestUserCopy();
+				if (userTestFromDB.getTest()!=null)
+				{
+					Test testFromDB=userTestFromDB.getTest();
+					Test test=testFromDB.getTestCopy();
+					if (testFromDB.getCreatedBy()!=null)
+					{
+						User testAuthorFromDB=testFromDB.getCreatedBy();
+						User testAuthor=testAuthorFromDB.getUserCopy();
+						if (testAuthorFromDB.getUserType()!=null)
+						{
+							testAuthor.setUserType(testAuthorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testAuthor.setPassword("");
+						
+						test.setCreatedBy(testAuthor);
+					}
+					if (testFromDB.getModifiedBy()!=null)
+					{
+						User testLastEditorFromDB=testFromDB.getModifiedBy();
+						User testLastEditor=testLastEditorFromDB.getUserCopy();
+						if (testLastEditorFromDB.getUserType()!=null)
+						{
+							testLastEditor.setUserType(testLastEditorFromDB.getUserType().getUserTypeCopy());
+						}
+						
+						// Password is set to empty string before returning instance for security reasons
+						testLastEditor.setPassword("");
+						
+						test.setModifiedBy(testLastEditor);
+					}
+					userTest.setTest(test);
+				}
+				if (userTestFromDB.getUser()!=null)
+				{
+					User userFromDB=userTestFromDB.getUser();
+					User user=userFromDB.getUserCopy();
+					if (userFromDB.getUserType()!=null)
+					{
+						user.setUserType(userFromDB.getUserType().getUserTypeCopy());
+					}
+					
+					// Password is set to empty string before returning instance for security reasons
+					user.setPassword("");
+					
+					userTest.setUser(user);
+				}
+				userTests.add(userTest);
+			}
 		}
 		catch (DaoException de)
 		{

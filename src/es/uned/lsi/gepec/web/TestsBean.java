@@ -169,7 +169,8 @@ public class TestsBean implements Serializable
 	private PermissionsService permissionsService;
 	
 	private List<Test> tests;										// List of tests
-	private Long testId;											// Selected test's identifier
+	private Test selectedTest;										// Selected test
+	private Long testId;											// Selected test identifier
 	
 	private Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap;
 	private SpecialCategoryFilter allCategories;
@@ -209,6 +210,7 @@ public class TestsBean implements Serializable
 	
 	public TestsBean()
 	{
+		testId=0L;
 		tests=null;
 		specialCategoryFiltersMap=null;
 		allCategories=null;
@@ -311,6 +313,17 @@ public class TestsBean implements Serializable
     private boolean isNavigationAllowed(Operation operation)
     {
     	return userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_NAVIGATION_TESTS");
+    }
+    
+    public Test getSelectedTest()
+    {
+    	return selectedTest;
+    }
+    
+    public void setSelectedTest(Test selectedTest)
+    {
+    	this.selectedTest=selectedTest;
+    	setTestId(selectedTest==null?0L:selectedTest.getId());
     }
     
 	public Long getTestId()
@@ -1010,12 +1023,15 @@ public class TestsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				User testAuthor=testsService.getTest(operation,testId).getCreatedBy();
+				Test test=testsService.getTest(operation,testId);
+				User testAuthor=test.getCreatedBy();
 				allowed=getEditEnabled(operation).booleanValue() && 
 					(testAuthor.getId()==userSessionService.getCurrentUserId() || 
-					(getEditOtherUsersTestsEnabled(operation).booleanValue() && (!isAdmin(operation,testAuthor) || 
-					getEditAdminsTestsEnabled(operation).booleanValue()) && (!isSuperadmin(operation,testAuthor) || 
-					getEditSuperadminsTestsEnabled(operation).booleanValue())));
+					(getEditOtherUsersTestsEnabled(operation).booleanValue() && 
+					(!isAdmin(operation,testAuthor) || getEditAdminsTestsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin(operation,testAuthor) || 
+					getEditSuperadminsTestsEnabled(operation).booleanValue()))) && 
+					checkTestsFilterPermission(operation,categoriesService.getCategoryFromTestId(operation,testId));
 				
 				editTestsAllowed.put(Long.valueOf(testId),Boolean.valueOf(allowed));
 			}
@@ -1060,15 +1076,20 @@ public class TestsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				User testAuthor=testsService.getTest(operation,testId).getCreatedBy();
-				allowed=getAddEnabled(operation).booleanValue() && getCreateCopyEnabled(operation).booleanValue() && 
+				Test test=testsService.getTest(operation,testId);
+				User testAuthor=test.getCreatedBy();
+				boolean isAdmin=isAdmin(operation,testAuthor);
+				boolean isSuperadmin=isSuperadmin(operation,testAuthor);
+				allowed=getCreateCopyEnabled(operation).booleanValue() && 
 					(testAuthor.getId()==userSessionService.getCurrentUserId() || 
-					isEditTestAllowed(operation,testId) || 
+					(getEditEnabled(operation).booleanValue() && 
+					getEditOtherUsersTestsEnabled(operation).booleanValue() && 
+					(!isAdmin || getEditAdminsTestsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin || getEditSuperadminsTestsEnabled(operation).booleanValue())) || 
 					(getCreateCopyOtherUsersNonEditableTestsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,testAuthor) || 
-					getCreateCopyAdminsNonEditableTestsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,testAuthor) || 
-					getCreateCopySuperadminsNonEditableTestsEnabled(operation).booleanValue())));
+					(!isAdmin || getCreateCopyAdminsNonEditableTestsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin || getCreateCopySuperadminsNonEditableTestsEnabled(operation).booleanValue()))) &&
+					checkTestsFilterPermission(operation,categoriesService.getCategoryFromTestId(operation,testId));
 				
 				createCopyTestsAllowed.put(Long.valueOf(testId),Boolean.valueOf(allowed));
 			}
@@ -1113,13 +1134,15 @@ public class TestsBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				User testAuthor=testsService.getTest(operation,testId).getCreatedBy();
+				Test test=testsService.getTest(operation,testId);
+				User testAuthor=test.getCreatedBy();
 				allowed=getDeleteEnabled(operation).booleanValue() && 
 					(testAuthor.getId()==userSessionService.getCurrentUserId() || 
 					(getDeleteOtherUsersTestsEnabled(operation).booleanValue() && 
 					(!isAdmin(operation,testAuthor) || getDeleteAdminsTestsEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,testAuthor) || 
-					getDeleteSuperadminsTestsEnabled(operation).booleanValue())));
+					getDeleteSuperadminsTestsEnabled(operation).booleanValue()))) && 
+					checkTestsFilterPermission(operation,categoriesService.getCategoryFromTestId(operation,testId));
 				
 				deleteTestsAllowed.put(Long.valueOf(testId),Boolean.valueOf(allowed));
 			}
@@ -1134,23 +1157,16 @@ public class TestsBean implements Serializable
 	
 	public List<Test> getTests()
 	{
-		return getTests(null);
-	}
-    
-	public void setTests(List<Test> tests)
-	{
-		this.tests=tests;
-	}
-	
-	private List<Test> getTests(Operation operation)
-	{
 		if (tests==null)
 		{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+			
 			try
 			{
-				// Get current user session Hibernate operation
-				operation=getCurrentUserOperation(operation);
-				
 				if (checkTestsFilterPermission(operation,null))
 				{
 					long filterCategoryId=getFilterCategoryId(operation);
@@ -1214,6 +1230,11 @@ public class TestsBean implements Serializable
 			}
 		}
 		return tests;
+	}
+    
+	public void setTests(List<Test> tests)
+	{
+		this.tests=tests;
 	}
 	
     /**
@@ -1491,7 +1512,7 @@ public class TestsBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	long filterCategoryId=getFilterCategoryId(operation);
+    	long filterCategoryId=filterCategory==null?getFilterCategoryId(operation):filterCategory.getId();
 		if (getSpecialCategoryFiltersMap().containsKey(Long.valueOf(filterCategoryId)))
 		{
 			SpecialCategoryFilter filter=getSpecialCategoryFiltersMap().get(Long.valueOf(filterCategoryId));
@@ -1507,40 +1528,17 @@ public class TestsBean implements Serializable
 		else
 		{
 			// Check permissions needed for selected category
-			if (filterCategory==null)
-			{
-				// If we have not received filter category as argument we need to get it from DB
-				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-			}
-			if (filterCategory.getVisibility().isGlobal())
+			filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterCategoryId);
+			if (filterCategoryVisibility.isGlobal())
 			{
 				// This is a global category, so we check that current user has permissions to filter
 				// tests by global categories
-				if (getFilterGlobalTestsEnabled(operation).booleanValue())
-				{
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User categoryUser=filterCategory.getUser();
-					ok=currentUser.equals(categoryUser) || getFilterOtherUsersTestsEnabled(operation).booleanValue();
-					*/
-					
-					// Moreover we need to check that the category is owned by current user or 
-					// that current user has permission to filter by categories of other users 
-					ok=filterCategory.getUser().getId()==userSessionService.getCurrentUserId() || 
-						getFilterOtherUsersTestsEnabled(operation).booleanValue();
-				}
-				else
-				{
-					ok=false;
-				}
+				ok=getFilterGlobalTestsEnabled(operation).booleanValue();
 			}
 			else
 			{
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				if (!currentUser.equals(categoryUser))
-				*/
-				
 				// First we have to see if the category is owned by current user, 
 				// if that is not the case we will need to perform aditional checks  
 				User categoryUser=filterCategory.getUser();
@@ -1555,7 +1553,7 @@ public class TestsBean implements Serializable
 						// But private categories need aditional permissions
 						Visibility privateVisibility=
 							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-						if (filterCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
 						{
 							// Finally we need to check that current user has permission to view tests 
 							// from private categories of other users, and aditionally we need to check 
@@ -1565,10 +1563,12 @@ public class TestsBean implements Serializable
 							// private categories of users with permission to improve permissions 
 							// over its owned ones if the owner of the category has that permission 
 							// (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
 							ok=getViewTestsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-								(!isAdmin(operation,categoryUser) || 
+								(!isAdmin || 
 								getViewTestsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-								(!isSuperadmin(operation,categoryUser) || 
+								(!isSuperadmin || 
 								getViewTestsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
 						}
 					}
@@ -1588,62 +1588,176 @@ public class TestsBean implements Serializable
      */
     public void applyTestsFilter(ActionEvent event)
     {
+    	boolean filterCategoryNotFound=false;
+    	boolean filterCategoryInvalid=false;
+    	
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
    		setFilterGlobalTestsEnabled(null);
    		setFilterOtherUsersTestsEnabled(null);
-   		Category filterCategory=null;
+       	setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+       	setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+   		
+       	Category filterCategory=null;
    		long filterCategoryId=getFilterCategoryId(operation);
    		if (filterCategoryId>0L)
    		{
-   			filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-   			resetAdminFromCategoryAllowed(filterCategory);
-   			resetSuperadminFromCategoryAllowed(filterCategory);
-   		}
-   		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-   		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-   		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
-   		if (checkTestsFilterPermission(operation,filterCategory))
-   		{
-   			// Reload tests from DB
-   			setTests(null);
+        	if (categoriesService.checkCategoryId(operation,filterCategoryId))
+        	{
+        		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+        		resetAdminFromCategoryAllowed(filterCategory);
+        		resetSuperadminFromCategoryAllowed(filterCategory);
+        	}
+        	else
+        	{
+        		filterCategoryNotFound=true;
+        	}
    		}
    		else
    		{
-       		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-   			setAddEnabled(null);
-   			setEditEnabled(null);
-   			setCreateCopyEnabled(null);
-   			setDeleteEnabled(null);
-   			resetAdmins();
-   			resetSuperadmins();
-   			resetEditTestsAllowed();
-   			setEditOtherUsersTestsEnabled(null);
-   			setEditAdminsTestsEnabled(null);
-   			setEditSuperadminsTestsEnabled(null);
-   			resetCreateCopyTestsAllowed();
-   			setCreateCopyOtherUsersNonEditableTestsEnabled(null);
-   			setCreateCopyAdminsNonEditableTestsEnabled(null);
-   			setCreateCopySuperadminsNonEditableTestsEnabled(null);
-   			resetDeleteTestsAllowed();
-   			setDeleteOtherUsersTestsEnabled(null);
-   			setDeleteAdminsTestsEnabled(null);
-   			setDeleteSuperadminsTestsEnabled(null);
+   			filterCategory=new Category();
+   			filterCategory.setId(filterCategoryId);
    		}
+   		if (!filterCategoryNotFound)
+   		{
+   			filterCategoryInvalid=!checkTestsFilterPermission(operation,filterCategory);
+   		}
+   		
+   		if (filterCategoryNotFound)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","TESTS_FILTER_CATEGORY_NOT_FOUND_ERROR");
+   			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+   		else if (filterCategoryInvalid)
+   		{
+   			addErrorMessage(true, "INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+   			setFilterCategoryId(Long.MIN_VALUE);
+   		}
+   		
+   		// Reload tests from DB
+		setTests(null);
+   		
+   		setAddEnabled(null);
+		setEditEnabled(null);
+		setCreateCopyEnabled(null);
+		setDeleteEnabled(null);
+		resetAdmins();
+		resetSuperadmins();
+		resetEditTestsAllowed();
+		setEditOtherUsersTestsEnabled(null);
+		setEditAdminsTestsEnabled(null);
+		setEditSuperadminsTestsEnabled(null);
+		resetCreateCopyTestsAllowed();
+		setCreateCopyOtherUsersNonEditableTestsEnabled(null);
+		setCreateCopyAdminsNonEditableTestsEnabled(null);
+		setCreateCopySuperadminsNonEditableTestsEnabled(null);
+		resetDeleteTestsAllowed();
+		setDeleteOtherUsersTestsEnabled(null);
+		setDeleteAdminsTestsEnabled(null);
+		setDeleteSuperadminsTestsEnabled(null);
+   		
+		// Always reload categories from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		testsCategories=null;
+		if (tests==null)
+		{
+			getTests();
+			
+        	// Get current user session Hibernate operation
+        	operation=getCurrentUserOperation(null);
+		}
+		getTestsCategories(operation);
+		getFilterCategoryId(operation);
     }
     
 	//ActionListener para la confirmación de la eliminación de una prueba
-	/**
-	 * Action listener to confirm test deletion.
-	 * @param event Action event
-	 */
-	public void confirm(ActionEvent event)
-	{
-		RequestContext rq=RequestContext.getCurrentInstance();
-		rq.execute("confirmDialog.show()");
-	}
-	
+    /**
+     * Shows a dialog to confirm test deletion.
+     * @param test Test to delete
+     */
+    public void confirmDelete(Test test)
+    {
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+    	
+		boolean ok=false;
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersTestsEnabled(null);
+		setDeleteAdminsTestsEnabled(null);
+		setDeleteSuperadminsTestsEnabled(null);
+		resetDeleteTestAllowed(test);
+		resetAdminFromTestAllowed(test);
+		resetSuperadminFromTestAllowed(test);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long testId=test.getId();
+		if (!testsService.checkTestId(operation,testId))
+		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","TEST_DELETE_NOT_FOUND_ERROR");
+		}
+		else if (isDeleteTestAllowed(operation,testId))
+		{
+			ok=true;
+			setSelectedTest(test);
+			RequestContext rq=RequestContext.getCurrentInstance();
+			rq.execute("confirmDialog.show()");
+		}
+		else
+		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+		}
+		if (!ok)
+		{
+			setAddEnabled(null);
+			setEditEnabled(null);
+			setCreateCopyEnabled(null);
+   			resetAdmins();
+			resetSuperadmins();
+   			setEditOtherUsersTestsEnabled(null);
+   			setEditAdminsTestsEnabled(null);
+   			setEditSuperadminsTestsEnabled(null);
+   			resetEditTestsAllowed();
+   			setCreateCopyOtherUsersNonEditableTestsEnabled(null);
+   			setCreateCopyAdminsNonEditableTestsEnabled(null);
+   			setCreateCopySuperadminsNonEditableTestsEnabled(null);
+   			resetCreateCopyTestsAllowed();
+			resetDeleteTestsAllowed();
+   			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and tests from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			testsCategories=null;
+			setTests(null);
+		}
+    }
+    
 	/**
 	 * Adds a new test.
 	 * @return Next view
@@ -1694,22 +1808,38 @@ public class TestsBean implements Serializable
 	public String editTest(Test test)
 	{
 		String updateView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
 		setEditEnabled(null);
-		resetAdminFromTestAllowed(test);
-		resetSuperadminFromTestAllowed(test);
-		resetEditTestAllowed(test);
 		setEditOtherUsersTestsEnabled(null);
 		setEditAdminsTestsEnabled(null);
 		setEditSuperadminsTestsEnabled(null);
-		if (isEditTestAllowed(test))
+		resetEditTestAllowed(test);
+		resetAdminFromTestAllowed(test);
+		resetSuperadminFromTestAllowed(test);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long testId=test.getId();
+		if (!testsService.checkTestId(operation,testId))
+		{
+    		addErrorMessage(true,"INCORRECT_OPERATION","TEST_UPDATE_NOT_FOUND_ERROR");
+		}
+		else if (isEditTestAllowed(operation,testId))
 		{
 			updateView="testupdate";
 		}
 		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalTestsEnabled(null);
-			setFilterOtherUsersTestsEnabled(null);
+		}
+		if (updateView==null)
+		{
     		setAddEnabled(null);
 			setCreateCopyEnabled(null);
     		setDeleteEnabled(null);
@@ -1725,9 +1855,31 @@ public class TestsBean implements Serializable
 			setDeleteOtherUsersTestsEnabled(null);
 			setDeleteAdminsTestsEnabled(null);
 			setDeleteSuperadminsTestsEnabled(null);
-			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and tests from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			testsCategories=null;
+			setTests(null);
 		}
 		return updateView;
 	}
@@ -1738,29 +1890,45 @@ public class TestsBean implements Serializable
 	 */
 	public String addTestCopy(Test test)
 	{
-		String newView=null;
+		String createCopyView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
 		setAddEnabled(null);
 		setEditEnabled(null);
-		setCreateCopyEnabled(null);
-		resetAdminFromTestAllowed(test);
-		resetSuperadminFromTestAllowed(test);
-		resetEditTestAllowed(test);
 		setEditOtherUsersTestsEnabled(null);
 		setEditAdminsTestsEnabled(null);
 		setEditSuperadminsTestsEnabled(null);
-		resetCreateCopyTestAllowed(test);
+		resetEditTestAllowed(test);
+		setCreateCopyEnabled(null);
 		setCreateCopyOtherUsersNonEditableTestsEnabled(null);
 		setCreateCopyAdminsNonEditableTestsEnabled(null);
 		setCreateCopySuperadminsNonEditableTestsEnabled(null);
-		if (isCreateCopyTestAllowed(test))
+		resetCreateCopyTestAllowed(test);
+		resetAdminFromTestAllowed(test);
+		resetSuperadminFromTestAllowed(test);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long testId=test.getId();
+		if (!testsService.checkTestId(operation,testId))
 		{
-			newView="test";
+    		addErrorMessage(true,"INCORRECT_OPERATION","TEST_CREATE_COPY_NOT_FOUND_ERROR");
+		}
+		else if (isCreateCopyTestAllowed(operation,testId))
+		{
+			createCopyView="test";
 		}
 		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalTestsEnabled(null);
-    		setFilterOtherUsersTestsEnabled(null);
+		}
+		if (createCopyView==null)
+		{
 			setDeleteEnabled(null);
 			setViewOMEnabled(null);
 			resetAdmins();
@@ -1771,11 +1939,33 @@ public class TestsBean implements Serializable
 			setDeleteOtherUsersTestsEnabled(null);
 			setDeleteAdminsTestsEnabled(null);
 			setDeleteSuperadminsTestsEnabled(null);
-			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and tests from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			testsCategories=null;
+			setTests(null);
 		}
-		return newView;
+		return createCopyView;
 	}
 	
 	//ActionListener para la eliminación de una prueba
@@ -1785,109 +1975,197 @@ public class TestsBean implements Serializable
 	 */
 	public void deleteTest(ActionEvent event)
 	{
+		boolean ok=false;
+		ServiceException serviceException=null;
+		
+		boolean testNotFoundError=false;
+		boolean testPublishedError=false;
+		
+		Test test=getSelectedTest();
+		
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		Test test=null;
-		String errorTitle="INCORRECT_OPERATION";
-		String errorMessage="NON_AUTHORIZED_ACTION_ERROR";
-		boolean criticalError=false;
-		try
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersTestsEnabled(null);
+		setDeleteAdminsTestsEnabled(null);
+		setDeleteSuperadminsTestsEnabled(null);
+		resetDeleteTestAllowed(test);
+		resetAdminFromTestAllowed(test);
+		resetSuperadminFromTestAllowed(test);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		long testId=test.getId();
+		if (!testsService.checkTestId(operation,testId))
 		{
-			// Get test to delete
-			test=testsService.getTest(operation,getTestId());
-			
-			setDeleteEnabled(null);
-			resetAdminFromTestAllowed(test);
-			resetSuperadminFromTestAllowed(test);
-			resetDeleteTestAllowed(test);
-			setDeleteOtherUsersTestsEnabled(null);
-			setDeleteAdminsTestsEnabled(null);
-			setDeleteSuperadminsTestsEnabled(null);
-			
-			if (isDeleteTestAllowed(operation,getTestId()))
+			testNotFoundError=true;
+		}
+		else if (isDeleteTestAllowed(operation,testId))
+		{
+			if (testReleasesService.getTestRelease(operation,testId)!=null)
 			{
-				if (testReleasesService.getTestRelease(operation,test.getId())!=null)
+				testPublishedError=true;
+			}
+			else
+			{
+				try
 				{
-					test=null;
-					errorMessage="TEST_DELETE_PUBLISHED_ERROR";
+					// Delete test from DB
+					testsService.deleteTest(testId);
+					
+					// Get OM Test Navigator URL
+					String omTnURL=configurationService.getOmTnUrl();
+					
+					try
+					{
+						// Delete test from OM Test Navigator web application
+						TestGenerator.deleteTest(test,omTnURL,true);
+					}
+					catch (Exception e)
+					{
+						// Ignore OM Test Navigator errors
+						//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+					}
+					
+					ok=true;
+				}
+				catch (ServiceException se)
+				{
+					serviceException=se;
+				}
+			}
+			
+			// We force to reload tests from DB
+			setTests(null);
+			
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+			
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(null);
+		}
+		if (!ok)
+		{
+			if (testNotFoundError)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","TEST_DELETE_NOT_FOUND_ERROR");
+			}
+			else if (testPublishedError)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","TEST_DELETE_PUBLISHED_ERROR");
+			}
+			else if (serviceException==null)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			}
+			else
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","TEST_DELETE_UNKNOWN_ERROR");
+			}
+			setAddEnabled(null);
+			setEditEnabled(null);
+			setCreateCopyEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			setEditOtherUsersTestsEnabled(null);
+			setEditAdminsTestsEnabled(null);
+			setEditSuperadminsTestsEnabled(null);
+			resetEditTestsAllowed();
+			setCreateCopyOtherUsersNonEditableTestsEnabled(null);
+			setCreateCopyAdminsNonEditableTestsEnabled(null);
+			setCreateCopySuperadminsNonEditableTestsEnabled(null);
+			resetCreateCopyTestsAllowed();
+			resetDeleteTestsAllowed();
+			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
 				}
 			}
 			else
 			{
-				test=null;
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
 			}
-		}
-		catch (ServiceException se)
-		{
-			test=null;
-			errorTitle="UNEXPECTED_ERROR";
-			errorMessage="TEST_DELETE_UNKNOWN_ERROR";
-			criticalError=true;
-			setDeleteEnabled(null);
-			setDeleteOtherUsersTestsEnabled(null);
-			setDeleteAdminsTestsEnabled(null);
-			setDeleteSuperadminsTestsEnabled(null);
+			if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			testsCategories=null;
 		}
 		
-		if (test==null)
+		// Always reload tests from DB
+		setTests(null);
+	}
+	
+	/**
+	 * Cancels deletion of a test.
+	 * @param event Action event
+	 */
+	public void cancelDeleteTest(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setAddEnabled(null);
+		setEditEnabled(null);
+		setEditOtherUsersTestsEnabled(null);
+		setEditAdminsTestsEnabled(null);
+		setEditSuperadminsTestsEnabled(null);
+		setCreateCopyEnabled(null);
+		setCreateCopyOtherUsersNonEditableTestsEnabled(null);
+		setCreateCopyAdminsNonEditableTestsEnabled(null);
+		setCreateCopySuperadminsNonEditableTestsEnabled(null);
+		setDeleteEnabled(null);
+		setDeleteOtherUsersTestsEnabled(null);
+		setDeleteAdminsTestsEnabled(null);
+		setDeleteSuperadminsTestsEnabled(null);
+		setViewOMEnabled(null);
+		resetDeleteTestsAllowed();
+		resetAdmins();
+		resetSuperadmins();
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		Category filterCategory=null;
+		long filterCategoryId=getFilterCategoryId();
+		if (filterCategoryId>0L)
 		{
-			addErrorMessage(criticalError,errorTitle,errorMessage);
-			setFilterGlobalTestsEnabled(null);
-			setFilterOtherUsersTestsEnabled(null);
-			setAddEnabled(null);
-			setEditEnabled(null);
-			setCreateCopyEnabled(null);
-			setViewOMEnabled(null);
-			resetAdmins();
-			resetSuperadmins();
-			resetEditTestsAllowed();
-			setEditOtherUsersTestsEnabled(null);
-			setEditAdminsTestsEnabled(null);
-			setEditSuperadminsTestsEnabled(null);
-			resetCreateCopyTestsAllowed();
-			setCreateCopyOtherUsersNonEditableTestsEnabled(null);
-			setCreateCopyAdminsNonEditableTestsEnabled(null);
-			setCreateCopySuperadminsNonEditableTestsEnabled(null);
-			resetDeleteTestsAllowed();
-			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			if (categoriesService.checkCategoryId(operation,filterCategoryId))
+			{
+				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+			}
 		}
 		else
 		{
-			try
-			{
-				// Delete test from DB
-				testsService.deleteTest(getTestId());
-				
-				// Get OM Test Navigator URL
-				String omTnURL=configurationService.getOmTnUrl();
-				
-				try
-				{
-					// Delete test from OM Test Navigator web application
-					TestGenerator.deleteTest(test,omTnURL,true);
-				}
-				catch (Exception e)
-				{
-					// Ignore OM Test Navigator errors
-					//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
-				}
-				
-				// Reload tests from BD
-		    	tests=null;
-			}
-			catch (ServiceException se)
-			{
-				addErrorMessage(true,"UNEXPECTED_ERROR","TEST_DELETE_UNKNOWN_ERROR");
-			}
-			finally
-			{
-				// End current user session Hibernate operation
-				userSessionService.endCurrentUserOperation();
-			}
+			filterCategory=new Category();
+			filterCategory.setId(filterCategoryId);
 		}
+		if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+		{
+			setFilterCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload categories and tests from DB
+		specialCategoryFiltersMap=null;
+		specialCategoriesFilters=null;
+		testsCategories=null;
+		setTests(null);
 	}
 	
 	//Muestra la prueba seleccionada en el sistema OpenMark
@@ -1905,15 +2183,23 @@ public class TestsBean implements Serializable
 		Test test=null;
 		
 		setViewOMEnabled(null);
-		if (getViewOMEnabled(operation).booleanValue())
+		
+		if (!testsService.checkTestId(operation, testId))
+		{
+    		addErrorMessage(true,"INCORRECT_OPERATION","TEST_PREVIEW_NOT_FOUND_ERROR");
+		}
+		else if (getViewOMEnabled(operation).booleanValue() && checkTestsFilterPermission(
+			operation,categoriesService.getCategoryFromTestId(operation,testId)))
 		{
 			// Get test
 			test=testsService.getTest(operation,testId);
 		}
-		
-		if (test==null)
+		else
 		{
     		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+		}
+		if (test==null)
+		{
 			setFilterGlobalTestsEnabled(null);
 			setFilterOtherUsersTestsEnabled(null);
     		setAddEnabled(null);
@@ -1938,6 +2224,31 @@ public class TestsBean implements Serializable
     		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
     		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
 			
+			Category filterCategory=null;
+			long filterCategoryId=getFilterCategoryId();
+			if (filterCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterCategoryId))
+				{
+					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+				}
+			}
+			else
+			{
+				filterCategory=new Category();
+				filterCategory.setId(filterCategoryId);
+			}
+			if (filterCategory==null || !checkTestsFilterPermission(operation,filterCategory))
+			{
+				setFilterCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and questions from DB
+			specialCategoryFiltersMap=null;
+			specialCategoriesFilters=null;
+			testsCategories=null;
+			setTests(null);
+    		
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
 		}

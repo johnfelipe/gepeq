@@ -37,25 +37,12 @@ public class AnswerConverter implements Converter
 	{
 		Answer answer=null;
 		int position=Integer.parseInt(newValue);
-		/*
-		Application app=context.getApplication();
-		QuestionBean questionBean=
-			(QuestionBean)app.evaluateExpressionGet(context,"#{questionBean}",QuestionBean.class);
-		*/
 		QuestionBean questionBean=(QuestionBean)context.getApplication().getELResolver().getValue(
 			context.getELContext(),null,"questionBean");
-		
-		Question question=questionBean.getQuestion(questionBean.getCurrentUserOperation(null));
+		Question question=questionBean.getQuestion();
 		if (question!=null)
 		{
-			for (Answer a:question.getAnswers())
-			{
-				if (a.getPosition()==position)
-				{
-					answer=a;
-					break;
-				}
-			}
+			answer=question.getAnswer(position);
 		}
 		return answer;
 	}

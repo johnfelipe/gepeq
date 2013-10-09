@@ -19,10 +19,6 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 09-jul-2012 14:56:59 by Hibernate Tools 3.4.0.CR1
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -31,7 +27,6 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -49,8 +44,6 @@ public class Permission implements java.io.Serializable {
 	private PermissionType permissionType;
 	private String name;
 	private String defaultValue;
-	private List<UserPermission> userPermissions = new ArrayList<UserPermission>(0);
-	private List<UserTypePermission> userTypePermissions = new ArrayList<UserTypePermission>(0);
 
 	public Permission() {
 	}
@@ -75,7 +68,7 @@ public class Permission implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_type", nullable = false)
+	@JoinColumn(name = "id_type")
 	public PermissionType getPermissionType() {
 		return this.permissionType;
 	}
@@ -102,24 +95,6 @@ public class Permission implements java.io.Serializable {
 		this.defaultValue = defaultValue;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "permission", cascade = CascadeType.ALL)
-	public List<UserPermission> getUserPermissions() {
-		return this.userPermissions;
-	}
-
-	public void setUserPermissions(List<UserPermission> userPermissions) {
-		this.userPermissions = userPermissions;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "permission", cascade = CascadeType.ALL)
-	public List<UserTypePermission> getUserTypePermissions() {
-		return this.userTypePermissions;
-	}
-
-	public void setUserTypePermissions(List<UserTypePermission> userTypePermissions) {
-		this.userTypePermissions = userTypePermissions;
-	}
-
 	/**
 	 * Set the fields of this permission with the values from fields from other permission.
 	 * @param otherPermission Other permission
@@ -134,6 +109,15 @@ public class Permission implements java.io.Serializable {
 			setName(otherPermission.getName());
 			setDefaultValue(otherPermission.getDefaultValue());
 		}
+	}
+	
+	/**
+	 * @return A copy of this permission.
+	 */
+	@Transient
+	public Permission getPermissionCopy()
+	{
+		return new Permission(getId(),getPermissionType(),getName(),getDefaultValue());
 	}
 	
 	@Override

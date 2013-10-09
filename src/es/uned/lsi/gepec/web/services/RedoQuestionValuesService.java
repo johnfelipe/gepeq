@@ -92,8 +92,7 @@ public class RedoQuestionValuesService implements Serializable
 		// so we return a copy
 		if (redoQuestionFromCache!=null)
 		{
-			redoQuestion=new RedoQuestionValue();
-			redoQuestion.setFromOtherRedoQuestionValue(redoQuestionFromCache);
+			redoQuestion=redoQuestionFromCache.getRedoQuestionValueCopy();
 		}
 		return redoQuestion;
 	}
@@ -140,8 +139,7 @@ public class RedoQuestionValuesService implements Serializable
 		// so we return a copy
 		if (redoQuestionFromCache!=null)
 		{
-			redoQuestion=new RedoQuestionValue();
-			redoQuestion.setFromOtherRedoQuestionValue(redoQuestionFromCache);
+			redoQuestion=redoQuestionFromCache.getRedoQuestionValueCopy();
 		}
 		return redoQuestion;
 	}
@@ -195,8 +193,7 @@ public class RedoQuestionValuesService implements Serializable
 			RedoQuestionValue redoQuestion=null;
 			if (redoQuestionFromCache!=null)
 			{
-				redoQuestion=new RedoQuestionValue();
-				redoQuestion.setFromOtherRedoQuestionValue(redoQuestionFromCache);
+				redoQuestion=redoQuestionFromCache.getRedoQuestionValueCopy();
 			}
 			redoQuestions.add(redoQuestion);
 		}

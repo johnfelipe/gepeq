@@ -22,6 +22,7 @@ import java.util.List;
 import javax.el.ELContext;
 import javax.faces.context.FacesContext;
 
+import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.type.StandardBasicTypes;
@@ -135,6 +136,15 @@ public class FeedbacksDao
 		{
 			startOperation();
 			feedback=(Feedback)operation.session.get(Feedback.class,id);
+			if (feedback!=null)
+			{
+				Hibernate.initialize(feedback.getQuestion());
+				if (feedback.getResource()!=null)
+				{
+					Hibernate.initialize(feedback.getResource());
+				}
+				Hibernate.initialize(feedback.getFeedbackType());
+			}
 		}
 		catch (HibernateException he)
 		{
@@ -172,6 +182,15 @@ public class FeedbacksDao
 				query.setParameter("questionId",Long.valueOf(questionId),StandardBasicTypes.LONG);
 			}
 			feedbacks=query.list();
+			for (Feedback feedback:feedbacks)
+			{
+				Hibernate.initialize(feedback.getQuestion());
+				if (feedback.getResource()!=null)
+				{
+					Hibernate.initialize(feedback.getResource());
+				}
+				Hibernate.initialize(feedback.getFeedbackType());
+			}
 		}
 		catch (HibernateException he)
 		{

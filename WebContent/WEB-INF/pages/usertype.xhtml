@@ -50,8 +50,8 @@
               rendered="#{userTypeBean.activeUserTypeTabName=='permissions'}" />
             <p:dataTable id="permissionsTable" styleClass="permissionsTable" rowStyleClass="dataRow" 
               emptyMessage="#{msgs.NO_PERMISSIONS}" value="#{userTypeBean.permissions}" var="permission" 
-              paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-              paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+              paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+              rowsPerPageTemplate="10,25,50">
               
               <p:ajax event="rowEdit" listener="#{userTypeBean.changePermission}" update="permissionStatus" />
               

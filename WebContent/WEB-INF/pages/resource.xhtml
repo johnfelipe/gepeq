@@ -131,16 +131,31 @@
           </h:panelGrid>
           <h:panelGrid columns="2" cellpadding="5" columnClasses="labelColumn,fieldColumn">
             #{msgs.CATEGORY}
-            <p:selectOneMenu id="resourceCategoryId" styleClass="combo" style="width:600px;"
-              value="#{resourceBean.resourceCategoryId}" var="resourceCategoryId">
-              
-              <p:ajax process="@this" update="resourceForm:saveButton" />
-              <f:selectItems value="#{resourceBean.resourcesCategories}" var="cat" 
-                itemLabel="#{resourceBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
-              <p:column>
-                #{resourceBean.getLocalizedCategoryLongName(resourceCategoryId,65)}
-              </p:column>
-            </p:selectOneMenu>
+            <h:panelGroup>
+              <p:selectOneMenu id="resourceCategoryId" styleClass="combo" style="width:580px;margin-right:5px;"
+                value="#{resourceBean.resourceCategoryId}" var="resourceCategoryId">
+                
+                <p:ajax process="@this" update="resourceForm:saveButton" />
+                <f:selectItems value="#{resourceBean.resourcesCategories}" var="cat" 
+                  itemLabel="#{resourceBean.getLocalizedCategoryLongName(cat)}" itemValue="#{cat.id}" />
+                <p:column>
+                  #{resourceBean.getLocalizedCategoryLongName(resourceCategoryId,65)}
+                </p:column>
+              </p:selectOneMenu>
+              <h:panelGroup style="display:inline-block;vertical-align:top;padding-top:6px;">
+                <p:commandLink id="refreshResourceCategoriesButton" 
+                  actionListener="#{resourceBean.refreshResourceCategories}" 
+                  update="resourceForm:resourceCategoryId resourceForm:messages" 
+                  onclick="refreshResourceCategoriesTooltip.hide();">
+                  
+                  <h:graphicImage id="refreshResourceCategoriesImage" styleClass="links" 
+                    value="#{resource['images:reset.png']}" />
+                  <p:tooltip widgetVar="refreshResourceCategoriesTooltip" for="refreshResourceCategoriesImage">
+                    #{msgs.REFRESH}
+                  </p:tooltip>
+                </p:commandLink>
+              </h:panelGroup>
+            </h:panelGroup>
             #{msgs.COPYRIGHT}
             <p:selectOneMenu id="resourceCopyright" styleClass="combo" style="width:500px;" 
               value="#{resourceBean.resourceCopyrightId}">
@@ -159,18 +174,19 @@
           <h:panelGroup id="resourcePreview" styleClass="resourcePreview" layout="block">
             <h:panelGroup styleClass="resourcePreviewSpan">
               <h:panelGroup styleClass="resourcePreviewContent">
-                <h:graphicImage value="#{resourceBean.resourcePreview}" 
+                <h:graphicImage value="#{resourceBean.resourcePreview}" styleClass="graphics"
                   width="#{resourceBean.resourcePreviewWidth}" height="#{resourceBean.resourcePreviewHeight}" 
                   rendered="#{resourceBean.resourcePreview!=null}" />
               </h:panelGroup>
             </h:panelGroup>
           </h:panelGroup>
           <h:panelGroup styleClass="centerAlign" layout="block">
-            <p:commandButton id="saveButton" value="#{msgs.SAVE}" image="ui-icon ui-icon-disk" 
-              styleClass="button" ajax="false" action="#{resourceBean.saveResource}" 
+            <p:commandButton id="saveButton" value="#{msgs.SAVE}" image="ui-icon ui-icon-disk" styleClass="button" 
+              ajax="false" action="#{resourceBean.saveResource}" immediate="true" 
               disabled="#{!resourceBean.saveEnabled}" />
-            <p:commandButton id="cancelButton" ajax="false" value="#{msgs.CANCEL}" image="ui-icon ui-icon-cancel" 
-              styleClass="button" style="margin-left:5px;" action="#{resourceBean.cancel}" />
+            <p:commandButton id="cancelButton" value="#{msgs.CANCEL}" image="ui-icon ui-icon-cancel" 
+              styleClass="button" style="margin-left:5px;" ajax="false" action="#{resourceBean.cancel}" 
+              immediate="true" />
           </h:panelGroup>
 	  	</h:form>
 	  </p:panel>

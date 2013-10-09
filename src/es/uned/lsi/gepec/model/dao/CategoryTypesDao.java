@@ -185,6 +185,38 @@ public class CategoryTypesDao
 	}
 	
 	/**
+	 * @param categoryId Category identifier
+	 * @return Category type from a category
+	 * @throws DaoException
+	 */
+	public CategoryType getCategoryTypeFromCategoryId(long categoryId) throws DaoException
+	{
+		CategoryType categoryType=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from CategoryType ct where ct.id = (select c.categoryType.id from Category c where c.id = :categoryId)");
+			query.setParameter("categoryId",Long.valueOf(categoryId),StandardBasicTypes.LONG);
+			categoryType=(CategoryType)query.uniqueResult();
+			if (categoryType!=null)
+			{
+				Hibernate.initialize(categoryType.getParent());
+			}
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return categoryType;
+	}
+	
+	/**
 	 * @return List of all category types
 	 * @throws DaoException
 	 */

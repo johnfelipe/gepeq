@@ -176,6 +176,38 @@ public class VisibilitiesDao
 	}
 	
 	/**
+	 * @param categoryId Category identifier
+	 * @return Visibility from a category
+	 * @throws DaoException
+	 */
+	public Visibility getVisibilityFromCategoryId(long categoryId) throws DaoException
+	{
+		Visibility visibility=null;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery(
+				"from Visibility v where v.id = (select c.visibility.id from Category c where c.id = :categoryId)");
+			query.setParameter("categoryId",Long.valueOf(categoryId),StandardBasicTypes.LONG);
+			Visibility visibilityFromDB=(Visibility)query.uniqueResult();
+			if (visibilityFromDB!=null)
+			{
+				visibility=visibilityFromDB.getVisibilityCopy();
+			}
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return visibility;
+	}
+	
+	/**
 	 * @return List of all visibilities
 	 * @throws DaoException
 	 */

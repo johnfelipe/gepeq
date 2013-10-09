@@ -32,7 +32,7 @@ public class QuestionDeleteConstraintServiceException extends ServiceException
 	
 	public QuestionDeleteConstraintServiceException(String message,Throwable cause)
 	{
-		super(message, cause);
+		super(message,cause);
 	}
 	
 	public QuestionDeleteConstraintServiceException(String message)

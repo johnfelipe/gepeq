@@ -20,9 +20,7 @@ package es.uned.lsi.gepec.model.entities;
 // Generated 08-jul-2011 10:08:42 by Hibernate Tools 3.4.0.CR1
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -49,7 +47,6 @@ public class UserType implements java.io.Serializable {
 	private String type;
 	private String description;
 	private List<UserTypePermission> userTypePermissions = new ArrayList<UserTypePermission>(0);
-	private Set<User> users = new HashSet<User>(0);
 
 	public UserType() {
 	}
@@ -102,15 +99,6 @@ public class UserType implements java.io.Serializable {
 		this.userTypePermissions = userTypePermissions;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "userType")
-	public Set<User> getUsers() {
-		return this.users;
-	}
-
-	public void setUsers(Set<User> users) {
-		this.users = users;
-	}
-
 	/**
 	 * Set the fields of this user type with the values from fields from other user type.
 	 * @param otherUserType Other user type
@@ -124,6 +112,15 @@ public class UserType implements java.io.Serializable {
 			setType(otherUserType.getType());
 			setDescription(otherUserType.getDescription());
 		}
+	}
+	
+	/**
+	 * @return A copy of this user type.
+	 */
+	@Transient
+	public UserType getUserTypeCopy()
+	{
+		return new UserType(getId(),getType(),getDescription());
 	}
 	
 	@Override

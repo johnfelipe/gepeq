@@ -41,13 +41,13 @@ public class AddressTypesService implements Serializable
 {
 	private final static AddressTypesDao ADDRESS_TYPES_DAO=new AddressTypesDao();
 	
+	private final static List<AddressType> ADDRESS_TYPES_CACHED=new ArrayList<AddressType>();
+
 	private final static Map<Long,AddressType> ADDRESS_TYPES_CACHED_BY_ID=new HashMap<Long,AddressType>();
 	private final static Map<String,Map<String,AddressType>> ADDRESS_TYPES_CACHED_BY_TYPE_AND_SUBTYPE=
 		new HashMap<String,Map<String,AddressType>>();
 	private final static Map<String,List<AddressType>> ADDRESS_TYPES_CACHED_BY_TYPE=
 		new HashMap<String,List<AddressType>>();
-	private final static List<AddressType> ADDRESS_TYPES_CACHED=new ArrayList<AddressType>();
-	
 	public AddressTypesService()
 	{
 	}
@@ -100,8 +100,7 @@ public class AddressTypesService implements Serializable
 		// We don't want caller accessing directly to a cached address type so we return a copy
 		if (addressTypeFromCache!=null)
 		{
-			addressType=new AddressType();
-			addressType.setFromOtherAddressType(addressTypeFromCache);
+			addressType=addressTypeFromCache.getAddressTypeCopy();
 		}
 		return addressType;
 	}
@@ -158,8 +157,7 @@ public class AddressTypesService implements Serializable
 		// We don't want caller accessing directly to a cached address type so we return a copy
 		if (addressTypeFromCache!=null)
 		{
-			addressType=new AddressType();
-			addressType.setFromOtherAddressType(addressTypeFromCache);
+			addressType=addressTypeFromCache.getAddressTypeCopy();
 		}
 		return addressType;
 	}
@@ -231,8 +229,7 @@ public class AddressTypesService implements Serializable
 			AddressType addressType=null;
 			if (addressTypeFromCache!=null)
 			{
-				addressType=new AddressType();
-				addressType.setFromOtherAddressType(addressTypeFromCache);
+				addressType=addressTypeFromCache.getAddressTypeCopy();
 			}
 			addressTypes.add(addressType);
 		}
@@ -306,8 +303,7 @@ public class AddressTypesService implements Serializable
 				AddressType addressType=null;
 				if (addressTypeFromCache!=null)
 				{
-					addressType=new AddressType();
-					addressType.setFromOtherAddressType(addressTypeFromCache);
+					addressType=addressTypeFromCache.getAddressTypeCopy();
 				}
 				addressTypes.add(addressType);
 			}

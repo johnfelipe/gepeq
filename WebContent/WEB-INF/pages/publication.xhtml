@@ -42,7 +42,7 @@
         </h:panelGroup>
         <p:tabView id="publicationTabs" rendered="#{publicationBean.isPublicationEnabled()}">
           <p:ajax event="tabChange" listener="#{publicationBean.changeActivePublicationTab}" process="@this" 
-            update="buildingDialog" />
+            update="@this buildingDialog" />
           <p:tab id="questionsTab" title="#{msgs.QUESTIONS}" 
             rendered="#{publicationBean.isQuestionsPublicationEnabled()}">
             
@@ -98,7 +98,7 @@
                   <f:selectItems value="#{questionTypesService.questionTypes}" var="type" itemLabel="#{msgs[type]}" 
                     itemValue="#{type}" />
                   <p:column styleClass="columnIcon">
-                    <p:graphicImage value="/resources/images/#{t}.gif" width="16" height="16" />
+                    <h:graphicImage value="/resources/images/#{t}.gif" styleClass="graphics" width="16" height="16" />
                   </p:column>
                   <p:column style="font-size:85% !important;">
                     #{msgs[t]}
@@ -118,18 +118,18 @@
                 <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
                   actionListener="#{publicationBean.applyQuestionsReleasesFilter}" 
                   process="publicationForm:publicationTabs:questionsReleasesFilterPanel" 
-                  update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesTable" />
+                  update="publicationForm:publicationTabs:questionsReleasesFilterPanel publicationForm:messages publicationForm:publicationTabs:questionsReleasesTable" />
               </h:panelGrid>
             </p:panel>
             <p:dataTable id="questionsReleasesTable" styleClass="questionsReleasesTable" rowStyleClass="dataRow" 
               emptyMessage="#{msgs.NO_QUESTIONS}" value="#{publicationBean.questionsReleases}" var="questionRelease" 
-              paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-              paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+              paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+              rowsPerPageTemplate="10,25,50">
               
               <p:column styleClass="columnType" sortBy="#{questionRelease.question.type}" 
                 sortFunction="#{publicationBean.sortQuestionTypes}">
                 
-                <h:graphicImage id="questionTypeImage" 
+                <h:graphicImage id="questionTypeImage" styleClass="graphics" 
                   url="/resources/images/#{questionRelease.question.type}.gif" />
                 <p:tooltip for="questionTypeImage">
                   #{msgs[questionRelease.question.type]}
@@ -172,49 +172,52 @@
               <p:column styleClass="columnOM">
                 <p:commandLink process="@form" update="@form" 
                   action="#{publicationBean.viewOMQuestion(questionRelease.question.id)}" 
-                  onstart="buildingDialog.show()" 
+                  onstart="viewOMQuestionTooltip.hide();buildingDialog.show()" 
                   oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" 
                   rendered="#{publicationBean.isViewOMQuestionsEnabled()}">
                   
                   <h:graphicImage id="viewOMQuestionImage" styleClass="links" 
                     value="#{resource['images:om16.png']}" />
-                  <p:tooltip for="viewOMQuestionImage">
+                  <p:tooltip widgetVar="viewOMQuestionTooltip" for="viewOMQuestionImage">
                     #{msgs.OM_PREVIEW}
                   </p:tooltip>
                 </p:commandLink>
               </p:column>
               <p:column styleClass="columnPublish">
-                <h:commandLink action="questionrelease" 
-                  rendered="#{publicationBean.isPublishQuestionAllowed(questionRelease.question)}">
+                <h:commandLink action="#{publicationBean.publishQuestion(questionRelease.question)}" 
+                  rendered="#{publicationBean.isPublishQuestionAllowed(questionRelease.question)}"
+                  onclick="publishQuestionTooltip.hide();">
                   
                   <f:param name="questionId" value="#{questionRelease.question.id}" />
                   <h:graphicImage id="publishQuestionImage" styleClass="links" 
                     value="#{resource['images:publish16.png']}" />
-                  <p:tooltip for="publishQuestionImage">
+                  <p:tooltip widgetVar="publishQuestionTooltip" for="publishQuestionImage">
                     #{msgs.PUBLISH_QUESTION}
                   </p:tooltip> 
                 </h:commandLink>
               </p:column>
               <p:column styleClass="columnUnpublish">
-                <p:commandLink update=":confirmDialog" actionListener="#{publicationBean.confirm}"  
-                  rendered="#{publicationBean.isUnpublishQuestionReleaseAllowed(questionRelease)}">
+                <p:commandLink update="@form confirmDialog" 
+                  actionListener="#{publicationBean.confirmUnpublishQuestionRelease(questionRelease)}"  
+                  rendered="#{publicationBean.isUnpublishQuestionReleaseAllowed(questionRelease)}"
+                  onclick="unpublishQuestionReleaseTooltip.hide();">
                   
-                  <f:attribute name="questionRelease" value="#{questionRelease}" />
                   <h:graphicImage id="unpublishQuestionReleaseImage" styleClass="links" 
                     value="#{resource['images:delete.png']}" />
-                  <p:tooltip for="unpublishQuestionReleaseImage">
+                  <p:tooltip widgetVar="unpublishQuestionReleaseTooltip" for="unpublishQuestionReleaseImage">
                     #{msgs.UNPUBLISH_QUESTION_RELEASE}
                   </p:tooltip>
                 </p:commandLink> 
               </p:column>
               <p:column styleClass="columnPublicationStatus">
-                <p:commandLink update=":confirmDialog" actionListener="#{publicationBean.confirmOMView}" 
-                  rendered="#{questionRelease.releaseDate != null}">
+                <p:commandLink update="confirmDialog publicationForm:messages publicationForm:publicationTabs:questionsReleasesFilterPanel publicationForm:publicationTabs:questionsReleasesTable" 
+                  actionListener="#{publicationBean.confirmOMView}" rendered="#{questionRelease.releaseDate != null}" 
+                  onclick="viewQuestionReleaseTooltip.hide();">
                   
                   <f:attribute name="questionRelease" value="#{questionRelease}" />
-                  <h:graphicImage id="questionReleasedImage" styleClass="links" 
+                  <h:graphicImage id="viewQuestionReleaseImage" styleClass="links" 
                     value="#{resource['images:world16.png']}" />
-                  <p:tooltip for="questionReleasedImage">
+                  <p:tooltip widgetVar="viewQuestionReleaseTooltip" for="viewQuestionReleaseImage">
                     #{msgs.OM_VIEW_QUESTION_RELEASE}
                   </p:tooltip>
                 </p:commandLink>
@@ -266,14 +269,14 @@
                 <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
                   actionListener="#{publicationBean.applyTestsReleasesFilter}" 
                   process="publicationForm:publicationTabs:testsReleasesFilterPanel" 
-                  update="publicationForm:messages publicationForm:publicationTabs:testsReleasesTable" />
+                  update="publicationForm:publicationTabs:testsReleasesFilterPanel publicationForm:messages publicationForm:publicationTabs:testsReleasesTable" />
               </h:panelGrid>
             </p:panel>
             
             <p:dataTable id="testsReleasesTable" styleClass="testsReleasesTable" rowStyleClass="dataRow" 
               emptyMessage="#{msgs.NO_TEST}" value="#{publicationBean.testsReleases}" var="testRelease" 
-              paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-              paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+              paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+              rowsPerPageTemplate="10,25,50">
               
               <p:column styleClass="columnTestName" sortBy="#{testRelease.test.name}">
                 <f:facet name="header">#{msgs.TEST}</f:facet>
@@ -309,50 +312,53 @@
               </p:column>
               <p:column styleClass="columnOM">
                 <p:commandLink process="@form" update="@form" 
-                  action="#{publicationBean.viewOMTest(testRelease.test.id)}" onstart="buildingDialog.show()" 
+                  action="#{publicationBean.viewOMTest(testRelease.test.id)}" 
+                  onstart="viewOMTestTooltip.hide();buildingDialog.show()" 
                   oncomplete="buildingDialog.hide();viewTest(xhr,status,args)" 
                   rendered="#{publicationBean.isViewOMTestsEnabled()}">
                   
-                  <h:graphicImage id="viewOMTestImage" styleClass="links" 
-                    value="#{resource['images:om16.png']}" />
-                  <p:tooltip for="viewOMTestImage">
+                  <h:graphicImage id="viewOMTestImage" styleClass="links" value="#{resource['images:om16.png']}" />
+                  <p:tooltip widgetVar="viewOMTestTooltip" for="viewOMTestImage">
                     #{msgs.OM_PREVIEW}
                   </p:tooltip>
                 </p:commandLink>
               </p:column>
               <p:column styleClass="columnPublish">
-                <h:commandLink action="testrelease"
-                  rendered="#{publicationBean.isPublishTestAllowed(testRelease.test)}">
+                <h:commandLink action="#{publicationBean.publishTest(testRelease.test)}" 
+                  rendered="#{publicationBean.isPublishTestAllowed(testRelease.test)}"
+                  onclick="publishTestTooltip.hide();">
                   
                   <f:param name="testId" value="#{testRelease.test.id}" />
                   <f:param name="version" value="#{testRelease.version}" />
                   <h:graphicImage id="publishTestImage" styleClass="links" 
                     value="#{resource['images:publish16.png']}" />
-                  <p:tooltip for="publishTestImage">
+                  <p:tooltip widgetVar="publishTestTooltip" for="publishTestImage">
                     #{msgs.PUBLISH_TEST}
                   </p:tooltip> 
                 </h:commandLink>
               </p:column>
               <p:column styleClass="columnUnpublish">
-                <p:commandLink update=":confirmDialog" actionListener="#{publicationBean.confirm}"
-                  rendered="#{publicationBean.isUnpublishTestReleaseAllowed(testRelease)}">
+                <p:commandLink update="@form confirmDialog" 
+                  actionListener="#{publicationBean.confirmUnpublishTestRelease(testRelease)}"  
+                  rendered="#{publicationBean.isUnpublishTestReleaseAllowed(testRelease)}"
+                  onclick="unpublishTestReleaseTooltip.hide();">
                   
-                  <f:attribute name="testRelease" value="#{testRelease}" />
                   <h:graphicImage id="unpublishTestReleaseImage" styleClass="links" 
                     value="#{resource['images:delete.png']}" />
-                  <p:tooltip for="unpublishTestReleaseImage">
+                  <p:tooltip widgetVar="unpublishTestReleaseTooltip" for="unpublishTestReleaseImage">
                     #{msgs.UNPUBLISH_TEST_RELEASE}
                   </p:tooltip>
                 </p:commandLink> 
               </p:column>
               <p:column styleClass="columnPublicationStatus">
-                <p:commandLink update=":confirmDialog" actionListener="#{publicationBean.confirmOMView}" 
-                  rendered="#{testRelease.releaseDate != null}">
+                <p:commandLink update="confirmDialog publicationForm:messages publicationForm:publicationTabs:testsReleasesFilterPanel publicationForm:publicationTabs:testsReleasesTable" 
+                  actionListener="#{publicationBean.confirmOMView}" rendered="#{testRelease.releaseDate!=null}" 
+                  onclick="viewTestReleaseTooltip.hide();">
                   
                   <f:attribute name="testRelease" value="#{testRelease}" />
-                  <h:graphicImage id="testReleasedImage" styleClass="links" 
+                  <h:graphicImage id="viewTestReleaseImage" styleClass="links" 
                     value="#{resource['images:world16.png']}" />
-                  <p:tooltip for="testReleasedImage">
+                  <p:tooltip widgetVar="viewTestReleaseTooltip" for="viewTestReleaseImage">
                     #{msgs.OM_VIEW_TEST_RELEASE}
                   </p:tooltip>
                 </p:commandLink>
@@ -379,26 +385,32 @@
       <h:form>
         <h:panelGroup layout="block" styleClass="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
           <h:panelGroup layout="block" style="text-align:right;">
-          
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
-              actionListener="#{publicationBean.unpublishQuestionRelease}" 
-              update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesTable" 
+            <p:commandButton value="#{msgs.YES}" actionListener="#{publicationBean.unpublishQuestionRelease}"
+              onclick="confirmDialog.hide();" 
+              update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesFilterPanel publicationForm:publicationTabs:questionsReleasesTable" 
               rendered="#{publicationBean.confirmType=='CONFIRM_UNPUBLISH_QUESTION_RELEASE'}" />
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
-              actionListener="#{publicationBean.unpublishTestRelease}" 
-              update="publicationForm:messages publicationForm:publicationTabs:testsReleasesTable" 
+            <p:commandButton value="#{msgs.YES}" actionListener="#{publicationBean.unpublishTestRelease}" 
+              onclick="confirmDialog.hide();" 
+              update="publicationForm:messages publicationForm:publicationTabs:testsReleasesFilterPanel publicationForm:publicationTabs:testsReleasesTable" 
               rendered="#{publicationBean.confirmType=='CONFIRM_UNPUBLISH_TEST_RELEASE'}" />
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
-              actionListener="#{publicationBean.viewOMQuestionRelease}" 
-              update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesTable" 
+            <p:commandButton value="#{msgs.YES}" actionListener="#{publicationBean.viewOMQuestionRelease}" 
+              onclick="confirmDialog.hide();"
+              update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesFilterPanel publicationForm:publicationTabs:questionsReleasesTable" 
               oncomplete="viewQuestionRelease(xhr,status,args);" 
               rendered="#{publicationBean.confirmType=='CONFIRM_OM_VIEW_QUESTION_RELEASE'}" />
-            <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
-              actionListener="#{publicationBean.viewOMTestRelease}" 
-              update="publicationForm:messages publicationForm:publicationTabs:testsReleasesTable" 
+            <p:commandButton value="#{msgs.YES}" actionListener="#{publicationBean.viewOMTestRelease}" 
+              onclick="confirmDialog.hide();" 
+              update="publicationForm:messages publicationForm:publicationTabs:testsReleasesFilterPanel publicationForm:publicationTabs:testsReleasesTable" 
               oncomplete="viewTestRelease(xhr,status,args);" 
               rendered="#{publicationBean.confirmType=='CONFIRM_OM_VIEW_TEST_RELEASE'}" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{publicationBean.cancelConfirmDialogForQuestionReleases}" 
+              onclick="confirmDialog.hide();"
+              update="publicationForm:messages publicationForm:publicationTabs:questionsReleasesFilterPanel publicationForm:publicationTabs:questionsReleasesTable" 
+              rendered="#{publicationBean.confirmType=='CONFIRM_OM_VIEW_QUESTION_RELEASE'}" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{publicationBean.cancelConfirmDialogForTestReleases}" 
+              onclick="confirmDialog.hide();"
+              update="publicationForm:messages publicationForm:publicationTabs:testsReleasesFilterPanel publicationForm:publicationTabs:testsReleasesTable" 
+              rendered="#{publicationBean.confirmType=='CONFIRM_OM_VIEW_TEST_RELEASE'}" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>

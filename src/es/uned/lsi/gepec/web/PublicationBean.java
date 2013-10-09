@@ -290,7 +290,8 @@ public class PublicationBean implements Serializable
 	private List<Category> specialTestCategoriesFilters;		// Special test categories filters list
 	private List<Category> testsCategories;
 	
-	private String buildType;
+	private int activePublicationTabIndex;
+	
 	private String confirmType;
 	
 	private QuestionRelease questionRelease;
@@ -357,7 +358,7 @@ public class PublicationBean implements Serializable
 	
 	public PublicationBean()
 	{
-		buildType=BUILD_QUESTION;
+		activePublicationTabIndex=QUESTIONS_TABVIEW_TAB;
 		criticalErrorMessage=false;
 		questionsPublicationEnabled=null;
 		testsPublicationEnabled=null;
@@ -499,6 +500,19 @@ public class PublicationBean implements Serializable
 	
     private Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null)
+    	{
+    		if (questionsReleases==null && activePublicationTabIndex==QUESTIONS_TABVIEW_TAB)
+    		{
+    			getQuestionsReleases();
+    			operation=null;
+    		}
+    		else if (testsReleases==null && activePublicationTabIndex==TESTS_TABVIEW_TAB)
+    		{
+    			getTestsReleases();
+    			operation=null;
+    		}
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
@@ -521,17 +535,22 @@ public class PublicationBean implements Serializable
     
 	public String getBuildType()
 	{
+		String buildType=null;
+		switch (activePublicationTabIndex)
+		{
+			case QUESTIONS_TABVIEW_TAB:
+				buildType=BUILD_QUESTION;
+				break;
+			case TESTS_TABVIEW_TAB:
+				buildType=BUILD_TEST;
+		}
 		return buildType;
-	}
-	
-	public void setBuildType(String buildType)
-	{
-		this.buildType=buildType;
 	}
 	
 	public String getBuildMessage()
 	{
-		return getBuildType()==null?"":localizationService.getLocalizedMessage(getBuildType());
+		String buildType=getBuildType();
+		return buildType==null?"":localizationService.getLocalizedMessage(buildType);
 	}
 	
 	public String getConfirmType()
@@ -570,28 +589,188 @@ public class PublicationBean implements Serializable
 	}
 	
 	/**
-	 * Action listener to confirm question/test release deletion.
-	 * @param event Action event
+	 * Shows a dialog to confirm unpublishing a question release.
+	 * @param questionRelease Question release to unpublish
 	 */
-	public void confirm(ActionEvent event)
+	public void confirmUnpublishQuestionRelease(QuestionRelease questionRelease)
 	{
-		Object questionReleaseObj=event.getComponent().getAttributes().get("questionRelease");
-		Object testReleaseObj=event.getComponent().getAttributes().get("testRelease");
-		setConfirmType(null);
-		if (questionReleaseObj!=null)
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		boolean ok=false;
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setUnpublishQuestionReleasesEnabled(null);
+		setUnpublishOtherUsersQuestionReleasesEnabled(null);
+		setUnpublishAdminsQuestionReleasesEnabled(null);
+		setUnpublishSuperadminsQuestionReleasesEnabled(null);
+		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishQuestionReleaseAllowed(questionRelease);
+		resetAdminFromQuestionReleaseAllowed(questionRelease);
+		resetSuperadminFromQuestionReleaseAllowed(questionRelease);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+    	long questionId=questionRelease.getQuestion().getId();
+		if (questionReleasesService.getQuestionRelease(operation,questionId)==null)
+		{
+			addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_RELEASE_UNPUBLISH_NOT_FOUND_ERROR");
+		}
+		else if (isUnpublishQuestionReleaseAllowed(operation,questionRelease,true))
 		{
 			setConfirmType(CONFIRM_UNPUBLISH_QUESTION_RELEASE);
-			setQuestionRelease((QuestionRelease)questionReleaseObj);
-		}
-		else if (testReleaseObj!=null)
-		{
-			setConfirmType(CONFIRM_UNPUBLISH_TEST_RELEASE);
-			setTestRelease((TestRelease)testReleaseObj);
-		}
-		if (getConfirmType()!=null)
-		{
+			setQuestionRelease(questionRelease);
 			RequestContext rq=RequestContext.getCurrentInstance();
 			rq.execute("confirmDialog.show()");
+		}
+		
+		if (!ok)
+		{
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setFilterGlobalTestsEnabled(null);
+			setFilterOtherUsersTestsEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			setUnpublishTestReleasesEnabled(null);
+			setUnpublishOtherUsersTestReleasesEnabled(null);
+			setUnpublishAdminsTestReleasesEnabled(null);
+			setUnpublishSuperadminsTestReleasesEnabled(null);
+			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
+			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			
+			Category filterQuestionCategory=null;
+			long filterQuestionCategoryId=getFilterQuestionCategoryId();
+			if (filterQuestionCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+				{
+					filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+				}
+			}
+			else
+			{
+				filterQuestionCategory=new Category();
+				filterQuestionCategory.setId(filterQuestionCategoryId);
+			}
+			if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+			{
+				setFilterQuestionCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and question releases from DB
+			specialQuestionCategoryFiltersMap=null;
+			specialQuestionCategoriesFilters=null;
+			questionsCategories=null;
+			setQuestionsReleases(null);
+			questions=null;
+			getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error
+		}
+	}
+	
+	/**
+	 * Shows a dialog to confirm unpublishing a test release.
+	 * @param testRelease Test release to unpublish
+	 */
+	public void confirmUnpublishTestRelease(TestRelease testRelease)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setUnpublishTestReleasesEnabled(null);
+		setUnpublishOtherUsersTestReleasesEnabled(null);
+		setUnpublishAdminsTestReleasesEnabled(null);
+		setUnpublishSuperadminsTestReleasesEnabled(null);
+		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishTestReleaseAllowed(testRelease);
+		resetAdminFromTestReleaseAllowed(testRelease);
+		resetSuperadminFromTestReleaseAllowed(testRelease);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		if (isUnpublishTestReleaseAllowed(operation,testRelease,true))
+		{
+			setConfirmType(CONFIRM_UNPUBLISH_TEST_RELEASE);
+			setTestRelease(testRelease);
+			RequestContext rq=RequestContext.getCurrentInstance();
+			rq.execute("confirmDialog.show()");
+		}
+		else
+		{
+			setFilterGlobalQuestionsEnabled(null);
+			setFilterOtherUsersQuestionsEnabled(null);
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			setUnpublishQuestionReleasesEnabled(null);
+			setUnpublishOtherUsersQuestionReleasesEnabled(null);
+			setUnpublishAdminsQuestionReleasesEnabled(null);
+			setUnpublishSuperadminsQuestionReleasesEnabled(null);
+			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			
+			Category filterTestCategory=null;
+			long filterTestCategoryId=getFilterTestCategoryId();
+			if (filterTestCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+				{
+					filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+				}
+			}
+			else
+			{
+				filterTestCategory=new Category();
+				filterTestCategory.setId(filterTestCategoryId);
+			}
+			if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+			{
+				setFilterTestCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload categories and test releases from DB
+			specialTestCategoryFiltersMap=null;
+			specialTestCategoriesFilters=null;
+			testsCategories=null;
+			setTestsReleases(null);
+			tests=null;
 		}
 	}
 	
@@ -607,18 +786,246 @@ public class PublicationBean implements Serializable
 		setConfirmType(null);
 		if (questionReleaseObj!=null)
 		{
-			setConfirmType(CONFIRM_OM_VIEW_QUESTION_RELEASE);
-			setQuestionRelease((QuestionRelease)questionReleaseObj);
+	    	// Get current user session Hibernate operation
+	    	Operation operation=getCurrentUserOperation(null);
+			
+			QuestionRelease questionRelease=(QuestionRelease)questionReleaseObj;
+			
+			setFilterGlobalQuestionsEnabled(null);
+			setFilterOtherUsersQuestionsEnabled(null);
+			setViewOMQuestionsEnabled(null);
+			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			if (questionRelease!=null)
+			{
+				String omTnProURL=configurationService.getOmTnProUrl();
+				String packageName=getQuestionRelease().getQuestion().getPackage();
+				if (!checkQuestionRelease(packageName,omTnProURL))
+				{
+		    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_RELEASE_VIEW_NOT_FOUND_ERROR");
+				}
+				else
+				{
+					Category questionCategory=
+						categoriesService.getCategoryFromQuestionId(operation,questionRelease.getQuestion().getId());
+					
+					if (questionCategory==null)
+					{
+			    		addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+					}
+					else
+					{
+						resetAdminFromCategoryAllowed(questionCategory);
+						resetSuperadminFromCategoryAllowed(questionCategory);
+						
+						if (getViewOMQuestionsEnabled(operation).booleanValue() && 
+							checkQuestionsFilterPermission(operation,questionCategory))
+						{
+							setConfirmType(CONFIRM_OM_VIEW_QUESTION_RELEASE);
+							setQuestionRelease(questionRelease);
+						}
+						else
+						{
+							addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+						}
+					}
+				}
+			}
+			if (getConfirmType()==null)
+			{
+				setPublishQuestionsEnabled(null);
+				setPublishOtherUsersQuestionsEnabled(null);
+				setPublishAdminsQuestionsEnabled(null);
+				setPublishSuperadminsQuestionsEnabled(null);
+				resetPublishQuestionsAllowed();
+				setUnpublishQuestionReleasesEnabled(null);
+				setUnpublishOtherUsersQuestionReleasesEnabled(null);
+				setUnpublishAdminsQuestionReleasesEnabled(null);
+				setUnpublishSuperadminsQuestionReleasesEnabled(null);
+				setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+				setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+				resetUnpublishQuestionReleasesAllowed();
+				setFilterGlobalTestsEnabled(null);
+				setFilterOtherUsersTestsEnabled(null);
+				setPublishTestsEnabled(null);
+				setPublishOtherUsersTestsEnabled(null);
+				setPublishAdminsTestsEnabled(null);
+				setPublishSuperadminsTestsEnabled(null);
+				resetPublishTestsAllowed();
+				setUnpublishTestReleasesEnabled(null);
+				setUnpublishOtherUsersTestReleasesEnabled(null);
+				setUnpublishAdminsTestReleasesEnabled(null);
+				setUnpublishSuperadminsTestReleasesEnabled(null);
+				setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+				setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+				resetUnpublishTestReleasesAllowed();
+				setViewOMTestsEnabled(null);
+				setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+				setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+				setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+				resetAdmins();
+				resetSuperadmins();
+				
+				Category filterQuestionCategory=null;
+				long filterQuestionCategoryId=getFilterQuestionCategoryId();
+				if (filterQuestionCategoryId>0L)
+				{
+					if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+					{
+						filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+					}
+				}
+				else
+				{
+					filterQuestionCategory=new Category();
+					filterQuestionCategory.setId(filterQuestionCategoryId);
+				}
+				if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+				{
+					setFilterQuestionCategoryId(Long.MIN_VALUE);
+				}
+				
+				// Reload questions categories and questions releases from DB
+				setQuestionsReleases(null);
+				specialQuestionCategoryFiltersMap=null;
+				specialQuestionCategoriesFilters=null;
+				questionsCategories=null;
+				questions=null;
+				getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error
+			}
+			else
+			{
+				// Reload question releases
+				setQuestionsReleases(null);
+				questions=null;
+				getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error	
+				
+				RequestContext rq=RequestContext.getCurrentInstance();
+				rq.execute("confirmDialog.show()");
+			}
 		}
 		else if (testReleaseObj!=null)
 		{
-			setConfirmType(CONFIRM_OM_VIEW_TEST_RELEASE);
-			setTestRelease((TestRelease)testReleaseObj);
-		}
-		if (getConfirmType()!=null)
-		{
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("confirmDialog.show()");
+	    	// Get current user session Hibernate operation
+	    	Operation operation=getCurrentUserOperation(null);
+	    	
+			TestRelease testRelease=(TestRelease)testReleaseObj;
+			
+			setFilterGlobalTestsEnabled(null);
+			setFilterOtherUsersTestsEnabled(null);
+			setViewOMTestsEnabled(null);
+			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			
+			if (testRelease!=null)
+			{
+				String omTnProURL=configurationService.getOmTnProUrl();
+				if (!checkTestRelease(testRelease,omTnProURL))
+				{
+		    		addErrorMessage(true,"INCORRECT_OPERATION","TEST_RELEASE_VIEW_NOT_FOUND_ERROR");
+				}
+				else
+				{
+					Category testCategory=
+						categoriesService.getCategoryFromTestId(operation,testRelease.getTest().getId());
+					
+					if (testCategory==null)
+					{
+			    		addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+					}
+					else
+					{
+						resetAdminFromCategoryAllowed(testCategory);
+						resetSuperadminFromCategoryAllowed(testCategory);
+						
+						if (getViewOMTestsEnabled(operation).booleanValue() && 
+							checkTestsFilterPermission(operation,testCategory))
+						{
+							setConfirmType(CONFIRM_OM_VIEW_TEST_RELEASE);
+							setTestRelease(testRelease);
+						}
+						else
+						{
+							addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+						}
+					}
+				}
+			}
+			if (getConfirmType()==null)
+			{
+				setFilterGlobalQuestionsEnabled(null);
+				setFilterOtherUsersQuestionsEnabled(null);
+				setPublishQuestionsEnabled(null);
+				setPublishOtherUsersQuestionsEnabled(null);
+				setPublishAdminsQuestionsEnabled(null);
+				setPublishSuperadminsQuestionsEnabled(null);
+				resetPublishQuestionsAllowed();
+				setUnpublishQuestionReleasesEnabled(null);
+				setUnpublishOtherUsersQuestionReleasesEnabled(null);
+				setUnpublishAdminsQuestionReleasesEnabled(null);
+				setUnpublishSuperadminsQuestionReleasesEnabled(null);
+				setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+				setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+				resetUnpublishQuestionReleasesAllowed();
+				setViewOMQuestionsEnabled(null);
+				setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+				setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+				setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+				setPublishTestsEnabled(null);
+				setPublishOtherUsersTestsEnabled(null);
+				setPublishAdminsTestsEnabled(null);
+				setPublishSuperadminsTestsEnabled(null);
+				resetPublishTestsAllowed();
+				setUnpublishTestReleasesEnabled(null);
+				setUnpublishOtherUsersTestReleasesEnabled(null);
+				setUnpublishAdminsTestReleasesEnabled(null);
+				setUnpublishSuperadminsTestReleasesEnabled(null);
+				setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+				setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+				resetUnpublishTestReleasesAllowed();
+				resetAdmins();
+				resetSuperadmins();
+				
+				Category filterTestCategory=null;
+				long filterTestCategoryId=getFilterTestCategoryId();
+				if (filterTestCategoryId>0L)
+				{
+					if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+					{
+						filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+					}
+				}
+				else
+				{
+					filterTestCategory=new Category();
+					filterTestCategory.setId(filterTestCategoryId);
+				}
+				if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+				{
+					setFilterTestCategoryId(Long.MIN_VALUE);
+				}
+				
+				// Reload tests categories and tests releases from DB
+				setTestsReleases(null);
+				specialTestCategoryFiltersMap=null;
+				specialTestCategoriesFilters=null;
+				testsCategories=null;
+				tests=null;
+				getTestsReleases();		// This is needed to avoid an Hibernate session closed error
+			}
+			else
+			{
+				// Reload test releases
+				setTestsReleases(null);
+				tests=null;
+				getTestsReleases();		// This is needed to avoid an Hibernate session closed error	
+				
+				RequestContext rq=RequestContext.getCurrentInstance();
+				rq.execute("confirmDialog.show()");
+			}
 		}
 	}
 	
@@ -1758,11 +2165,27 @@ public class PublicationBean implements Serializable
 		}
 	}
 	
+	private void resetAdminFromQuestionAllowed(Question question)
+	{
+		if (question!=null && question.getCreatedBy()!=null)
+		{
+			admins.remove(Long.valueOf(question.getCreatedBy().getId()));
+		}
+	}
+	
 	private void resetAdminFromTestReleaseAllowed(TestRelease testRelease)
 	{
 		if (testRelease!=null && testRelease.getPublisher()!=null)
 		{
 			admins.remove(Long.valueOf(testRelease.getPublisher().getId()));
+		}
+	}
+	
+	private void resetAdminFromTestAllowed(Test test)
+	{
+		if (test!=null && test.getCreatedBy()!=null)
+		{
+			admins.remove(Long.valueOf(test.getCreatedBy().getId()));
 		}
 	}
 	
@@ -1807,11 +2230,27 @@ public class PublicationBean implements Serializable
 		}
 	}
 	
+	private void resetSuperadminFromQuestionAllowed(Question question)
+	{
+		if (question!=null && question.getCreatedBy()!=null)
+		{
+			superadmins.remove(Long.valueOf(question.getCreatedBy().getId()));
+		}
+	}
+	
 	private void resetSuperadminFromTestReleaseAllowed(TestRelease testRelease)
 	{
 		if (testRelease!=null && testRelease.getPublisher()!=null)
 		{
 			superadmins.remove(Long.valueOf(testRelease.getPublisher().getId()));
+		}
+	}
+	
+	private void resetSuperadminFromTestAllowed(Test test)
+	{
+		if (test!=null && test.getCreatedBy()!=null)
+		{
+			superadmins.remove(Long.valueOf(test.getCreatedBy().getId()));
 		}
 	}
 	
@@ -1867,25 +2306,17 @@ public class PublicationBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				User questionAuthor=questionsService.getQuestion(operation,questionId).getCreatedBy();
-				allowed=getPublishQuestionsEnabled(operation).booleanValue() && (currentUser.equals(questionAuthor) || 
-					(getPublishOtherUsersQuestionsEnabled(operation).booleanValue() && 
-					(!isAdmin(operation,questionAuthor) || 
-					getPublishAdminsQuestionsEnabled(operation).booleanValue()) && 
-					(!isSuperadmin(operation,questionAuthor) || 
-					getPublishSuperadminsQuestionsEnabled(operation).booleanValue())));
-				*/
-				
-				User questionAuthor=questionsService.getQuestion(operation,questionId).getCreatedBy();
+				Question question=questionsService.getQuestion(operation,questionId);
+				User questionAuthor=question.getCreatedBy();
 				allowed=getPublishQuestionsEnabled(operation).booleanValue() && 
 					(questionAuthor.getId()==userSessionService.getCurrentUserId() || 
 					(getPublishOtherUsersQuestionsEnabled(operation).booleanValue() && 
 					(!isAdmin(operation,questionAuthor) || 
 					getPublishAdminsQuestionsEnabled(operation).booleanValue()) && 
 					(!isSuperadmin(operation,questionAuthor) || 
-					getPublishSuperadminsQuestionsEnabled(operation).booleanValue())));
+					getPublishSuperadminsQuestionsEnabled(operation).booleanValue()))) &&
+					checkQuestionsFilterPermission(operation,categoriesService.getCategoryFromQuestionId(
+					operation,questionId));
 				
 				publishQuestionsAllowed.put(Long.valueOf(questionId),Boolean.valueOf(allowed));
 			}
@@ -1930,21 +2361,14 @@ public class PublicationBean implements Serializable
 				// Get current user session Hibernate operation
 				operation=getCurrentUserOperation(operation);
 				
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				User testAuthor=testsService.getTest(operation,testId).getCreatedBy();
-				allowed=getPublishTestsEnabled(operation).booleanValue() && (currentUser.equals(testAuthor) || 
-					(getPublishOtherUsersTestsEnabled(operation).booleanValue() && (!isAdmin(operation,testAuthor) || 
-					getPublishAdminsTestsEnabled(operation).booleanValue()) && (!isSuperadmin(operation,testAuthor) || 
-					getPublishSuperadminsTestsEnabled(operation).booleanValue())));
-				*/
-				
 				User testAuthor=testsService.getTest(operation,testId).getCreatedBy();
 				allowed=getPublishTestsEnabled(operation).booleanValue() && 
 					(testAuthor.getId()==userSessionService.getCurrentUserId() || 
-					(getPublishOtherUsersTestsEnabled(operation).booleanValue() && (!isAdmin(operation,testAuthor) || 
-					getPublishAdminsTestsEnabled(operation).booleanValue()) && (!isSuperadmin(operation,testAuthor) || 
-					getPublishSuperadminsTestsEnabled(operation).booleanValue())));
+					(getPublishOtherUsersTestsEnabled(operation).booleanValue() && 
+					(!isAdmin(operation,testAuthor) || getPublishAdminsTestsEnabled(operation).booleanValue()) && 
+					(!isSuperadmin(operation,testAuthor) || 
+					getPublishSuperadminsTestsEnabled(operation).booleanValue()))) && 
+					checkTestsFilterPermission(operation,categoriesService.getCategoryFromTestId(operation,testId));
 				
 				publishTestsAllowed.put(Long.valueOf(testId),Boolean.valueOf(allowed));
 			}
@@ -1988,18 +2412,6 @@ public class PublicationBean implements Serializable
 					// Get current user session Hibernate operation
 					operation=getCurrentUserOperation(operation);
 					
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User questionPublisher=questionRelease.getPublisher();
-					allowed=getUnpublishQuestionReleasesEnabled(operation).booleanValue() && 
-						(currentUser.equals(questionPublisher) || 
-						(getUnpublishOtherUsersQuestionReleasesEnabled(operation).booleanValue() && 
-						(!isAdmin(operation,questionPublisher) || 
-						getUnpublishAdminsQuestionReleasesEnabled(operation).booleanValue()) && 
-						(!isSuperadmin(operation,questionPublisher) || 
-						getUnpublishSuperadminsQuestionReleasesEnabled(operation).booleanValue())));
-					*/
-					
 					User questionPublisher=questionRelease.getPublisher();
 					allowed=getUnpublishQuestionReleasesEnabled(operation).booleanValue() && 
 						(questionPublisher.getId()==userSessionService.getCurrentUserId() || 
@@ -2007,7 +2419,9 @@ public class PublicationBean implements Serializable
 						(!isAdmin(operation,questionPublisher) || 
 						getUnpublishAdminsQuestionReleasesEnabled(operation).booleanValue()) && 
 						(!isSuperadmin(operation,questionPublisher) || 
-						getUnpublishSuperadminsQuestionReleasesEnabled(operation).booleanValue())));
+						getUnpublishSuperadminsQuestionReleasesEnabled(operation).booleanValue()))) && 
+						checkQuestionsFilterPermission(operation,categoriesService.getCategoryFromQuestionId(
+						operation,questionRelease.getQuestion().getId()));
 					
 					if (allowed)
 					{
@@ -2055,7 +2469,7 @@ public class PublicationBean implements Serializable
 							}
 							DateFormat dateFormat=
 								new SimpleDateFormat(localizationService.getLocalizedMessage("DATE_PATTERN"));
-							addPlainErrorMessage(false,"INCORRECT_OPERATION",localizationService.getLocalizedMessage(
+							addPlainErrorMessage(true,"INCORRECT_OPERATION",localizationService.getLocalizedMessage(
 								errorKey).replace("?",dateFormat.format(errorDate)));
 							displayedError=true;
 						}
@@ -2107,18 +2521,6 @@ public class PublicationBean implements Serializable
 					// Get current user session Hibernate operation
 					operation=getCurrentUserOperation(operation);
 					
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User testPublisher=testRelease.getPublisher();
-					allowed=getUnpublishTestReleasesEnabled(operation).booleanValue() && 
-						(currentUser.equals(testPublisher) || 
-						(getUnpublishOtherUsersTestReleasesEnabled(operation).booleanValue() && 
-						(!isAdmin(operation,testPublisher) || 
-						getUnpublishAdminsTestReleasesEnabled(operation).booleanValue()) && 
-						(!isSuperadmin(operation,testPublisher) || 
-						getUnpublishSuperadminsTestReleasesEnabled(operation).booleanValue())));
-					*/
-					
 					User testPublisher=testRelease.getPublisher();
 					allowed=getUnpublishTestReleasesEnabled(operation).booleanValue() && 
 						(testPublisher.getId()==userSessionService.getCurrentUserId() || 
@@ -2126,7 +2528,9 @@ public class PublicationBean implements Serializable
 						(!isAdmin(operation,testPublisher) || 
 						getUnpublishAdminsTestReleasesEnabled(operation).booleanValue()) && 
 						(!isSuperadmin(operation,testPublisher) || 
-						getUnpublishSuperadminsTestReleasesEnabled(operation).booleanValue())));
+						getUnpublishSuperadminsTestReleasesEnabled(operation).booleanValue()))) &&
+						checkTestsFilterPermission(operation,categoriesService.getCategoryFromTestId(
+						operation,testRelease.getTest().getId()));
 					
 					if (allowed)
 					{
@@ -2174,7 +2578,7 @@ public class PublicationBean implements Serializable
 							}
 							DateFormat dateFormat=
 								new SimpleDateFormat(localizationService.getLocalizedMessage("DATE_PATTERN"));
-							addPlainErrorMessage(false,"INCORRECT_OPERATION",localizationService.getLocalizedMessage(
+							addPlainErrorMessage(true,"INCORRECT_OPERATION",localizationService.getLocalizedMessage(
 								errorKey).replace("?",dateFormat.format(errorDate)));
 							displayedError=true;
 						}
@@ -2207,48 +2611,57 @@ public class PublicationBean implements Serializable
 	
 	public List<QuestionRelease> getQuestionsReleases()
 	{
-		return getQuestionsReleases(null);
-	}
-	
-	private List<QuestionRelease> getQuestionsReleases(Operation operation)
-	{
-		if (questionsReleases==null)
+		List<QuestionRelease> questionsReleases=null;
+		if (this.questionsReleases==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			questionsReleases=new ArrayList<QuestionRelease>();
-			List<QuestionRelease> publishedQuestionsReleases=questionReleasesService.getQuestionsReleases(operation);
-			for (Question question:getQuestions(operation))
+			if (activePublicationTabIndex==QUESTIONS_TABVIEW_TAB)
 			{
-				QuestionRelease questionRelease=null;
-				for (QuestionRelease qr:publishedQuestionsReleases)
+				this.questionsReleases=questionsReleases;
+				
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+	    		
+	    		// Get current user session Hibernate operation
+	    		Operation operation=getCurrentUserOperation(null);
+				
+				List<QuestionRelease> publishedQuestionsReleases=
+					questionReleasesService.getQuestionsReleases(operation);
+				for (Question question:getQuestions(operation))
 				{
-					if (question.equals(qr.getQuestion()))
+					QuestionRelease questionRelease=null;
+					for (QuestionRelease qr:publishedQuestionsReleases)
 					{
-						questionRelease=qr;
-						break;
+						if (question.equals(qr.getQuestion()))
+						{
+							questionRelease=qr;
+							break;
+						}
+					}
+					if (questionRelease==null)
+					{
+						if ("PUBLICATION_STATUS_NOT_RELEASED".equals(getFilterQuestionPublicationStatus()) ||
+							"PUBLICATION_STATUS_ALL".equals(getFilterQuestionPublicationStatus()))
+						{
+							questionRelease=new QuestionRelease(question,null);
+						}
+					}
+					else if (!"PUBLICATION_STATUS_RELEASED".equals(getFilterQuestionPublicationStatus()) &&
+						!"PUBLICATION_STATUS_ALL".equals(getFilterQuestionPublicationStatus()))
+					{
+						questionRelease=null;
+					}
+					if (questionRelease!=null)
+					{
+						questionsReleases.add(questionRelease);
 					}
 				}
-				if (questionRelease==null)
-				{
-					if ("PUBLICATION_STATUS_NOT_RELEASED".equals(getFilterQuestionPublicationStatus()) ||
-						"PUBLICATION_STATUS_ALL".equals(getFilterQuestionPublicationStatus()))
-					{
-						questionRelease=new QuestionRelease(question,null);
-					}
-				}
-				else if (!"PUBLICATION_STATUS_RELEASED".equals(getFilterQuestionPublicationStatus()) &&
-					!"PUBLICATION_STATUS_ALL".equals(getFilterQuestionPublicationStatus()))
-				{
-					questionRelease=null;
-				}
-				if (questionRelease!=null)
-				{
-					questionsReleases.add(questionRelease);
-				}
+				Collections.sort(questionsReleases,getQuestionsReleasesComparator());
 			}
-			Collections.sort(questionsReleases,getQuestionsReleasesComparator());
+		}
+		else
+		{
+			questionsReleases=this.questionsReleases;
 		}
 		return questionsReleases;
 	}
@@ -2330,8 +2743,7 @@ public class PublicationBean implements Serializable
 					else
 					{
 						questions=questionsService.getQuestions(operation,null,filterQuestionCategoryId,
-							isFilterIncludeQuestionSubcategories(),getFilterQuestionType(),
-							getFilterQuestionLevel());
+							isFilterIncludeQuestionSubcategories(),getFilterQuestionType(),getFilterQuestionLevel());
 					}
 				}
 			}
@@ -2513,58 +2925,66 @@ public class PublicationBean implements Serializable
     
 	public List<TestRelease> getTestsReleases()
 	{
-		return getTestsReleases(null);
-	}
-	
-	private List<TestRelease> getTestsReleases(Operation operation)
-	{
-		if (testsReleases==null)
+		List<TestRelease> testsReleases=null;
+		if (this.testsReleases==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-				
 			testsReleases=new ArrayList<TestRelease>();
-			List<TestRelease> publishedTestsReleases=
-				testReleasesService.getTestsReleases(operation,isFilterTestDisplayOldVersions());
-			for (Test test:getTests(operation))
+			if (activePublicationTabIndex==TESTS_TABVIEW_TAB)
 			{
-				List<TestRelease> testsReleasesForTest=new ArrayList<TestRelease>();
-				for (TestRelease tr:publishedTestsReleases)
+				this.testsReleases=testsReleases;
+				
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+	    		
+	    		// Get current user session Hibernate operation
+	    		Operation operation=getCurrentUserOperation(null);
+					
+				List<TestRelease> publishedTestsReleases=
+					testReleasesService.getTestsReleases(operation,isFilterTestDisplayOldVersions());
+				for (Test test:getTests(operation))
 				{
-					if (test.equals(tr.getTest()))
+					List<TestRelease> testsReleasesForTest=new ArrayList<TestRelease>();
+					for (TestRelease tr:publishedTestsReleases)
 					{
-						testsReleasesForTest.add(tr);
+						if (test.equals(tr.getTest()))
+						{
+							testsReleasesForTest.add(tr);
+						}
+					}
+					if (testsReleasesForTest.isEmpty())
+					{
+						if ("PUBLICATION_STATUS_NOT_RELEASED".equals(getFilterTestPublicationStatus()) ||
+							"PUBLICATION_STATUS_ALL".equals(getFilterTestPublicationStatus()))
+						{
+							testsReleasesForTest.add(new TestRelease(test,0,null));
+						}
+					}
+					else
+					{
+						if (!"PUBLICATION_STATUS_RELEASED".equals(getFilterTestPublicationStatus()) &&
+							!"PUBLICATION_STATUS_ALL".equals(getFilterTestPublicationStatus()))
+						{
+							testsReleasesForTest.clear();
+						}
+						else if (isFilterTestDisplayOldVersions())
+						{
+							testsReleasesForTest.add(0,new TestRelease(test,0,null));
+						}
+					}
+					if (!testsReleasesForTest.isEmpty())
+					{
+						for (TestRelease testRelease:testsReleasesForTest)
+						{
+							testsReleases.add(testRelease);
+						}
 					}
 				}
-				if (testsReleasesForTest.isEmpty())
-				{
-					if ("PUBLICATION_STATUS_NOT_RELEASED".equals(getFilterTestPublicationStatus()) ||
-						"PUBLICATION_STATUS_ALL".equals(getFilterTestPublicationStatus()))
-					{
-						testsReleasesForTest.add(new TestRelease(test,0,null));
-					}
-				}
-				else
-				{
-					if (!"PUBLICATION_STATUS_RELEASED".equals(getFilterTestPublicationStatus()) &&
-						!"PUBLICATION_STATUS_ALL".equals(getFilterTestPublicationStatus()))
-					{
-						testsReleasesForTest.clear();
-					}
-					else if (isFilterTestDisplayOldVersions())
-					{
-						testsReleasesForTest.add(0,new TestRelease(test,0,null));
-					}
-				}
-				if (!testsReleasesForTest.isEmpty())
-				{
-					for (TestRelease testRelease:testsReleasesForTest)
-					{
-						testsReleases.add(testRelease);
-					}
-				}
+				Collections.sort(testsReleases,getTestsReleasesComparator());
 			}
-			Collections.sort(testsReleases,getTestsReleasesComparator());
+		}
+		else
+		{
+			testsReleases=this.testsReleases;
 		}
 		return testsReleases;
 	}
@@ -2604,41 +3024,153 @@ public class PublicationBean implements Serializable
 							getSpecialTestCategoryFiltersMap().get(Long.valueOf(filterTestCategoryId));
 						if (getAllTestCategoriesSpecialCategoryFilter().equals(filter))
 						{
+							/*
 							tests=testsService.getAllVisibleCategoriesTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=testsService.getAllVisibleCategoriesTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_EVEN_PRIVATE_TEST_CATEGORIES_OF_OTHER_USERS.equals(filter))
 						{
+							/*
 							tests=testsService.getAllCategoriesTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=testsService.getAllCategoriesTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_MY_TEST_CATEGORIES.equals(filter))
 						{
+							/*
 							tests=testsService.getAllMyCategoriesTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=testsService.getAllMyCategoriesTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_MY_TEST_CATEGORIES_EXCEPT_GLOBALS.equals(filter))
 						{
+							/*
 							tests=testsService.getAllMyCategoriesExceptGlobalsTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=
+								testsService.getAllMyCategoriesExceptGlobalsTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_GLOBAL_TEST_CATEGORIES.equals(filter))
 						{
+							/*
 							tests=testsService.getAllGlobalCategoriesTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=testsService.getAllGlobalCategoriesTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_PUBLIC_TEST_CATEGORIES_OF_OTHER_USERS.equals(filter))
 						{
+							/*
 							tests=testsService.getAllPublicCategoriesOfOtherUsersTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=
+								testsService.getAllPublicCategoriesOfOtherUsersTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_PRIVATE_TEST_CATEGORIES_OF_OTHER_USERS.equals(filter))
 						{
+							/*
 							tests=testsService.getAllPrivateCategoriesOfOtherUsersTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=
+								testsService.getAllPrivateCategoriesOfOtherUsersTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 						else if (ALL_TEST_CATEGORIES_OF_OTHER_USERS.equals(filter))
 						{
+							/*
 							tests=testsService.getAllCategoriesOfOtherUsersTests(operation,null);
+							*/
+							
+							//TODO PARCHE
+							List<Test> testsFromDB=testsService.getAllCategoriesOfOtherUsersTests(operation,null);
+							tests=new ArrayList<Test>(testsFromDB.size());
+							for (Test testFromDB:testsFromDB)
+							{
+								Test test=testFromDB.getTestCopy();
+								tests.add(test);
+							}
+							
 						}
 					}
 					else
 					{
+						/*
 						tests=testsService.getTests(
 							operation,null,filterTestCategoryId,isFilterIncludeTestSubcategories());
+						*/
+						
+						//TODO PARCHE
+						List<Test> testsFromDB=testsService.getTests(
+							operation,null,filterTestCategoryId,isFilterIncludeTestSubcategories());
+						tests=new ArrayList<Test>(testsFromDB.size());
+						for (Test testFromDB:testsFromDB)
+						{
+							Test test=testFromDB.getTestCopy();
+							tests.add(test);
+						}
+						
 					}
 					if (tests!=null && !tests.isEmpty())
 					{
@@ -3059,15 +3591,72 @@ public class PublicationBean implements Serializable
     public void changeActivePublicationTab(TabChangeEvent event)
     {
     	TabView publicationFormTabs=(TabView)event.getComponent();
-    	switch (publicationFormTabs.getActiveIndex())
+    	activePublicationTabIndex=publicationFormTabs.getActiveIndex();
+    	
+    	switch (activePublicationTabIndex)
     	{
     		case QUESTIONS_TABVIEW_TAB:
-    			setBuildType(BUILD_QUESTION);
+    			setQuestionsReleases(null);
+    			questions=null;
+    			getQuestionsReleases();
     			break;
     		case TESTS_TABVIEW_TAB:
-    			setBuildType(BUILD_TEST);
+    			setTestsReleases(null);
+    			tests=null;
+    			getTestsReleases();
     	}
     }
+    
+    /*
+    public void removeOldCategories(Operation operation)
+    {
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(operation);
+    	
+		if (questionsCategories!=null)
+		{
+			long filterQuestionCategoryId=getFilterQuestionCategoryId(operation);
+			List<Category> questionsCategoriesToRemove=new ArrayList<Category>();
+			for (Category questionCategory:questionsCategories)
+			{
+				long questionCategoryId=questionCategory.getId();
+				if (questionCategoryId>0L && !categoriesService.checkCategoryId(operation,questionCategoryId))
+				{
+					questionsCategoriesToRemove.add(questionCategory);
+					if (filterQuestionCategoryId==questionCategoryId)
+					{
+						setFilterQuestionCategoryId(Long.MIN_VALUE);
+					}
+				}
+			}
+			for (Category questionCategoryToRemove:questionsCategoriesToRemove)
+			{
+				questionsCategories.remove(questionCategoryToRemove);
+			}
+		}
+		if (testsCategories!=null)
+		{
+			long filterTestCategoryId=getFilterTestCategoryId(operation);
+			List<Category> testsCategoriesToRemove=new ArrayList<Category>();
+			for (Category testCategory:testsCategories)
+			{
+				long testCategoryId=testCategory.getId();
+				if (testCategoryId>0L && !categoriesService.checkCategoryId(operation,testCategoryId))
+				{
+					testsCategoriesToRemove.add(testCategory);
+					if (filterTestCategoryId==testCategoryId)
+					{
+						setFilterTestCategoryId(Long.MIN_VALUE);
+					}
+				}
+			}
+			for (Category testCategoryToRemove:testsCategoriesToRemove)
+			{
+				testsCategories.remove(testCategoryToRemove);
+			}
+		}
+    }
+    */
     
 	/**
 	 * @param operation Operation
@@ -3081,7 +3670,8 @@ public class PublicationBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
     	
-		long filterQuestionCategoryId=getFilterQuestionCategoryId(operation);
+		long filterQuestionCategoryId=
+			filterCategory==null?getFilterQuestionCategoryId(operation):filterCategory.getId();
     	if (getSpecialQuestionCategoryFiltersMap().containsKey(Long.valueOf(filterQuestionCategoryId)))
 		{
 			SpecialCategoryFilter filter=
@@ -3098,12 +3688,10 @@ public class PublicationBean implements Serializable
 		else
 		{
 			// Check permissions needed for selected category
-			if (filterCategory==null)
-			{
-				// If we have not received filter category as argument we need to get it from DB
-				filterCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);	
-			}
-			if (filterCategory.getVisibility().isGlobal())
+			filterCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);	
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterQuestionCategoryId);
+			if (filterCategoryVisibility.isGlobal())
 			{
 				// This is a global category, so we check that current user has permissions to filter
 				// questions by global categories
@@ -3113,12 +3701,6 @@ public class PublicationBean implements Serializable
 					// that current user has permission to filter by categories of other users 
 					ok=filterCategory.getUser().getId()==userSessionService.getCurrentUserId() ||
 						getFilterOtherUsersQuestionsEnabled(operation).booleanValue();
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User categoryUser=filterCategory.getUser();
-					ok=currentUser.equals(categoryUser) || 
-						getFilterOtherUsersQuestionsEnabled(operation).booleanValue();
-					*/
 				}
 				else
 				{
@@ -3127,11 +3709,6 @@ public class PublicationBean implements Serializable
 			}
 			else
 			{
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				if (!currentUser.equals(categoryUser))
-				*/
-				
 				// First we have to see if the category is owned by current user, 
 				// if that is not the case we will need to perform aditional checks  
 				User categoryUser=filterCategory.getUser();
@@ -3146,7 +3723,7 @@ public class PublicationBean implements Serializable
 						// But private categories need aditional permissions
 						Visibility privateVisibility=
 							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-						if (filterCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
 						{
 							// Finally we need to check that current user has permission to view questions 
 							// from private categories of other users, and aditionally we need to check 
@@ -3156,10 +3733,12 @@ public class PublicationBean implements Serializable
 							// private categories of users with permission to improve permissions 
 							// over its owned ones if the owner of the category has that permission 
 							// (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
 							ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-								(!isAdmin(operation,categoryUser) || 
+								(!isAdmin || 
 								getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-								(!isSuperadmin(operation,categoryUser) || 
+								(!isSuperadmin || 
 								getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
 						}
 					}
@@ -3179,39 +3758,104 @@ public class PublicationBean implements Serializable
      */
     public void applyQuestionsReleasesFilter(ActionEvent event)
     {
+    	boolean filterQuestionCategoryNotFound=false;
+    	boolean filterQuestionCategoryInvalid=false;
+    	
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
    		
     	setFilterGlobalQuestionsEnabled(null);
    		setFilterOtherUsersQuestionsEnabled(null);
+   		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+   		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+   		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+   		
        	Category filterQuestionCategory=null;
        	long filterQuestionCategoryId=getFilterQuestionCategoryId(operation);
        	if (filterQuestionCategoryId>0L)
        	{
-       		filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
-       		resetAdminFromCategoryAllowed(filterQuestionCategory);
-       		resetSuperadminFromCategoryAllowed(filterQuestionCategory);
-       	}
-   		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-   		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-   		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-       	if (checkQuestionsFilterPermission(operation,filterQuestionCategory))
-       	{
-       		// Reload questions from DB and question releases from Test Navigator production environment
-       		setQuestionsReleases(null);
-       		questions=null;
+       		if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+       		{
+       			filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+       			resetAdminFromCategoryAllowed(filterQuestionCategory);
+       			resetSuperadminFromCategoryAllowed(filterQuestionCategory);
+       		}
+       		else
+       		{
+       			filterQuestionCategoryNotFound=true;
+       		}
        	}
        	else
        	{
-       		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-       		resetAdmins();
-       		resetSuperadmins();
-       		resetPublishQuestionsAllowed();
-       		setPublishQuestionsEnabled(null);
-       		setPublishOtherUsersQuestionsEnabled(null);
-       		setPublishAdminsQuestionsEnabled(null);
-       		setPublishSuperadminsQuestionsEnabled(null);
+       		filterQuestionCategory=new Category();
+       		filterQuestionCategory.setId(filterQuestionCategoryId);
        	}
+       	if (!filterQuestionCategoryNotFound)
+       	{
+       		filterQuestionCategoryInvalid=
+       			!checkQuestionsFilterPermission(operation,filterQuestionCategory);
+       	}
+       	
+   		if (filterQuestionCategoryNotFound)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","QUESTIONS_FILTER_CATEGORY_NOT_FOUND_ERROR");
+			setFilterQuestionCategoryId(Long.MIN_VALUE);
+   		}
+   		else if (filterQuestionCategoryInvalid)
+   		{
+   			addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+			setFilterQuestionCategoryId(Long.MIN_VALUE);
+   		}
+       	
+   		// Reload questions from DB and question releases from Test Navigator production environment
+       	questions=null;
+       	setQuestionsReleases(null);
+       	
+       	setPublishQuestionsEnabled(null);
+       	setPublishOtherUsersQuestionsEnabled(null);
+       	setPublishAdminsQuestionsEnabled(null);
+       	setPublishSuperadminsQuestionsEnabled(null);
+       	resetPublishQuestionsAllowed();
+       	setUnpublishQuestionReleasesEnabled(null);
+       	setUnpublishOtherUsersQuestionReleasesEnabled(null);
+       	setUnpublishAdminsQuestionReleasesEnabled(null);
+       	setUnpublishSuperadminsQuestionReleasesEnabled(null);
+       	setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+       	setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+       	resetUnpublishQuestionReleasesAllowed();
+       	setViewOMQuestionsEnabled(null);
+       	setFilterGlobalTestsEnabled(null);
+       	setFilterOtherUsersTestsEnabled(null);
+       	setPublishTestsEnabled(null);
+       	setPublishOtherUsersTestsEnabled(null);
+       	setPublishAdminsTestsEnabled(null);
+       	setPublishSuperadminsTestsEnabled(null);
+       	resetPublishTestsAllowed();
+       	setUnpublishTestReleasesEnabled(null);
+       	setUnpublishOtherUsersTestReleasesEnabled(null);
+       	setUnpublishAdminsTestReleasesEnabled(null);
+       	setUnpublishSuperadminsTestReleasesEnabled(null);
+       	setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+       	setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+       	resetUnpublishTestReleasesAllowed();
+       	setViewOMTestsEnabled(null);
+       	setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+       	setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+       	resetAdmins();
+       	resetSuperadmins();
+       	
+		// Always reload questions categories from DB
+		specialQuestionCategoryFiltersMap=null;
+		specialQuestionCategoriesFilters=null;
+		questionsCategories=null;
+		
+		getQuestionsReleases();
+			
+        // Get current user session Hibernate operation
+        operation=getCurrentUserOperation(null);
+        
+        getFilterQuestionCategoryId(operation);
     }
     
 	/**
@@ -3227,7 +3871,7 @@ public class PublicationBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	long filterTestCategoryId=getFilterTestCategoryId(operation);
+    	long filterTestCategoryId=filterCategory==null?getFilterTestCategoryId(operation):filterCategory.getId();
 		if (getSpecialTestCategoryFiltersMap().containsKey(Long.valueOf(filterTestCategoryId)))
 		{
 			SpecialCategoryFilter filter=
@@ -3244,12 +3888,10 @@ public class PublicationBean implements Serializable
 		else
 		{
 			// Check permissions needed for selected category
-			if (filterCategory==null)
-			{
-				// If we have not received filter category as argument we need to get it from DB
-				filterCategory=categoriesService.getCategory(operation,filterTestCategoryId);
-			}
-			if (filterCategory.getVisibility().isGlobal())
+			filterCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterTestCategoryId);
+			if (filterCategoryVisibility.isGlobal())
 			{
 				// This is a global category, so we check that current user has permissions to filter
 				// tests by global categories
@@ -3259,11 +3901,6 @@ public class PublicationBean implements Serializable
 					// that current user has permission to filter by categories of other users
 					ok=filterCategory.getUser().getId()==userSessionService.getCurrentUserId() ||
 						getFilterOtherUsersTestsEnabled(operation).booleanValue();
-					/*
-					User currentUser=userSessionService.getCurrentUser(operation);
-					User categoryUser=filterCategory.getUser();
-					ok=currentUser.equals(categoryUser) || getFilterOtherUsersTestsEnabled(operation).booleanValue();
-					*/
 				}
 				else
 				{
@@ -3272,11 +3909,6 @@ public class PublicationBean implements Serializable
 			}
 			else
 			{
-				/*
-				User currentUser=userSessionService.getCurrentUser(operation);
-				if (!currentUser.equals(categoryUser))
-				*/
-				
 				// First we have to see if the category is owned by current user, 
 				// if that is not the case we will need to perform aditional checks  
 				User categoryUser=filterCategory.getUser();
@@ -3291,7 +3923,7 @@ public class PublicationBean implements Serializable
 						// But private categories need aditional permissions
 						Visibility privateVisibility=
 							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-						if (filterCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
 						{
 							// Finally we need to check that current user has permission to view tests 
 							// from private categories of other users, and aditionally we need to check 
@@ -3337,39 +3969,103 @@ public class PublicationBean implements Serializable
      */
     public void applyTestsReleasesFilter(ActionEvent event)
     {
+    	boolean filterTestCategoryNotFound=false;
+    	boolean filterTestCategoryInvalid=false;
+    	
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
    		
     	setFilterGlobalTestsEnabled(null);
    		setFilterOtherUsersTestsEnabled(null);
-   		Category filterCategory=null;
-   		long filterTestCategoryId=getFilterTestCategoryId(operation);
-   		if (filterTestCategoryId>0L)
-   		{
-   			filterCategory=categoriesService.getCategory(operation,filterTestCategoryId);
-   			resetAdminFromCategoryAllowed(filterCategory);
-   			resetSuperadminFromCategoryAllowed(filterCategory);
-   		}
    		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
    		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
    		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
-   		if (checkTestsFilterPermission(operation,filterCategory))
+   		
+   		Category filterTestCategory=null;
+   		long filterTestCategoryId=getFilterTestCategoryId(operation);
+   		if (filterTestCategoryId>0L)
    		{
-   			// Reload tests from DB and test releases from Test Navigator production environment
-       		setTestsReleases(null);
-       		tests=null;
+   			if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+   			{
+   				filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+   				resetAdminFromCategoryAllowed(filterTestCategory);
+   				resetSuperadminFromCategoryAllowed(filterTestCategory);
+   			}
+   			else
+   			{
+   				filterTestCategoryNotFound=true;
+   			}
    		}
    		else
    		{
-       		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-       		resetAdmins();
-       		resetSuperadmins();
-       		resetPublishTestsAllowed();
-       		setPublishTestsEnabled(null);
-       		setPublishOtherUsersTestsEnabled(null);
-       		setPublishAdminsTestsEnabled(null);
-       		setPublishSuperadminsTestsEnabled(null);
+   			filterTestCategory=new Category();
+   			filterTestCategory.setId(filterTestCategoryId);
    		}
+   		if (!filterTestCategoryNotFound)
+   		{
+   			filterTestCategoryInvalid=!checkTestsFilterPermission(operation,filterTestCategory);
+   		}
+   		
+   		if (filterTestCategoryNotFound)
+   		{
+   			addErrorMessage(true,"INCORRECT_OPERATION","TESTS_FILTER_CATEGORY_NOT_FOUND_ERROR");
+   			setFilterTestCategoryId(Long.MIN_VALUE);
+   		}
+   		else if (filterTestCategoryInvalid)
+   		{
+   			addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+   			setFilterTestCategoryId(Long.MIN_VALUE);
+   		}
+   		
+   		// Reload tests from DB and test releases from Test Navigator production environment
+       	tests=null;
+       	setTestsReleases(null);
+       	
+       	setFilterGlobalQuestionsEnabled(null);
+       	setFilterOtherUsersQuestionsEnabled(null);
+       	setPublishQuestionsEnabled(null);
+       	setPublishOtherUsersQuestionsEnabled(null);
+       	setPublishAdminsQuestionsEnabled(null);
+       	setPublishSuperadminsQuestionsEnabled(null);
+       	resetPublishQuestionsAllowed();
+       	setUnpublishQuestionReleasesEnabled(null);
+       	setUnpublishOtherUsersQuestionReleasesEnabled(null);
+       	setUnpublishAdminsQuestionReleasesEnabled(null);
+       	setUnpublishSuperadminsQuestionReleasesEnabled(null);
+       	setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+       	setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+       	resetUnpublishQuestionReleasesAllowed();
+       	setViewOMQuestionsEnabled(null);
+       	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+       	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+       	setPublishTestsEnabled(null);
+       	setPublishOtherUsersTestsEnabled(null);
+       	setPublishAdminsTestsEnabled(null);
+       	setPublishSuperadminsTestsEnabled(null);
+       	resetPublishTestsAllowed();
+       	setUnpublishTestReleasesEnabled(null);
+       	setUnpublishOtherUsersTestReleasesEnabled(null);
+       	setUnpublishAdminsTestReleasesEnabled(null);
+       	setUnpublishSuperadminsTestReleasesEnabled(null);
+       	setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+       	setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+       	resetUnpublishTestReleasesAllowed();
+       	setViewOMTestsEnabled(null);
+       	resetAdmins();
+       	resetSuperadmins();
+       	
+		// Always reload tests categories from DB
+		specialTestCategoryFiltersMap=null;
+		specialTestCategoriesFilters=null;
+		testsCategories=null;
+		
+		getTestsReleases();
+			
+        // Get current user session Hibernate operation
+        operation=getCurrentUserOperation(null);
+        
+        getFilterTestCategoryId(operation);
     }
     
 	/**
@@ -3385,31 +4081,102 @@ public class PublicationBean implements Serializable
 		
 		Question question=null;
 		
+    	setFilterGlobalQuestionsEnabled(null);
+    	setFilterOtherUsersQuestionsEnabled(null);
+    	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
 		setViewOMQuestionsEnabled(null);
-		if (getViewOMQuestionsEnabled(operation).booleanValue())
-		{
-			// Get question
-			question=questionsService.getQuestion(operation,questionId);
-		}
 		
+    	if (!questionsService.checkQuestionId(operation,questionId))
+    	{
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_PREVIEW_NOT_FOUND_ERROR");
+    	}
+    	else
+    	{
+    		Category questionCategory=categoriesService.getCategoryFromQuestionId(operation,questionId);
+    		if (questionCategory==null)
+    		{
+        		addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+    		}
+    		else
+    		{
+    			resetAdminFromCategoryAllowed(questionCategory);
+    			resetSuperadminFromCategoryAllowed(questionCategory);
+    			
+    	    	if (getViewOMQuestionsEnabled(operation).booleanValue() && 
+    	    		checkQuestionsFilterPermission(operation,questionCategory))
+   	    		{
+   	    			// Get question
+   	    			question=questionsService.getQuestion(operation,questionId);
+   	    		}
+   	        	else
+   	        	{
+   	        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+   	        	}
+    		}
+    	}
 		if (question==null)
 		{
-    		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalQuestionsEnabled(null);
-			setFilterOtherUsersQuestionsEnabled(null);
-			resetAdmins();
-			resetSuperadmins();
-			resetPublishQuestionAllowed(null);
 			setPublishQuestionsEnabled(null);
 			setPublishOtherUsersQuestionsEnabled(null);
 			setPublishAdminsQuestionsEnabled(null);
 			setPublishSuperadminsQuestionsEnabled(null);
-			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-    		
+			resetPublishQuestionsAllowed();
+			setUnpublishQuestionReleasesEnabled(null);
+			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+			setUnpublishOtherUsersQuestionReleasesEnabled(null);
+			setUnpublishAdminsQuestionReleasesEnabled(null);
+			setUnpublishSuperadminsQuestionReleasesEnabled(null);
+			resetUnpublishQuestionReleasesAllowed();
+			setFilterGlobalTestsEnabled(null);
+			setFilterOtherUsersTestsEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			setUnpublishTestReleasesEnabled(null);
+			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+			setUnpublishOtherUsersTestReleasesEnabled(null);
+			setUnpublishAdminsTestReleasesEnabled(null);
+			setUnpublishSuperadminsTestReleasesEnabled(null);
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
+			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
+			
+			Category filterQuestionCategory=null;
+			long filterQuestionCategoryId=getFilterQuestionCategoryId();
+			if (filterQuestionCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+				{
+					filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+				}
+			}
+			else
+			{
+				filterQuestionCategory=new Category();
+				filterQuestionCategory.setId(filterQuestionCategoryId);
+			}
+			if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+			{
+				setFilterQuestionCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload questions categories from DB
+			specialQuestionCategoryFiltersMap=null;
+			specialQuestionCategoriesFilters=null;
+			questionsCategories=null;
 		}
 		else
 		{
@@ -3517,6 +4284,12 @@ public class PublicationBean implements Serializable
 			requestContext.addCallbackParam("url",urlParam.toString());
 			requestContext.addCallbackParam("packageName",packageName);
 		}
+		
+		// Always reload question releases
+		setQuestionsReleases(null);
+		questions=null;
+		getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error	
+		
 	    return null;
 	}
     
@@ -3532,32 +4305,103 @@ public class PublicationBean implements Serializable
 		Operation operation=getCurrentUserOperation(null);
 		
 		Test test=null;
-			
-		setViewOMTestsEnabled(null);
-		if (getViewOMTestsEnabled(operation).booleanValue())
-		{
-			// Get test
-			test=testsService.getTest(operation,testId);
-		}
 		
+    	setFilterGlobalTestsEnabled(null);
+    	setFilterOtherUsersTestsEnabled(null);
+    	setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+    	setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		setViewOMTestsEnabled(null);
+		
+    	if (!testsService.checkTestId(operation,testId))
+    	{
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_PREVIEW_NOT_FOUND_ERROR");
+    	}
+    	else
+    	{
+    		Category testCategory=categoriesService.getCategoryFromTestId(operation,testId);
+    		if (testCategory==null)
+    		{
+        		addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+    		}
+    		else
+    		{
+    			resetAdminFromCategoryAllowed(testCategory);
+    			resetSuperadminFromCategoryAllowed(testCategory);
+    			
+    	    	if (getViewOMTestsEnabled(operation).booleanValue() && 
+    	    		checkTestsFilterPermission(operation,testCategory))
+   	    		{
+   	    			// Get test
+   	    			test=testsService.getTest(operation,testId);
+   	    		}
+   	        	else
+   	        	{
+   	        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+   	        	}
+    		}
+    	}
 		if (test==null)
 		{
-    		addErrorMessage(true,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
-			setFilterGlobalTestsEnabled(null);
-			setFilterOtherUsersTestsEnabled(null);
-    		resetAdmins();
-    		resetSuperadmins();
-			resetPublishTestAllowed(null);
+			setFilterGlobalQuestionsEnabled(null);
+			setFilterOtherUsersQuestionsEnabled(null);
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			setUnpublishQuestionReleasesEnabled(null);
+			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+			setUnpublishOtherUsersQuestionReleasesEnabled(null);
+			setUnpublishAdminsQuestionReleasesEnabled(null);
+			setUnpublishSuperadminsQuestionReleasesEnabled(null);
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
 			setPublishTestsEnabled(null);
 			setPublishOtherUsersTestsEnabled(null);
 			setPublishAdminsTestsEnabled(null);
 			setPublishSuperadminsTestsEnabled(null);
-    		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
-    		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
-    		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			resetPublishTestsAllowed();
+			setUnpublishTestReleasesEnabled(null);
+			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+			setUnpublishOtherUsersTestReleasesEnabled(null);
+			setUnpublishAdminsTestReleasesEnabled(null);
+			setUnpublishSuperadminsTestReleasesEnabled(null);
+			resetUnpublishTestReleasesAllowed();
+			resetAdmins();
+			resetSuperadmins();
 			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
+			
+			Category filterTestCategory=null;
+			long filterTestCategoryId=getFilterTestCategoryId();
+			if (filterTestCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+				{
+					filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+				}
+			}
+			else
+			{
+				filterTestCategory=new Category();
+				filterTestCategory.setId(filterTestCategoryId);
+			}
+			if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+			{
+				setFilterTestCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload tests categories from DB
+			specialTestCategoryFiltersMap=null;
+			specialTestCategoriesFilters=null;
+			testsCategories=null;
 		}
 		else
 		{
@@ -3725,7 +4569,120 @@ public class PublicationBean implements Serializable
 			requestContext.addCallbackParam("url",urlParam.toString());
 			requestContext.addCallbackParam("testName",testName);
 		}
+		
+		// Always reload test releases
+		setTestsReleases(null);
+		tests=null;
+		getTestsReleases();		// This is needed to avoid an Hibernate session closed error	
+		
 		return null;
+	}
+	
+	/**
+	 * Publish a question.
+	 * @param question Question to publish
+	 * @return Question release view
+	 */
+	public String publishQuestion(Question question)
+	{
+		String questionReleaseView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+    	setFilterGlobalQuestionsEnabled(null);
+    	setFilterOtherUsersQuestionsEnabled(null);
+    	setPublishQuestionsEnabled(null);
+    	setPublishOtherUsersQuestionsEnabled(null);
+    	setPublishAdminsQuestionsEnabled(null);
+    	setPublishSuperadminsQuestionsEnabled(null);
+    	resetPublishQuestionAllowed(question);
+    	resetAdminFromQuestionAllowed(question);
+    	resetSuperadminFromQuestionAllowed(question);
+    	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+    	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+    	
+    	long questionId=question.getId();
+    	if (!questionsService.checkQuestionId(operation,questionId))
+    	{
+    		addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_PUBLISH_NOT_FOUND_ERROR");
+    	}
+    	else
+    	{
+    		Category questionCategory=categoriesService.getCategoryFromQuestionId(operation,questionId);
+    		resetAdminFromCategoryAllowed(questionCategory);
+    		resetSuperadminFromCategoryAllowed(questionCategory);
+    		
+        	if (isPublishQuestionAllowed(operation,questionId))
+        	{
+        		questionReleaseView="questionrelease";
+        	}
+        	else
+        	{
+        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+        	}
+    	}
+    	if (questionReleaseView==null)
+    	{
+    		resetPublishQuestionsAllowed();
+    		setUnpublishQuestionReleasesEnabled(null);
+    		setUnpublishOtherUsersQuestionReleasesEnabled(null);
+    		setUnpublishAdminsQuestionReleasesEnabled(null);
+    		setUnpublishSuperadminsQuestionReleasesEnabled(null);
+    		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+    		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+    		resetUnpublishQuestionReleasesAllowed();
+    		setViewOMQuestionsEnabled(null);
+    		setFilterGlobalTestsEnabled(null);
+    		setFilterOtherUsersTestsEnabled(null);
+    		setPublishTestsEnabled(null);
+    		setPublishOtherUsersTestsEnabled(null);
+    		setPublishAdminsTestsEnabled(null);
+    		setPublishSuperadminsTestsEnabled(null);
+    		resetPublishTestsAllowed();
+    		setUnpublishAdminsTestReleasesEnabled(null);
+    		setUnpublishOtherUsersTestReleasesEnabled(null);
+    		setUnpublishAdminsTestReleasesEnabled(null);
+    		setUnpublishSuperadminsTestReleasesEnabled(null);
+    		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+    		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+    		resetUnpublishTestReleasesAllowed();
+    		setViewOMTestsEnabled(null);
+    		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+    		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+    		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    		resetAdmins();
+    		resetSuperadmins();
+    		
+			Category filterQuestionCategory=null;
+			long filterQuestionCategoryId=getFilterQuestionCategoryId();
+			if (filterQuestionCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+				{
+					filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+				}
+			}
+			else
+			{
+				filterQuestionCategory=new Category();
+				filterQuestionCategory.setId(filterQuestionCategoryId);
+			}
+			if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+			{
+				setFilterQuestionCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload questions categories and questions releases from DB
+			setQuestionsReleases(null);
+			specialQuestionCategoryFiltersMap=null;
+			specialQuestionCategoriesFilters=null;
+			questionsCategories=null;
+			questions=null;
+			getQuestionsReleases();	// This is needed to avoid an Hibernate session closed error	
+    	}
+		return questionReleaseView;
 	}
 	
 	/**
@@ -3734,9 +4691,15 @@ public class PublicationBean implements Serializable
 	 */
 	public void unpublishQuestionRelease(ActionEvent event)
 	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		boolean ok=false;
+    	
 		QuestionRelease questionRelease=getQuestionRelease();
-		resetAdminFromQuestionReleaseAllowed(questionRelease);
-		resetSuperadminFromQuestionReleaseAllowed(questionRelease);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
 		setUnpublishQuestionReleasesEnabled(null);
 		setUnpublishOtherUsersQuestionReleasesEnabled(null);
 		setUnpublishAdminsQuestionReleasesEnabled(null);
@@ -3744,28 +4707,219 @@ public class PublicationBean implements Serializable
 		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
 		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
 		resetUnpublishQuestionReleaseAllowed(questionRelease);
-		if (isUnpublishQuestionReleaseAllowed(null,getQuestionRelease(),true))
+		resetAdminFromQuestionReleaseAllowed(questionRelease);
+		resetSuperadminFromQuestionReleaseAllowed(questionRelease);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		// Get OM Test Navigator URL production environment
+		String omTnProURL=configurationService.getOmTnProUrl();
+		String packageName=questionRelease.getQuestion().getPackage();
+		if (!checkQuestionRelease(packageName,omTnProURL))
 		{
-			// Get OM Test Navigator URL production environment
-			String omTnProURL=configurationService.getOmTnProUrl();
-			try
+			addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_RELEASE_UNPUBLISH_NOT_FOUND_ERROR");
+		}
+		else
+		{
+			Category questionCategory=
+				categoriesService.getCategoryFromQuestionId(operation,questionRelease.getQuestion().getId());
+			if (questionCategory==null)
 			{
-				// Delete question XML file from OM Test Navigator production environment web application
-				QuestionGenerator.unpublishQuestionRelease(
-					questionRelease.getQuestion().getPackage(),omTnProURL);
+				addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
 			}
-			catch (Exception e)
+			else
 			{
-				// Ignore OM Test Navigator errors
-				//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+				resetAdminFromCategoryAllowed(questionCategory);
+				resetSuperadminFromCategoryAllowed(questionCategory);
+				
+				if (isUnpublishQuestionReleaseAllowed(operation,questionRelease,true))
+				{
+					try
+					{
+						// Delete question XML file from OM Test Navigator production environment web application
+						QuestionGenerator.unpublishQuestionRelease(
+							questionRelease.getQuestion().getPackage(),omTnProURL);
+						ok=true;
+					}
+					catch (Exception e)
+					{
+						// Ignore OM Test Navigator errors
+						//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+					}
+				}
+				else
+				{
+	        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
 			}
-			
-			// Reload questions releases from OM Test Navigator production environment
+		}
+		if (!ok)
+		{
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setFilterGlobalTestsEnabled(null);
+			setFilterOtherUsersTestsEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			setUnpublishTestReleasesEnabled(null);
+			setUnpublishOtherUsersTestReleasesEnabled(null);
+			setUnpublishAdminsTestReleasesEnabled(null);
+			setUnpublishSuperadminsTestReleasesEnabled(null);
+			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
+			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
 			resetAdmins();
 			resetSuperadmins();
-			resetUnpublishQuestionReleasesAllowed();
-			setQuestionsReleases(null);
+			
+			Category filterQuestionCategory=null;
+			long filterQuestionCategoryId=getFilterQuestionCategoryId();
+			if (filterQuestionCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+				{
+					filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+				}
+			}
+			else
+			{
+				filterQuestionCategory=new Category();
+				filterQuestionCategory.setId(filterQuestionCategoryId);
+			}
+			if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+			{
+				setFilterQuestionCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload question categories from DB
+			specialQuestionCategoryFiltersMap=null;
+			specialQuestionCategoriesFilters=null;
+			questionsCategories=null;
 		}
+		
+		// Always reload question releases
+		setQuestionsReleases(null);
+		questions=null;
+		getQuestionsReleases();	// This is needed to avoid an Hibernate session closed error	
+	}
+	
+	/**
+	 * Publish a test.
+	 * @param test Test to publish
+	 * @return Test release view
+	 */
+	public String publishTest(Test test)
+	{
+		String testReleaseView=null;
+		
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+    	setFilterGlobalTestsEnabled(null);
+    	setFilterOtherUsersTestsEnabled(null);
+    	setPublishTestsEnabled(null);
+    	setPublishOtherUsersTestsEnabled(null);
+    	setPublishAdminsTestsEnabled(null);
+    	setPublishSuperadminsTestsEnabled(null);
+    	resetPublishTestAllowed(test);
+    	resetAdminFromTestAllowed(test);
+    	resetSuperadminFromTestAllowed(test);
+    	setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+    	setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+    	setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+    	
+    	long testId=test.getId();
+    	if (!testsService.checkTestId(operation,testId))
+    	{
+    		addErrorMessage(true,"INCORRECT_OPERATION","TEST_PUBLISH_NOT_FOUND_ERROR");
+    	}
+    	else
+    	{
+    		Category testCategory=categoriesService.getCategoryFromTestId(operation,testId);
+    		resetAdminFromCategoryAllowed(testCategory);
+    		resetSuperadminFromCategoryAllowed(testCategory);
+    		
+        	if (isPublishTestAllowed(operation,testId))
+        	{
+        		testReleaseView="testrelease";
+        	}
+        	else
+        	{
+        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+        	}
+    	}
+    	if (testReleaseView==null)
+    	{
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
+    		setPublishQuestionsEnabled(null);
+    		setPublishOtherUsersQuestionsEnabled(null);
+    		setPublishAdminsQuestionsEnabled(null);
+    		setPublishSuperadminsQuestionsEnabled(null);
+    		resetPublishQuestionsAllowed();
+    		setUnpublishAdminsQuestionReleasesEnabled(null);
+    		setUnpublishOtherUsersQuestionReleasesEnabled(null);
+    		setUnpublishAdminsQuestionReleasesEnabled(null);
+    		setUnpublishSuperadminsQuestionReleasesEnabled(null);
+    		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+    		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+    		resetUnpublishQuestionReleasesAllowed();
+    		setViewOMQuestionsEnabled(null);
+    		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+    		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+    		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+    		resetPublishTestsAllowed();
+    		setUnpublishTestReleasesEnabled(null);
+    		setUnpublishOtherUsersTestReleasesEnabled(null);
+    		setUnpublishAdminsTestReleasesEnabled(null);
+    		setUnpublishSuperadminsTestReleasesEnabled(null);
+    		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+    		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+    		resetUnpublishTestReleasesAllowed();
+    		setViewOMTestsEnabled(null);
+    		resetAdmins();
+    		resetSuperadmins();
+    		
+			Category filterTestCategory=null;
+			long filterTestCategoryId=getFilterTestCategoryId();
+			if (filterTestCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+				{
+					filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+				}
+			}
+			else
+			{
+				filterTestCategory=new Category();
+				filterTestCategory.setId(filterTestCategoryId);
+			}
+			if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+			{
+				setFilterTestCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload tests categories and tests releases from DB
+			setTestsReleases(null);
+			specialTestCategoryFiltersMap=null;
+			specialTestCategoriesFilters=null;
+			testsCategories=null;
+			tests=null;
+			getTestsReleases();		// This is needed to avoid an Hibernate session closed error	
+    	}
+		return testReleaseView;
 	}
 	
 	/**
@@ -3774,37 +4928,125 @@ public class PublicationBean implements Serializable
 	 */
 	public void unpublishTestRelease(ActionEvent event)
 	{
+    	// Get current user session Hibernate operation
+    	Operation operation=getCurrentUserOperation(null);
+		
+		boolean ok=false;
+    	
 		TestRelease testRelease=getTestRelease();
-		resetAdminFromTestReleaseAllowed(testRelease);
-		resetSuperadminFromTestReleaseAllowed(testRelease);
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
 		setUnpublishTestReleasesEnabled(null);
-		setUnpublishOtherUsersTestReleasesEnabled(null);
+		setUnpublishOtherUsersQuestionReleasesEnabled(null);
 		setUnpublishAdminsTestReleasesEnabled(null);
 		setUnpublishSuperadminsTestReleasesEnabled(null);
 		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
 		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
 		resetUnpublishTestReleaseAllowed(testRelease);
-		if (isUnpublishTestReleaseAllowed(null,getTestRelease(),true))
+		resetAdminFromTestReleaseAllowed(testRelease);
+		resetSuperadminFromTestReleaseAllowed(testRelease);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
+		// Get OM Test Navigator URL production environment
+		String omTnProURL=configurationService.getOmTnProUrl();
+		if (!checkTestRelease(testRelease,omTnProURL))
 		{
-			// Get OM Test Navigator URL production environment
-			String omTnProURL=configurationService.getOmTnProUrl();
-			try
+			addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_RELEASE_UNPUBLISH_NOT_FOUND_ERROR");
+		}
+		else
+		{
+			Category testCategory=categoriesService.getCategoryFromTestId(operation,testRelease.getTest().getId());
+			if (testCategory==null)
 			{
-				// Delete test XML file from OM Test Navigator production environment web application
-				TestGenerator.unpublishTestRelease(testRelease,omTnProURL);
+				addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
 			}
-			catch (Exception e)
+			else
 			{
-				// Ignore OM Test Navigator errors
-				//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+				resetAdminFromCategoryAllowed(testCategory);
+				resetSuperadminFromCategoryAllowed(testCategory);
+				
+				if (isUnpublishTestReleaseAllowed(operation,testRelease,true))
+				{
+					try
+					{
+						// Delete test XML file from OM Test Navigator production environment web application
+						TestGenerator.unpublishTestRelease(testRelease,omTnProURL);
+						ok=true;
+					}
+					catch (Exception e)
+					{
+						// Ignore OM Test Navigator errors
+						//TODO ¿seguir ignorando o hacer un rollback y lanzar un ServiceException?
+					}
+				}
+				else
+				{
+	        		addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
 			}
-			
-			// Reload tests releases from OM Test Navigator production environment
+		}
+		if (!ok)
+		{
+			setFilterGlobalQuestionsEnabled(null);
+			setFilterOtherUsersQuestionsEnabled(null);
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			setUnpublishQuestionReleasesEnabled(null);
+			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+			setUnpublishOtherUsersQuestionReleasesEnabled(null);
+			setUnpublishAdminsQuestionReleasesEnabled(null);
+			setUnpublishSuperadminsQuestionReleasesEnabled(null);
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
 			resetAdmins();
 			resetSuperadmins();
-			resetUnpublishTestReleasesAllowed();
-			setTestsReleases(null);
+			
+			Category filterTestCategory=null;
+			long filterTestCategoryId=getFilterTestCategoryId();
+			if (filterTestCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+				{
+					filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+				}
+			}
+			else
+			{
+				filterTestCategory=new Category();
+				filterTestCategory.setId(filterTestCategoryId);
+			}
+			if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+			{
+				setFilterTestCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload test categories from DB
+			specialTestCategoryFiltersMap=null;
+			specialTestCategoriesFilters=null;
+			testsCategories=null;
 		}
+		
+		// Always reload test releases
+		setTestsReleases(null);
+		tests=null;
+		getTestsReleases();		// This is needed to avoid an Hibernate session closed error	
 	}
 	
 	/**
@@ -3817,7 +5059,7 @@ public class PublicationBean implements Serializable
 		boolean ok=false;
 		try
 		{
-			QuestionGenerator.checkTestNavigatorXml(packageName, omTnProUrl);
+			QuestionGenerator.checkTestNavigatorXml(packageName,omTnProUrl);
 		}
 		catch (Exception e)
 		{
@@ -3833,27 +5075,64 @@ public class PublicationBean implements Serializable
 	 */
 	public void viewOMQuestionRelease(ActionEvent event) throws Exception
 	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		boolean ok=false;
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setViewOMQuestionsEnabled(null);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		
 		String omTnProURL=configurationService.getOmTnProUrl();
 		String packageName=getQuestionRelease().getQuestion().getPackage();
-		if (checkQuestionRelease(packageName,omTnProURL))
+		if (!checkQuestionRelease(packageName,omTnProURL))
 		{
-			// Add callback parameters to display question
-			StringBuffer urlParam=new StringBuffer(omTnProURL);
-			if (omTnProURL.charAt(omTnProURL.length()-1)!='/')
-			{
-				urlParam.append('/');
-			}
-			RequestContext requestContext=RequestContext.getCurrentInstance();
-			requestContext.addCallbackParam("url",urlParam.toString());
-			requestContext.addCallbackParam("packageName",packageName);
+			addErrorMessage(true,"INCORRECT_OPERATION","QUESTION_RELEASE_VIEW_NOT_FOUND_ERROR");
 		}
 		else
 		{
-			addErrorMessage(true,"INCORRECT_OPERATION","OM_VIEW_QUESTION_RELEASE_UNPUBLISH_ERROR");
-			
-			// Reload questions releases from OM Test Navigator production environment
-			resetAdmins();
-			resetSuperadmins();
+			Category questionCategory=
+				categoriesService.getCategoryFromQuestionId(operation,getQuestionRelease().getQuestion().getId());
+			if (questionCategory==null)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+			}
+			else
+			{
+				resetAdminFromCategoryAllowed(questionCategory);
+				resetSuperadminFromCategoryAllowed(questionCategory);
+				
+				if (checkQuestionsFilterPermission(operation,questionCategory))
+				{
+					ok=true;
+					
+					// Add callback parameters to display question
+					StringBuffer urlParam=new StringBuffer(omTnProURL);
+					if (omTnProURL.charAt(omTnProURL.length()-1)!='/')
+					{
+						urlParam.append('/');
+					}
+					RequestContext requestContext=RequestContext.getCurrentInstance();
+					requestContext.addCallbackParam("url",urlParam.toString());
+					requestContext.addCallbackParam("packageName",packageName);
+				}
+				else
+				{
+					addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
+			}
+		}
+		if (!ok)
+		{
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
 			setUnpublishQuestionReleasesEnabled(null);
 			setUnpublishOtherUsersQuestionReleasesEnabled(null);
 			setUnpublishAdminsQuestionReleasesEnabled(null);
@@ -3861,11 +5140,59 @@ public class PublicationBean implements Serializable
 			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
 			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
 			resetUnpublishQuestionReleasesAllowed();
-			setQuestionsReleases(null);
+			setFilterGlobalTestsEnabled(null);
+			setFilterOtherUsersTestsEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
+			setUnpublishTestReleasesEnabled(null);
+			setUnpublishOtherUsersTestReleasesEnabled(null);
+			setUnpublishAdminsTestReleasesEnabled(null);
+			setUnpublishSuperadminsTestReleasesEnabled(null);
+			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+			resetUnpublishTestReleasesAllowed();
+			setViewOMTestsEnabled(null);
+			setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+			setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+			resetAdmins();
+			resetSuperadmins();
+			
+			Category filterQuestionCategory=null;
+			long filterQuestionCategoryId=getFilterQuestionCategoryId();
+			if (filterQuestionCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+				{
+					filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+				}
+			}
+			else
+			{
+				filterQuestionCategory=new Category();
+				filterQuestionCategory.setId(filterQuestionCategoryId);
+			}
+			if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+			{
+				setFilterQuestionCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload questions categories from DB
+			specialQuestionCategoryFiltersMap=null;
+			specialQuestionCategoriesFilters=null;
+			questionsCategories=null;
 			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
 		}
+		
+		// Always reload question releases
+		setQuestionsReleases(null);
+		questions=null;
+		getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error	
 	}
 	
 	/**
@@ -3894,43 +5221,98 @@ public class PublicationBean implements Serializable
 	 */
 	public void viewOMTestRelease(ActionEvent event) throws Exception
 	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		boolean ok=false;
+		
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setViewOMTestsEnabled(null);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		
 		String omTnProURL=configurationService.getOmTnProUrl();
-		if (checkTestRelease(getTestRelease(),omTnProURL))
+		if (!checkTestRelease(getTestRelease(),omTnProURL))
 		{
-			String testName=getTestRelease().getTest().getSignature();
-			int version=getTestRelease().getVersion();
-			
-			// Add callback parameters to display test
-			StringBuffer urlParam=new StringBuffer(omTnProURL);
-			if (omTnProURL.charAt(omTnProURL.length()-1)!='/')
-			{
-				urlParam.append('/');
-			}
-			StringBuffer sVersion=new StringBuffer();
-			if (version>=10)
-			{
-				sVersion.append('-');
-				sVersion.append(Integer.toString(version));
-			}
-			else if (version >0)
-			{
-				sVersion.append("-0");
-				sVersion.append(Integer.toString(version));
-			}
-			
-			RequestContext requestContext=RequestContext.getCurrentInstance();
-			requestContext.addCallbackParam("url",urlParam.toString());
-			requestContext.addCallbackParam("testName",testName);
-			requestContext.addCallbackParam("version",sVersion.toString());
+			addErrorMessage(true,"INCORRECT_OPERATION","TEST_RELEASE_VIEW_NOT_FOUND_ERROR");
 		}
 		else
 		{
-			addErrorMessage(true,"INCORRECT_OPERATION","OM_VIEW_TEST_RELEASE_UNPUBLISH_ERROR");
-			
-			// Reload tests releases from OM Test Navigator production environment
-			resetAdmins();
-			resetSuperadmins();
-			
+			Category testCategory=
+				categoriesService.getCategoryFromTestId(operation,getTestRelease().getTest().getId());
+			if (testCategory==null)
+			{
+				addErrorMessage(true,"INCORRECT_OPERATION","UNEXPECTED_ERROR");
+			}
+			else
+			{
+				resetAdminFromCategoryAllowed(testCategory);
+				resetSuperadminFromCategoryAllowed(testCategory);
+				
+				if (checkTestsFilterPermission(operation,testCategory))
+				{
+					ok=true;
+					
+					String testName=getTestRelease().getTest().getSignature();
+					int version=getTestRelease().getVersion();
+					
+					// Add callback parameters to display test
+					StringBuffer urlParam=new StringBuffer(omTnProURL);
+					if (omTnProURL.charAt(omTnProURL.length()-1)!='/')
+					{
+						urlParam.append('/');
+					}
+					StringBuffer sVersion=new StringBuffer();
+					if (version>=10)
+					{
+						sVersion.append('-');
+						sVersion.append(Integer.toString(version));
+					}
+					else if (version >0)
+					{
+						sVersion.append("-0");
+						sVersion.append(Integer.toString(version));
+					}
+					
+					RequestContext requestContext=RequestContext.getCurrentInstance();
+					requestContext.addCallbackParam("url",urlParam.toString());
+					requestContext.addCallbackParam("testName",testName);
+					requestContext.addCallbackParam("version",sVersion.toString());
+				}
+				else
+				{
+					addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
+			}
+		}
+		
+		if (!ok)
+		{
+			setFilterGlobalQuestionsEnabled(null);
+			setFilterOtherUsersQuestionsEnabled(null);
+			setPublishQuestionsEnabled(null);
+			setPublishOtherUsersQuestionsEnabled(null);
+			setPublishAdminsQuestionsEnabled(null);
+			setPublishSuperadminsQuestionsEnabled(null);
+			resetPublishQuestionsAllowed();
+			setUnpublishQuestionReleasesEnabled(null);
+			setUnpublishOtherUsersQuestionReleasesEnabled(null);
+			setUnpublishAdminsQuestionReleasesEnabled(null);
+			setUnpublishSuperadminsQuestionReleasesEnabled(null);
+			setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+			setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+			resetUnpublishQuestionReleasesAllowed();
+			setViewOMQuestionsEnabled(null);
+			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+			setPublishTestsEnabled(null);
+			setPublishOtherUsersTestsEnabled(null);
+			setPublishAdminsTestsEnabled(null);
+			setPublishSuperadminsTestsEnabled(null);
+			resetPublishTestsAllowed();
 			setUnpublishTestReleasesEnabled(null);
 			setUnpublishOtherUsersTestReleasesEnabled(null);
 			setUnpublishAdminsTestReleasesEnabled(null);
@@ -3938,11 +5320,193 @@ public class PublicationBean implements Serializable
 			setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
 			setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
 			resetUnpublishTestReleasesAllowed();
-			setTestsReleases(null);
+			resetAdmins();
+			resetSuperadmins();
+			
+			Category filterTestCategory=null;
+			long filterTestCategoryId=getFilterTestCategoryId();
+			if (filterTestCategoryId>0L)
+			{
+				if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+				{
+					filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+				}
+			}
+			else
+			{
+				filterTestCategory=new Category();
+				filterTestCategory.setId(filterTestCategoryId);
+			}
+			if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+			{
+				setFilterTestCategoryId(Long.MIN_VALUE);
+			}
+			
+			// Reload tests categories, tests and tests releases from DB
+			specialTestCategoryFiltersMap=null;
+			specialTestCategoriesFilters=null;
+			testsCategories=null;
 			
     		RequestContext requestContext=RequestContext.getCurrentInstance();
 			requestContext.addCallbackParam("url","error");
 		}
+		
+		// Always reload test releases
+		setTestsReleases(null);
+		tests=null;
+		getTestsReleases();		// This is needed to avoid an Hibernate session closed error	
+	}
+	
+	/**
+	 * Action listener to cancel confirmation dialog on question releases tab.
+	 * @param event Action event
+	 */
+	public void cancelConfirmDialogForQuestionReleases(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setPublishQuestionsEnabled(null);
+		setPublishOtherUsersQuestionsEnabled(null);
+		setPublishAdminsQuestionsEnabled(null);
+		setPublishSuperadminsQuestionsEnabled(null);
+		resetPublishQuestionsAllowed();
+		setUnpublishQuestionReleasesEnabled(null);
+		setUnpublishOtherUsersQuestionReleasesEnabled(null);
+		setUnpublishAdminsQuestionReleasesEnabled(null);
+		setUnpublishSuperadminsQuestionReleasesEnabled(null);
+		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishQuestionReleasesAllowed();
+		setViewOMQuestionsEnabled(null);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setPublishTestsEnabled(null);
+		setPublishOtherUsersTestsEnabled(null);
+		setPublishAdminsTestsEnabled(null);
+		setPublishSuperadminsTestsEnabled(null);
+		resetPublishTestsAllowed();
+		setUnpublishTestReleasesEnabled(null);
+		setUnpublishOtherUsersTestReleasesEnabled(null);
+		setUnpublishAdminsTestReleasesEnabled(null);
+		setUnpublishSuperadminsTestReleasesEnabled(null);
+		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishTestReleasesAllowed();
+		setViewOMTestsEnabled(null);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		resetAdmins();
+		resetSuperadmins();
+		
+		Category filterQuestionCategory=null;
+		long filterQuestionCategoryId=getFilterQuestionCategoryId();
+		if (filterQuestionCategoryId>0L)
+		{
+			if (categoriesService.checkCategoryId(operation,filterQuestionCategoryId))
+			{
+				filterQuestionCategory=categoriesService.getCategory(operation,filterQuestionCategoryId);
+			}
+		}
+		else
+		{
+			filterQuestionCategory=new Category();
+			filterQuestionCategory.setId(filterQuestionCategoryId);
+		}
+		if (filterQuestionCategory==null || !checkQuestionsFilterPermission(operation,filterQuestionCategory))
+		{
+			setFilterQuestionCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload questions categories and questions releases from DB
+		setQuestionsReleases(null);
+		specialQuestionCategoryFiltersMap=null;
+		specialQuestionCategoriesFilters=null;
+		questionsCategories=null;
+		questions=null;
+		getQuestionsReleases();		// This is needed to avoid an Hibernate session closed error
+	}
+	
+	/**
+	 * Action listener to cancel confirmation dialog on test releases tab.
+	 * @param event Action event
+	 */
+	public void cancelConfirmDialogForTestReleases(ActionEvent event)
+	{
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setPublishQuestionsEnabled(null);
+		setPublishOtherUsersQuestionsEnabled(null);
+		setPublishAdminsQuestionsEnabled(null);
+		setPublishSuperadminsQuestionsEnabled(null);
+		resetPublishQuestionsAllowed();
+		setUnpublishQuestionReleasesEnabled(null);
+		setUnpublishOtherUsersQuestionReleasesEnabled(null);
+		setUnpublishAdminsQuestionReleasesEnabled(null);
+		setUnpublishSuperadminsQuestionReleasesEnabled(null);
+		setUnpublishQuestionReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishQuestionReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishQuestionReleasesAllowed();
+		setViewOMQuestionsEnabled(null);
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		setFilterGlobalTestsEnabled(null);
+		setFilterOtherUsersTestsEnabled(null);
+		setPublishTestsEnabled(null);
+		setPublishOtherUsersTestsEnabled(null);
+		setPublishAdminsTestsEnabled(null);
+		setPublishSuperadminsTestsEnabled(null);
+		resetPublishTestsAllowed();
+		setUnpublishTestReleasesEnabled(null);
+		setUnpublishOtherUsersTestReleasesEnabled(null);
+		setUnpublishAdminsTestReleasesEnabled(null);
+		setUnpublishSuperadminsTestReleasesEnabled(null);
+		setUnpublishTestReleasesOpenedWithCloseDateEnabled(null);
+		setUnpublishTestReleasesBeforeDeleteDateEnabled(null);
+		resetUnpublishTestReleasesAllowed();
+		setViewOMTestsEnabled(null);
+		setViewTestsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewTestsFromAdminsPrivateCategoriesEnabled(null);
+		setViewTestsFromSuperadminsPrivateCategoriesEnabled(null);
+		resetAdmins();
+		resetSuperadmins();
+		
+		Category filterTestCategory=null;
+		long filterTestCategoryId=getFilterTestCategoryId();
+		if (filterTestCategoryId>0L)
+		{
+			if (categoriesService.checkCategoryId(operation,filterTestCategoryId))
+			{
+				filterTestCategory=categoriesService.getCategory(operation,filterTestCategoryId);
+			}
+		}
+		else
+		{
+			filterTestCategory=new Category();
+			filterTestCategory.setId(filterTestCategoryId);
+		}
+		if (filterTestCategory==null || !checkTestsFilterPermission(operation,filterTestCategory))
+		{
+			setFilterTestCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload tests categories and tests releases from DB
+		setTestsReleases(null);
+		specialTestCategoryFiltersMap=null;
+		specialTestCategoriesFilters=null;
+		testsCategories=null;
+		tests=null;
+		getTestsReleases();			// This is needed to avoid an Hibernate session closed error
 	}
 	
 	/**
@@ -3956,8 +5520,7 @@ public class PublicationBean implements Serializable
 		FacesContext context=FacesContext.getCurrentInstance();
 		setCriticalErrorMessage(criticalError);
 		context.addMessage(null,new FacesMessage(FacesMessage.SEVERITY_ERROR,
-			localizationService.getLocalizedMessage(title),
-			localizationService.getLocalizedMessage(message)));
+			localizationService.getLocalizedMessage(title),localizationService.getLocalizedMessage(message)));
 	}
 	
 	/**

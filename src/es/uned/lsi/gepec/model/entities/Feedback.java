@@ -140,11 +140,6 @@ public class Feedback implements java.io.Serializable {
 		this.resourceHeight = resourceHeight;
 	}
 
-	public Feedback(Feedback otherFeedback)
-	{
-		setFromOtherFeedback(otherFeedback);
-	}
-	
 	@Id
 	@GeneratedValue(generator="feedbacks_id_seq", strategy=GenerationType.AUTO)
 	@Column(name = "id", unique = true, nullable = false)
@@ -157,7 +152,7 @@ public class Feedback implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_question", nullable = false)
+	@JoinColumn(name = "id_question")
 	public Question getQuestion() {
 		return this.question;
 	}
@@ -420,6 +415,21 @@ public class Feedback implements java.io.Serializable {
 			setResourceWidth(otherFeedback.getResourceWidth());
 			setResourceHeight(otherFeedback.getResourceHeight());
 		}
+	}
+	
+	/**
+	 * @return A copy of this feedback.
+	 */
+	@Transient
+	public Feedback getFeedbackCopy()
+	{
+		return new Feedback(getId(),getQuestion(),getResource(),getFeedbackType(),getText(),getTest(),getAnswer(),
+			getAttemptsmin(),getAttemptsmax(),getSelectedanswersmin(),getSelectedanswersmax(),
+			getSelectedrightanswersmin(),getSelectedrightanswersmax(),getSelectedwronganswersmin(),
+			getSelectedwronganswersmax(),getUnselectedanswersmin(),getUnselectedanswersmax(),
+			getUnselectedrightanswersmin(),getUnselectedrightanswersmax(),getUnselectedwronganswersmin(),
+			getUnselectedwronganswersmax(),getRightdistancemin(),getRightdistancemax(),getPosition(),getResourceWidth(),
+			getResourceHeight());
 	}
 	
 	/**

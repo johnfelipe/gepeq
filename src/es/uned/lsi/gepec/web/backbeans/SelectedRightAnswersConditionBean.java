@@ -23,7 +23,6 @@ import javax.faces.event.AjaxBehaviorEvent;
 
 import org.primefaces.component.selectonemenu.SelectOneMenu;
 
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.QuestionBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 
@@ -61,7 +60,7 @@ public class SelectedRightAnswersConditionBean extends ConditionBean implements 
 		super(TYPE);
 		this.question=question;
 		oldComparator=null;
-		int selectableRightAnswers=getMaxSelectedRightAnswersValue(question.getCurrentUserOperation(null));
+		int selectableRightAnswers=getMaxSelectedRightAnswersValue();
 		selectedRightAnswersCmp=1;
 		selectedRightAnswersBetweenMin=1;
 		selectedRightAnswersBetweenMax=selectableRightAnswers;
@@ -149,6 +148,12 @@ public class SelectedRightAnswersConditionBean extends ConditionBean implements 
 		this.comparator=comparator;
 	}
 	
+	public void setNewComparator(String newComparator)
+	{
+		this.oldComparator=newComparator;
+		this.comparator=newComparator;
+	}
+	
 	public int getSelectedRightAnswersCmp()
 	{
 		return selectedRightAnswersCmp;
@@ -182,75 +187,65 @@ public class SelectedRightAnswersConditionBean extends ConditionBean implements 
 	public int getSelectedRightAnswersMin()
 	{
 		int selectedRightAnswersMin=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			selectedRightAnswersMin=selectedRightAnswersCmp;
+			selectedRightAnswersMin=getSelectedRightAnswersCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
-			selectedRightAnswersMin=selectedRightAnswersCmp+1;
+			selectedRightAnswersMin=getSelectedRightAnswersCmp()+1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER_EQUAL))
 		{
-			selectedRightAnswersMin=selectedRightAnswersCmp;
+			selectedRightAnswersMin=getSelectedRightAnswersCmp();
 		}
-		else if (NumberComparator.compareU(comparator, NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			selectedRightAnswersMin=selectedRightAnswersBetweenMin;
+			selectedRightAnswersMin=getSelectedRightAnswersBetweenMin();
 		}
 		return selectedRightAnswersMin;
 	}
 	
 	public int getSelectedRightAnswersMax()
 	{
-		return getSelectedRightAnswersMax(null);
-	}
-	
-	public int getSelectedRightAnswersMax(Operation operation)
-	{
-		int selectedRightAnswersMax=getMaxSelectedRightAnswersValue(question.getCurrentUserOperation(operation));
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		int selectedRightAnswersMax=0;
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			selectedRightAnswersMax=selectedRightAnswersCmp;
+			selectedRightAnswersMax=getSelectedRightAnswersCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
-			selectedRightAnswersMax=selectedRightAnswersCmp-1;
+			selectedRightAnswersMax=getSelectedRightAnswersCmp()-1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
-			selectedRightAnswersMax=selectedRightAnswersCmp;
+			selectedRightAnswersMax=getSelectedRightAnswersCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			selectedRightAnswersMax=selectedRightAnswersBetweenMax;
+			selectedRightAnswersMax=getSelectedRightAnswersBetweenMax();
+		}
+		else
+		{
+			selectedRightAnswersMax=getMaxSelectedRightAnswersValue();
 		}
 		return selectedRightAnswersMax;
 	}
 	
 	public boolean isBetween()
 	{
-		return NumberComparator.compareU(comparator,NumberComparator.BETWEEN);
+		return NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN);
 	}
 	
 	public int getMaxSelectedRightAnswersValue()
 	{
-		return getMaxSelectedRightAnswersValue(null);
-	}
-	
-	public int getMaxSelectedRightAnswersValue(Operation operation)
-	{
-		return question.getNumberOfSelectableRightAnswers(question.getCurrentUserOperation(operation));
+		return question.getNumberOfSelectableRightAnswers();
 	}
 	
 	public int getMinValueSelectedRightAnswersCmp()
 	{
 		int minValue=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
-		{
-			minValue=-1;
-		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
 			minValue=1;
 		}
@@ -259,17 +254,16 @@ public class SelectedRightAnswersConditionBean extends ConditionBean implements 
 	
 	public int getMaxValueSelectedRightAnswersCmp()
 	{
-		return getMaxValueSelectedRightAnswersCmp(null);
-	}
-	
-	public int getMaxValueSelectedRightAnswersCmp(Operation operation)
-	{
-		int maxValue=getMaxSelectedRightAnswersValue(question.getCurrentUserOperation(operation));
-		if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		int maxValue=getMaxSelectedRightAnswersValue();
+		if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
-			maxValue--;
+			if (maxValue>0)
+			{
+				maxValue--;
+			}
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS) || 
+			NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
 			maxValue++;
 		}
@@ -278,56 +272,63 @@ public class SelectedRightAnswersConditionBean extends ConditionBean implements 
 	
 	public void changeComparator(AjaxBehaviorEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=question.getCurrentUserOperation(null);
-		
 		comparator=(String)((SelectOneMenu)event.getComponent()).getValue();
-		if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			if (selectedRightAnswersCmp<0)
+			if (getSelectedRightAnswersCmp()<0)
 			{
-				selectedRightAnswersBetweenMin=0;
+				setSelectedRightAnswersBetweenMin(0);
 			}
 			else
 			{
-				selectedRightAnswersBetweenMin=selectedRightAnswersCmp;
+				int maxValue=getMaxSelectedRightAnswersValue();
+				if (getSelectedRightAnswersCmp()>maxValue)
+				{
+					setSelectedRightAnswersBetweenMin(maxValue);
+				}
+				else
+				{
+					setSelectedRightAnswersBetweenMin(getSelectedRightAnswersCmp());
+				}
 			}
-			if (selectedRightAnswersBetweenMax<selectedRightAnswersBetweenMin)
+			if (getSelectedRightAnswersBetweenMax()<getSelectedRightAnswersBetweenMin())
 			{
-				selectedRightAnswersBetweenMax=selectedRightAnswersBetweenMin;
+				setSelectedRightAnswersBetweenMax(getSelectedRightAnswersBetweenMin());
 			}
 		}
 		else if (NumberComparator.compareU(oldComparator,NumberComparator.BETWEEN))
 		{
-			if (selectedRightAnswersBetweenMin<getMinValueSelectedRightAnswersCmp())
+			int minValueCmp=getMinValueSelectedRightAnswersCmp();
+			if (getSelectedRightAnswersBetweenMin()<minValueCmp)
 			{
-				selectedRightAnswersCmp=getMinValueSelectedRightAnswersCmp();
+				setSelectedRightAnswersCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueSelectedRightAnswersCmp=getMaxValueSelectedRightAnswersCmp(operation);
-				if (selectedRightAnswersBetweenMin>maxValueSelectedRightAnswersCmp)
+				int maxValueCmp=getMaxValueSelectedRightAnswersCmp();
+				if (getSelectedRightAnswersBetweenMin()>maxValueCmp)
 				{
-					selectedRightAnswersCmp=maxValueSelectedRightAnswersCmp;
+					setSelectedRightAnswersCmp(maxValueCmp);
 				}
 				else
 				{
-					selectedRightAnswersCmp=selectedRightAnswersBetweenMin;
+					setSelectedRightAnswersCmp(getSelectedRightAnswersBetweenMin());
 				}
 			}
 		}
 		else
 		{
-			if (selectedRightAnswersCmp<getMinValueSelectedRightAnswersCmp())
+			int minValueCmp=getMinValueSelectedRightAnswersCmp();
+			if (getSelectedRightAnswersCmp()<minValueCmp)
 			{
-				selectedRightAnswersCmp=getMinValueSelectedRightAnswersCmp();
+				setSelectedRightAnswersCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueSelectedRightAnswersCmp=getMaxValueSelectedRightAnswersCmp(operation);
-				if (selectedRightAnswersCmp>maxValueSelectedRightAnswersCmp)
+				int maxValueCmp=getMaxValueSelectedRightAnswersCmp();
+				if (getSelectedRightAnswersCmp()>maxValueCmp)
 				{
-					selectedRightAnswersCmp=maxValueSelectedRightAnswersCmp;
+					setSelectedRightAnswersCmp(maxValueCmp);
 				}
 			}
 		}

@@ -271,21 +271,25 @@ public class UserSessionService implements Serializable
 			// Start a new user session Hibernate operation
 			startCurrentUserOperation();
 			
+			// Get user from DB
 			USERS_DAO.setOperation(currentSessionOperation);
-			authenticatedUser=USERS_DAO.getAuthenticatedUser(userLogin,userPassword);
+			User authenticatedUserFromDB=USERS_DAO.getAuthenticatedUser(userLogin,userPassword,true);
+			if (authenticatedUserFromDB!=null)
+			{
+				authenticatedUser=authenticatedUserFromDB.getUserCopy();
+				if (authenticatedUserFromDB.getUserType()!=null)
+				{
+					authenticatedUser.setUserType(authenticatedUserFromDB.getUserType().getUserTypeCopy());
+				}
+				
+				// Password is set to empty string before returning instance for security reasons
+				authenticatedUser.setPassword("");
+			}
 		}
 		catch (DaoException de)
 		{
-			System.err.println("DaoException...");
-			de.printStackTrace();
-			
 			currentUserId=0L;
 			throw new ServiceException(de.getMessage(),de);
-		}
-		catch (Exception e)
-		{
-			System.err.println("Exception...");
-			e.printStackTrace();
 		}
 		finally
 		{
@@ -608,8 +612,8 @@ public class UserSessionService implements Serializable
 			}
 			
 			// Check that integer value of the permission is greater or equal than the value indicated
-			isGreaterEqual=
-				permissionsService.isIntegerGreaterEqual(operation,checkCurrentUser(operation),permissionName,cmpValue);
+			isGreaterEqual=permissionsService.isIntegerGreaterEqual(
+				operation,checkCurrentUser(operation),permissionName,cmpValue);
 		}
 		finally
 		{

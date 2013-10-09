@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.faces.FacesException;
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ManagedProperty;
@@ -41,6 +42,7 @@ import javax.faces.component.UIComponent;
 import javax.faces.component.UIData;
 import javax.faces.component.UIInput;
 import javax.faces.component.UIViewRoot;
+import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.event.ActionEvent;
 import javax.faces.event.AjaxBehaviorEvent;
@@ -51,6 +53,7 @@ import org.primefaces.component.accordionpanel.AccordionPanel;
 import org.primefaces.component.selectbooleancheckbox.SelectBooleanCheckbox;
 import org.primefaces.component.spinner.Spinner;
 import org.primefaces.component.tabview.TabView;
+import org.primefaces.component.wizard.Wizard;
 import org.primefaces.context.RequestContext;
 import org.primefaces.event.FlowEvent;
 import org.primefaces.event.TabChangeEvent;
@@ -69,7 +72,6 @@ import es.uned.lsi.gepec.model.entities.FeedbackType;
 import es.uned.lsi.gepec.model.entities.MultichoiceQuestion;
 import es.uned.lsi.gepec.model.entities.OmXmlQuestion;
 import es.uned.lsi.gepec.model.entities.Question;
-import es.uned.lsi.gepec.model.entities.QuestionOrder;
 import es.uned.lsi.gepec.model.entities.QuestionResource;
 import es.uned.lsi.gepec.model.entities.Resource;
 import es.uned.lsi.gepec.model.entities.TrueFalseQuestion;
@@ -126,12 +128,15 @@ public class QuestionBean implements Serializable
 		private long id;
 		private String name;
 		private List<String> requiredPermissions;
+		private List<String> requiredAuthorPermissions;
 		
-		private SpecialCategoryFilter(long id,String name,List<String> requiredPermissions)
+		private SpecialCategoryFilter(long id,String name,List<String> requiredPermissions,
+			List<String> requiredAuthorPermissions)
 		{
 			this.id=id;
 			this.name=name;
 			this.requiredPermissions=requiredPermissions;
+			this.requiredAuthorPermissions=requiredAuthorPermissions;
 		}
 		
 		@Override
@@ -150,6 +155,11 @@ public class QuestionBean implements Serializable
 	private final static int GENERAL_TABVIEW_TAB=0;
 	private final static int ANSWERS_TABVIEW_TAB=1;
 	private final static int RESOURCES_OR_FEEDBACK_TABVIEW_TAB=2;
+	
+	private final static int CORRECT_FEEDBACK_TAB=0;
+	private final static int INCORRECT_FEEDBACK_TAB=1;
+	private final static int PASS_FEEDBACK_TAB=2;
+	private final static int FINAL_FEEDBACK_TAB=3;
 	
 	private final static int MAX_IMAGE_WIDTH_FOR_PROPERTIES_DIALOG=400;
 	private final static int MAX_IMAGE_HEIGHT_FOR_PROPERTIES_DIALOG=300;
@@ -207,31 +217,126 @@ public class QuestionBean implements Serializable
 		MIME_TYPES_MASKS.put("IMAGES_MIME","image/*");
 	}
 	
+	private final static SpecialCategoryFilter ALL_EVEN_PRIVATE_CATEGORIES;
+	static
+	{
+		List<String> allEvenPrivateCategoriesPermissions=new ArrayList<String>();
+		allEvenPrivateCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+		allEvenPrivateCategoriesPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+		allEvenPrivateCategoriesPermissions.add(
+			"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
+		List<String> allEvenPrivateCategoriesAuthorPermissions=new ArrayList<String>();
+		allEvenPrivateCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+		allEvenPrivateCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_EVEN_PRIVATE_CATEGORIES=new SpecialCategoryFilter(-1L,"ALL_EVEN_PRIVATE_CATEGORIES",
+			allEvenPrivateCategoriesPermissions,allEvenPrivateCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES;
+	static
+	{
+		List<String> allMyCategoriesPermissions=new ArrayList<String>();
+		allMyCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+		List<String> allMyCategoriesAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+		allMyCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_MY_CATEGORIES=new SpecialCategoryFilter(
+			-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions,allMyCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR;
+	static
+	{
+		List<String> allMyCategoriesForQuestionAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesForQuestionAuthorPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+		List<String> allMyCategoriesForQuestionAuthorAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesForQuestionAuthorAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+		ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR=new SpecialCategoryFilter(-2L,"ALL_MY_CATEGORIES",
+			allMyCategoriesForQuestionAuthorPermissions,allMyCategoriesForQuestionAuthorAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_EXCEPT_GLOBALS;
+	static
+	{
+		List<String> allMyCategoriesExceptGlobalsAuthorPermissions=new ArrayList<String>();
+		allMyCategoriesExceptGlobalsAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_MY_CATEGORIES_EXCEPT_GLOBALS=new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",
+			new ArrayList<String>(),allMyCategoriesExceptGlobalsAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR=
+		new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>(),
+		new ArrayList<String>());
+	
+	private final static SpecialCategoryFilter ALL_QUESTION_AUTHOR_CATEGORIES;
+	static
+	{
+		List<String> allQuestionAuthorCategoriesPermissions=new ArrayList<String>();
+		allQuestionAuthorCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+		allQuestionAuthorCategoriesPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+		List<String> allQuestionAuthorCategoriesAuthorPermissions=new ArrayList<String>();
+		allQuestionAuthorCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+		ALL_QUESTION_AUTHOR_CATEGORIES=new SpecialCategoryFilter(-4L,"ALL_CATEGORIES_OF",
+			allQuestionAuthorCategoriesPermissions,allQuestionAuthorCategoriesAuthorPermissions);
+	}
+	
+	private final static SpecialCategoryFilter ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS;
+	static
+	{
+		List<String> allQuestionAuthorCategoriesExceptGlobalsPermissions=new ArrayList<String>();
+		allQuestionAuthorCategoriesExceptGlobalsPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+		ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS=new SpecialCategoryFilter(-5L,
+			"ALL_CATEGORIES_OF_EXCEPT_GLOBALS",allQuestionAuthorCategoriesExceptGlobalsPermissions,
+			new ArrayList<String>());
+	}
+	
 	private final static SpecialCategoryFilter ALL_GLOBAL_CATEGORIES;
 	static
 	{
 		List<String> allGlobalCategoriesPermissions=new ArrayList<String>();
-		allGlobalCategoriesPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-		ALL_GLOBAL_CATEGORIES=
-			new SpecialCategoryFilter(-4L,"ALL_GLOBAL_CATEGORIES",allGlobalCategoriesPermissions);
+		allGlobalCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+		List<String> allGlobalCategoriesAuthorPermissions=new ArrayList<String>();
+		allGlobalCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+		ALL_GLOBAL_CATEGORIES=new SpecialCategoryFilter(
+			-6L,"ALL_GLOBAL_CATEGORIES",allGlobalCategoriesPermissions,allGlobalCategoriesAuthorPermissions);
 	}
+	
 	private final static SpecialCategoryFilter ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS; 
 	static
 	{
 		List<String> allPublicCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-		allPublicCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-		ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(
-			-5L,"ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS",allPublicCategoriesOfOtherUsersPermissions);
+		allPublicCategoriesOfOtherUsersPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+		List<String> allPublicCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allPublicCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-7L,"ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS",
+			allPublicCategoriesOfOtherUsersPermissions,allPublicCategoriesOfOtherUsersAuthorPermissions);
 	}
+	
+	private final static SpecialCategoryFilter ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS;
+	static
+	{
+		List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
+		allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+		allPrivateCategoriesOfOtherUsersPermissions.add(
+			"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
+		List<String> allPrivateCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allPrivateCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-8L,
+			"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions,
+			allPrivateCategoriesOfOtherUsersAuthorPermissions);
+	}
+	
 	private final static SpecialCategoryFilter ALL_CATEGORIES_OF_OTHER_USERS;
 	static
 	{
 		List<String> allCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-		allCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		allCategoriesOfOtherUsersPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
 		allCategoriesOfOtherUsersPermissions.add(
 			"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-		ALL_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(
-			-7L,"ALL_CATEGORIES_OF_OTHER_USERS",allCategoriesOfOtherUsersPermissions);
+		List<String> allCategoriesOfOtherUsersAuthorPermissions=new ArrayList<String>();
+		allCategoriesOfOtherUsersAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+		ALL_CATEGORIES_OF_OTHER_USERS=new SpecialCategoryFilter(-9L,"ALL_CATEGORIES_OF_OTHER_USERS",
+			allCategoriesOfOtherUsersPermissions,allCategoriesOfOtherUsersAuthorPermissions);
 	}
 	
 	@ManagedProperty(value="#{localizationService}")
@@ -266,6 +371,8 @@ public class QuestionBean implements Serializable
 	private long categoryId;					// Category identifier
 	private Category category;					// Caches selected category (to decrease DB queries)
 	
+	private long initialCategoryId;				// Initial category identifier
+	
 	// Local list needed to allow sorting in 'answersAccordion' accordion
 	private List<Answer> answersSorting;
 	
@@ -297,11 +404,6 @@ public class QuestionBean implements Serializable
 	
 	// Select Image Dialog
 	private SpecialCategoryFilter allCategories;
-	private SpecialCategoryFilter allEvenPrivateCategories; 
-	private SpecialCategoryFilter allQuestionAuthorCategories;
-	private SpecialCategoryFilter allQuestionAuthorCategoriesExceptGlobals;
-	private SpecialCategoryFilter allPrivateCategories;
-	
 	private Map<Long,SpecialCategoryFilter> specialCategoryFiltersMap;
 	
 	private long filterCategoryId;
@@ -353,6 +455,9 @@ public class QuestionBean implements Serializable
 	private String activeQuestionResourceName;
 	
 	// Feedbacks
+	private int activeFeedbackTabIndex;
+	
+	// Advanced feedbacks
 	private FeedbackBean currentFeedback;
 	private String conditionType;
 	private int activeConditionIndex;
@@ -365,19 +470,25 @@ public class QuestionBean implements Serializable
 	// Copyrights
 	private List<Copyright> copyrights;
 	
+	private Boolean filterGlobalQuestionsEnabled;
+	private Boolean filterOtherUsersQuestionsEnabled;
 	private Boolean globalOtherUserCategoryAllowed;
+	private Boolean addEnabled;
+	private Boolean editEnabled;
+	private Boolean editOtherUsersQuestionsEnabled;
+	private Boolean editAdminsQuestionsEnabled;
+	private Boolean editSuperadminsQuestionsEnabled;
 	private Boolean viewQuestionsFromOtherUsersPrivateCategoriesEnabled;
 	private Boolean viewQuestionsFromAdminsPrivateCategoriesEnabled;
 	private Boolean viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
 	
+	private Boolean filterGlobalResourcesEnabled;
+	private Boolean filterOtherUsersResourcesEnabled;
 	private Boolean useGlobalResources;
 	private Boolean useOtherUsersResources;
 	private Boolean viewResourcesFromOtherUsersPrivateCategoriesEnabled;
 	private Boolean viewResourcesFromAdminsPrivateCategoriesEnabled;
 	private Boolean viewResourcesFromSuperadminsPrivateCategoriesEnabled;
-	private Boolean questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled;
-	private Boolean questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled;
-	private Boolean questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled;
 	
 	private Map<Long,Boolean> admins;
 	private Map<Long,Boolean> superadmins;
@@ -393,6 +504,7 @@ public class QuestionBean implements Serializable
 		images=new ArrayList<Resource>();
 		categoryId=0L;
 		category=null;
+		initialCategoryId=0L;
 		feedbacks=null;
 		currentResource=null;
 		currentFeedback=null;
@@ -415,25 +527,33 @@ public class QuestionBean implements Serializable
 		feedbackTabviewTab=-1;
 		activeQuestionTabName=GENERAL_WIZARD_TAB;
 		activeQuestionTabIndex=GENERAL_TABVIEW_TAB;
+		activeFeedbackTabIndex=CORRECT_FEEDBACK_TAB;
 		questionsCategories=null;
 		specialCategoriesFilters=null;
 		imagesCategories=null;
 		copyrights=null;
 		testConditions=null;
+		filterGlobalQuestionsEnabled=null;
+		filterOtherUsersQuestionsEnabled=null;
 		globalOtherUserCategoryAllowed=null;
+		addEnabled=null;
+		editEnabled=null;
+		editOtherUsersQuestionsEnabled=null;
+		editAdminsQuestionsEnabled=null;
+		editSuperadminsQuestionsEnabled=null;
 		viewQuestionsFromOtherUsersPrivateCategoriesEnabled=null;
 		viewQuestionsFromAdminsPrivateCategoriesEnabled=null;
 		viewQuestionsFromSuperadminsPrivateCategoriesEnabled=null;
+		filterGlobalResourcesEnabled=null;
+		filterOtherUsersResourcesEnabled=null;
 		useGlobalResources=null;
 		useOtherUsersResources=null;
 		viewResourcesFromOtherUsersPrivateCategoriesEnabled=null;
 		viewResourcesFromAdminsPrivateCategoriesEnabled=null;
 		viewResourcesFromSuperadminsPrivateCategoriesEnabled=null;
-		questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled=null;
-		questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled=null;
-		questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled=null;
 		admins=new HashMap<Long,Boolean>();
 		superadmins=new HashMap<Long,Boolean>();
+		allCategories=null;
 		specialCategoryFiltersMap=new HashMap<Long,SpecialCategoryFilter>();
 	}
 	
@@ -506,6 +626,11 @@ public class QuestionBean implements Serializable
 	
     public Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && question==null)
+    	{
+    		getQuestion();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
 	
@@ -520,30 +645,13 @@ public class QuestionBean implements Serializable
      */
     public Question getQuestion()
     {
-    	return getQuestion(null);
-	}
-	
-    public void setQuestion(Question question)
-    {
-    	this.question=question;
-	}
-    
-    /**
-     * Returns a new question if we are creating one or an existing question from DB if we are updating one.
-     * <br/><br/>
-     * Once question is instantiated (or readed from DB) next calls to this method will return that instance.
-     * <br/><br/>
-     * If you need to instantiate question again (or read it again from DB) you can set question to null, 
-     * but be careful with possible side effects.
-     * @param operation Operation
-     * @return A new question if we are creating one or an existing question from DB if we are editing one
-     */
-    public Question getQuestion(Operation operation)
-    {
     	if (question==null)
     	{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
     		// Get current user session Hibernate operation
-    		operation=getCurrentUserOperation(operation);
+    		Operation operation=getCurrentUserOperation(null);
     		
     		// We seek parameters
     		FacesContext context=FacesContext.getCurrentInstance();
@@ -553,135 +661,66 @@ public class QuestionBean implements Serializable
     		if (params.containsKey("questionId"))
     		{
     			// As there is a question id within parameters we are editing an existing question
-    			
 				question=questionsService.getQuestion(operation,Long.parseLong(params.get("questionId")));
 				
     			categoryId=question.getCategory().getId();
+    			initialCategoryId=categoryId;
     			
         		// We need to initialize special categories filters for the select image dialog
-    			List<String> allPermissions=new ArrayList<String>();
-    			allPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+    			List<String> allCategoriesPermissions=new ArrayList<String>();
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+				List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
     			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
     			if ("M".equals(categoryGen))
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
+        			allCategories=new SpecialCategoryFilter(
+        				0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
     			else
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
-    				
-    			}
-    			
-    			List<String> allEvenPrivateCategoriesPermissions=new ArrayList<String>();
-    			allEvenPrivateCategoriesPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allEvenPrivateCategoriesPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allEvenPrivateCategoriesPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allEvenPrivateCategories=new SpecialCategoryFilter(
-    				-1L,"ALL_EVEN_PRIVATE_CATEGORIES",allEvenPrivateCategoriesPermissions);
-    			
-    			List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    			allPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allPrivateCategories=new SpecialCategoryFilter(
-    				-6L,"ALL_PRIVATE_CATEGORIES",allPrivateCategoriesOfOtherUsersPermissions);
-    			
-    			if (question.getCreatedBy().getId()==userSessionService.getCurrentUserId())
-    			{
-            		List<String> allCategoriesOfQuestionAuthorPermissions=new ArrayList<String>();
-            		allCategoriesOfQuestionAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-        			allQuestionAuthorCategories=new SpecialCategoryFilter(
-        				-2L,"ALL_MY_CATEGORIES",allCategoriesOfQuestionAuthorPermissions);
-        			
-        			allQuestionAuthorCategoriesExceptGlobals=new SpecialCategoryFilter(
-        				-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-    			}
-    			else
-    			{
-            		List<String> allCategoriesOfQuestionAuthorPermissions=new ArrayList<String>();
-            		allCategoriesOfQuestionAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-        			allQuestionAuthorCategories=new SpecialCategoryFilter(
-        				-2L,"ALL_CATEGORIES_OF",allCategoriesOfQuestionAuthorPermissions);
-        			
-        			allQuestionAuthorCategoriesExceptGlobals=new SpecialCategoryFilter(
-        				-3L,"ALL_CATEGORIES_OF_EXCEPT_GLOBALS",new ArrayList<String>());
+        			allCategories=new SpecialCategoryFilter(
+            			0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
     			
         		// We add all initialized categories filters to categories filters map
         		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
         		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),
-        			allEvenPrivateCategories);
         		specialCategoryFiltersMap.put(
-        			Long.valueOf(allQuestionAuthorCategories.id),allQuestionAuthorCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allQuestionAuthorCategoriesExceptGlobals.id),
-        			allQuestionAuthorCategoriesExceptGlobals);
+        			Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+        		if (question.getCreatedBy().getId()==userSessionService.getCurrentUserId())
+        		{
+        			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR.id),
+        				ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR);
+        			specialCategoryFiltersMap.put(
+        				Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR.id),
+        				ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR);
+        		}
+        		else
+        		{
+        			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES.id),ALL_MY_CATEGORIES);
+        			specialCategoryFiltersMap.put(
+        				Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id),ALL_MY_CATEGORIES_EXCEPT_GLOBALS);
+        			specialCategoryFiltersMap.put(
+        				Long.valueOf(ALL_QUESTION_AUTHOR_CATEGORIES.id),ALL_QUESTION_AUTHOR_CATEGORIES);
+        			specialCategoryFiltersMap.put(Long.valueOf(ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id),
+        				ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS);
+        		}
         		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
-        		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
+        		specialCategoryFiltersMap.put(
+        			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
+        		specialCategoryFiltersMap.put(
+        			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
     		}
     		else if (params.containsKey("questionCopyId"))
     		{
     			// As there is a question copy id within parameters we are creating a new question 
     			// but filled with the data from an existing question
-    			Question questionFrom=
-    				questionsService.getQuestion(operation,Long.parseLong(params.get("questionCopyId")));
+    			question=questionsService.getQuestion(operation,Long.parseLong(params.get("questionCopyId")));
     	    	
-    	        // We instantiate question and initialize default values
-    	        question=questionsService.getNewQuestion(questionFrom.getClass().getCanonicalName());
-    	        
-    	        // Copy data from question
-    	        question.setFromOtherQuestion(questionFrom);
-    	        
-    	        // Add answers
-    	        question.setAnswers(new ArrayList<Answer>());
-    	        for (Answer answerFrom:questionFrom.getAnswers())
-    	        {
-    	        	Answer answer=answersService.getNewAnswer(answerFrom.getClass().getCanonicalName());
-    	        	
-    	        	// Copy data from answer
-    	        	answer.setFromOtherAnswer(answerFrom);
-    	        	
-   	        		// This is a new answer still so we need to reset some fields
-   	        		answer.setId(0L);
-   	        		answer.setQuestion(question);
-    	        		
-    	        	// Add new answer
-    	        	question.getAnswers().add(answer);
-  	        	}
-  	        	
-    	        // Add resources of question
-    	        question.setQuestionResources(new ArrayList<QuestionResource>());
-    	        for (QuestionResource questionResourceFrom:questionFrom.getQuestionResources())
-    	        {
-    	        	QuestionResource questionResource=new QuestionResource();
-    	        	questionResource.setFromOtherQuestionResource(questionResourceFrom);
-    	        	
-    	        	// This is a new resource of question so we need to reset some fields
-    	        	questionResource.setId(0L);
-    	        	questionResource.setQuestion(question);
-    	        	
-    	        	// Add new resource of question
-    	        	question.getQuestionResources().add(questionResource);
-    	        }
-    	        
-    	        // Add feedbacks
-    	        question.setFeedbacks(new ArrayList<Feedback>());
-    	        for (Feedback feedbackFrom:questionFrom.getFeedbacks())
-    	        {
-    	        	Feedback feedback=new Feedback(feedbackFrom);
-    	        	
-    	        	// This is a new feedback still so we need to reset some fields
-    	        	feedback.setId(0L);
-    	        	feedback.setQuestion(question);
-    	        	
-    	        	// Add new feedback
-    	        	question.getFeedbacks().add(feedback);
-    	        }
-    	        
-    	        // This is a new question still so we need to reset some fields
+    	        // This is a new question so we need to reset some fields
     	        question.setId(0L);
    	        	question.setName("");
    	        	question.setCreatedBy(null);
@@ -691,63 +730,63 @@ public class QuestionBean implements Serializable
     	        question.setTimebuild(null);
     	        question.setTimedeploy(null);
     	        question.setTimepublished(null);
-    	        question.setSection_questions(new ArrayList<QuestionOrder>());
+    	        for (Answer answer:question.getAnswers())
+    	        {
+   	        		answer.setId(0L);
+  	        	}
+    	        for (QuestionResource questionResource:question.getQuestionResources())
+    	        {
+    	        	questionResource.setId(0L);
+    	        }
+    	        for (Feedback feedback:question.getFeedbacks())
+    	        {
+    	        	feedback.setId(0L);
+    	        }
     	        
     	        // Set category of copied question if current user has access granted, otherwise reset it
         		categoryId=question.getCategory().getId();
-        		if (!checkCategory(operation))
+        		if (checkCategory(operation))
         		{
+        			initialCategoryId=categoryId;
+        		}
+        		else
+        		{
+        			initialCategoryId=0L;
         			setCategoryId(operation,0L);
         		}
     			
         		// We need to initialize special categories filters for the select image dialog
-    			List<String> allPermissions=new ArrayList<String>();
-    			allPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+    			List<String> allCategoriesPermissions=new ArrayList<String>();
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+				List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
     			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
     			if ("M".equals(categoryGen))
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
+        			allCategories=new SpecialCategoryFilter(
+        				0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
     			else
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
+        			allCategories=new SpecialCategoryFilter(
+            			0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
-        		
-    			List<String> allEvenPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allEvenPrivateCategories=new SpecialCategoryFilter(
-    				-1L,"ALL_EVEN_PRIVATE_CATEGORIES_OF_OTHER_USERS",allEvenPrivateCategoriesOfOtherUsersPermissions);
-        		
-        		List<String> allMyCategoriesPermissions=new ArrayList<String>();
-    			allMyCategoriesPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allQuestionAuthorCategories=new SpecialCategoryFilter(
-    				-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions);
-    			
-    			allQuestionAuthorCategoriesExceptGlobals=
-    				new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-    			
-    			List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    			allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allPrivateCategories=new SpecialCategoryFilter(
-    				-6L,"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions);
     			
         		// We add all initialized categories filters to categories filters map
         		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
         		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allQuestionAuthorCategories.id),allQuestionAuthorCategories);
         		specialCategoryFiltersMap.put(
-        			Long.valueOf(allQuestionAuthorCategoriesExceptGlobals.id),allQuestionAuthorCategoriesExceptGlobals);
+       			Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+       			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR.id),
+       				ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR);
+       			specialCategoryFiltersMap.put(
+       				Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR.id),
+        			ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR);
         		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
         		specialCategoryFiltersMap.put(
-        			Long.valueOf(ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.id),ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS);
-        		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
+        			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
         		specialCategoryFiltersMap.put(
         			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
     		}
@@ -760,6 +799,9 @@ public class QuestionBean implements Serializable
     			
         		// We instantiate question and initialize default values
         		question=questionsService.getNewQuestion(type);
+        		
+        		initialCategoryId=0L;
+        		setCategoryId(operation,0L);
         		
         		// Some question types need specific initialization
         		if (question instanceof OmXmlQuestion)
@@ -794,53 +836,37 @@ public class QuestionBean implements Serializable
         		}
         		
         		// We need to initialize special categories filters for the select image dialog
-    			List<String> allPermissions=new ArrayList<String>();
-    			allPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
+    			List<String> allCategoriesPermissions=new ArrayList<String>();
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED");
+				allCategoriesPermissions.add("PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED");
+				List<String> allCategoriesAuthorPermissions=new ArrayList<String>();
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
+				allCategoriesAuthorPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
     			String categoryGen=localizationService.getLocalizedMessage("CATEGORY_GEN");
     			if ("M".equals(categoryGen))
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS",allPermissions);
+        			allCategories=new SpecialCategoryFilter(
+        				0L,"ALL_OPTIONS",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
     			else
     			{
-        			allCategories=new SpecialCategoryFilter(0L,"ALL_OPTIONS_F",allPermissions);
+        			allCategories=new SpecialCategoryFilter(
+            			0L,"ALL_OPTIONS_F",allCategoriesPermissions,allCategoriesAuthorPermissions);
     			}
-        		
-    			List<String> allEvenPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allEvenPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allEvenPrivateCategories=new SpecialCategoryFilter(
-    				-1L,"ALL_EVEN_PRIVATE_CATEGORIES_OF_OTHER_USERS",allEvenPrivateCategoriesOfOtherUsersPermissions);
-        		
-        		List<String> allMyCategoriesPermissions=new ArrayList<String>();
-    			allMyCategoriesPermissions.add("PERMISSION_QUESTION_USE_GLOBAL_RESOURCES");
-    			allQuestionAuthorCategories=new SpecialCategoryFilter(
-    				-2L,"ALL_MY_CATEGORIES",allMyCategoriesPermissions);
-    			
-    			allQuestionAuthorCategoriesExceptGlobals=
-    				new SpecialCategoryFilter(-3L,"ALL_MY_CATEGORIES_EXCEPT_GLOBALS",new ArrayList<String>());
-    			
-    			List<String> allPrivateCategoriesOfOtherUsersPermissions=new ArrayList<String>();
-    			allPrivateCategoriesOfOtherUsersPermissions.add("PERMISSION_QUESTION_USE_OTHER_USERS_RESOURCES");
-    			allPrivateCategoriesOfOtherUsersPermissions.add(
-    				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED");
-    			allPrivateCategories=new SpecialCategoryFilter(
-    				-6L,"ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS",allPrivateCategoriesOfOtherUsersPermissions);
     			
         		// We add all initialized categories filters to categories filters map
         		specialCategoryFiltersMap=new LinkedHashMap<Long,SpecialCategoryFilter>();
         		specialCategoryFiltersMap.put(Long.valueOf(allCategories.id),allCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allEvenPrivateCategories.id),allEvenPrivateCategories);
-        		specialCategoryFiltersMap.put(Long.valueOf(allQuestionAuthorCategories.id),allQuestionAuthorCategories);
         		specialCategoryFiltersMap.put(
-        			Long.valueOf(allQuestionAuthorCategoriesExceptGlobals.id),allQuestionAuthorCategoriesExceptGlobals);
+       			Long.valueOf(ALL_EVEN_PRIVATE_CATEGORIES.id),ALL_EVEN_PRIVATE_CATEGORIES);
+       			specialCategoryFiltersMap.put(Long.valueOf(ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR.id),
+       				ALL_MY_CATEGORIES_FOR_QUESTION_AUTHOR);
+       			specialCategoryFiltersMap.put(
+       				Long.valueOf(ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR.id),
+        			ALL_MY_CATEGORIES_EXCEPT_GLOBALS_FOR_QUESTION_AUTHOR);
         		specialCategoryFiltersMap.put(Long.valueOf(ALL_GLOBAL_CATEGORIES.id),ALL_GLOBAL_CATEGORIES);
         		specialCategoryFiltersMap.put(
-        			Long.valueOf(ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.id),ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS);
-        		specialCategoryFiltersMap.put(Long.valueOf(allPrivateCategories.id),allPrivateCategories);
+        			Long.valueOf(ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.id),ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS);
         		specialCategoryFiltersMap.put(
         			Long.valueOf(ALL_CATEGORIES_OF_OTHER_USERS.id),ALL_CATEGORIES_OF_OTHER_USERS);
     		}
@@ -849,21 +875,21 @@ public class QuestionBean implements Serializable
     		if (question instanceof MultichoiceQuestion)
     		{
     			activeAnswerIndex=0;
-    			activeAnswerName=getActiveAnswer(operation,context.getViewRoot()).getName();
+    			activeAnswerName=getActiveAnswer(context.getViewRoot()).getName();
     		}
     		else if (question instanceof DragDropQuestion)
     		{
     			activeDraggableItemIndex=0;
-    			activeDraggableItemName=getActiveDraggableItem(operation,context.getViewRoot()).getName();
+    			activeDraggableItemName=getActiveDraggableItem(context.getViewRoot()).getName();
     			activeAnswerIndex=0;
-    			activeAnswerName=getActiveDroppableAnswer(operation,context.getViewRoot()).getName();
+    			activeAnswerName=getActiveDroppableAnswer(context.getViewRoot()).getName();
     		}
     		if (question instanceof OmXmlQuestion)
     		{
     			if (!question.getQuestionResources().isEmpty())
     			{
     				activeQuestionResourceIndex=0;
-    				activeQuestionResourceName=getActiveQuestionResource(operation,context.getViewRoot()).getName();
+    				activeQuestionResourceName=getActiveQuestionResource(context.getViewRoot()).getName();
     			}
     			resourcesTabviewTab=RESOURCES_OR_FEEDBACK_TABVIEW_TAB;
     			feedbackTabviewTab=resourcesTabviewTab+1;
@@ -875,25 +901,22 @@ public class QuestionBean implements Serializable
     	}
 		return question;
 	}
+	
+    public void setQuestion(Question question)
+    {
+    	this.question=question;
+	}
     
 	public long getCategoryId()
 	{
-		return getCategoryId(null);
+		// We call question getter to be sure that the question has been initialized
+		getQuestion();
+		return categoryId;
 	}
 	
 	public void setCategoryId(long categoryId)
 	{
 		setCategoryId(null,categoryId);
-	}
-	
-	private long getCategoryId(Operation operation)
-	{
-		// If question is still not initialized we need to initialize it by calling its getter
-		if (question==null)
-		{
-			getQuestion(getCurrentUserOperation(operation));
-		}
-		return categoryId;
 	}
 	
 	private void setCategoryId(Operation operation,long categoryId)
@@ -903,7 +926,7 @@ public class QuestionBean implements Serializable
 		
 		this.categoryId=categoryId;
 		category=null;
-		getQuestion(operation).setCategory(getCategory(operation));
+		getQuestion().setCategory(getCategory(operation));
 	}
 	
 	public Category getCategory()
@@ -922,20 +945,10 @@ public class QuestionBean implements Serializable
 	
 	public List<FeedbackBean> getFeedbacks()
 	{
-		return getFeedbacks(null);
-	}
-	
-	public void setFeedbacks(List<FeedbackBean> feedbacks)
-	{
-		this.feedbacks=feedbacks;
-	}
-	
-	public List<FeedbackBean> getFeedbacks(Operation operation)
-	{
 		if (feedbacks==null)
 		{
 			feedbacks=new ArrayList<FeedbackBean>();
-			for (Feedback feedback:getQuestion(getCurrentUserOperation(operation)).getFeedbacksSortedByPosition())
+			for (Feedback feedback:getQuestion().getFeedbacksSortedByPosition())
 			{
 				feedbacks.add(new FeedbackBean(this,feedback));
 			}
@@ -943,22 +956,17 @@ public class QuestionBean implements Serializable
 		return feedbacks;
 	}
 	
+	public void setFeedbacks(List<FeedbackBean> feedbacks)
+	{
+		this.feedbacks=feedbacks;
+	}
+	
 	public List<FeedbackBean> getFeedbacksSorting()
-	{
-		return getFeedbacksSorting(null);
-	}
-	
-	public void setFeedbacksSorting(List<FeedbackBean> feedbacksSorting)
-	{
-		this.feedbacksSorting=feedbacksSorting;
-	}
-	
-	private List<FeedbackBean> getFeedbacksSorting(Operation operation)
 	{
 		if (feedbacksSorting==null)
 		{
 			feedbacksSorting=new ArrayList<FeedbackBean>();
-			for (FeedbackBean feedback:getFeedbacks(getCurrentUserOperation(operation)))
+			for (FeedbackBean feedback:getFeedbacks())
 			{
 				feedbacksSorting.add(feedback);
 			}
@@ -974,21 +982,16 @@ public class QuestionBean implements Serializable
 		return feedbacksSorting;
 	}
 	
+	public void setFeedbacksSorting(List<FeedbackBean> feedbacksSorting)
+	{
+		this.feedbacksSorting=feedbacksSorting;
+	}
+	
 	public List<Answer> getAnswersSorting()
-	{
-		return getAnswersSorting(null);
-	}
-	
-	public void setAnswersSorting(List<Answer> answersSorting)
-	{
-		this.answersSorting=answersSorting;
-	}
-	
-	private List<Answer> getAnswersSorting(Operation operation)
 	{
 		if (answersSorting==null)
 		{
-			Question question=getQuestion(getCurrentUserOperation(operation));
+			Question question=getQuestion();
 			if (question instanceof DragDropQuestion)
 			{
 				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -1002,21 +1005,16 @@ public class QuestionBean implements Serializable
 		return answersSorting;
 	}
 	
+	public void setAnswersSorting(List<Answer> answersSorting)
+	{
+		this.answersSorting=answersSorting;
+	}
+	
 	public List<Answer> getDraggableItemsSorting()
-	{
-		return getDraggableItemsSorting(null);
-	}
-	
-	public void setDraggableItemsSorting(List<Answer> draggableItemsSorting)
-	{
-		this.draggableItemsSorting=draggableItemsSorting;
-	}
-	
-	private List<Answer> getDraggableItemsSorting(Operation operation)
 	{
 		if (draggableItemsSorting==null)
 		{
-			Question question=getQuestion(getCurrentUserOperation(operation));
+			Question question=getQuestion();
 			if (question instanceof DragDropQuestion)
 			{
 				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -1030,21 +1028,16 @@ public class QuestionBean implements Serializable
 		return draggableItemsSorting;
 	}
 	
+	public void setDraggableItemsSorting(List<Answer> draggableItemsSorting)
+	{
+		this.draggableItemsSorting=draggableItemsSorting;
+	}
+	
 	public List<Answer> getDroppableAnswersSorting()
-	{
-		return getDroppableAnswersSorting(null);
-	}
-	
-	public void setDroppableAnswersSorting(List<Answer> droppableAnswersSorting)
-	{
-		this.droppableAnswersSorting=droppableAnswersSorting;
-	}
-	
-	private List<Answer> getDroppableAnswersSorting(Operation operation)
 	{
 		if (droppableAnswersSorting==null)
 		{
-			Question question=getQuestion(getCurrentUserOperation(operation));
+			Question question=getQuestion();
 			if (question instanceof DragDropQuestion)
 			{
 				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -1058,20 +1051,15 @@ public class QuestionBean implements Serializable
 		return droppableAnswersSorting;
 	}
 	
+	public void setDroppableAnswersSorting(List<Answer> droppableAnswersSorting)
+	{
+		this.droppableAnswersSorting=droppableAnswersSorting;
+	}
+	
 	public String getTrueText()
 	{
-		return getTrueText(null);
-	}
-	
-	public void setTrueText(String trueText)
-	{
-		setTrueText(null,trueText);
-	}
-	
-	private String getTrueText(Operation operation)
-	{
 		String trueText=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null && question instanceof TrueFalseQuestion)
 		{
 			trueText=((TrueFalseQuestion)question).getTrueText();
@@ -1083,9 +1071,9 @@ public class QuestionBean implements Serializable
 		return trueText;
 	}
 	
-	private void setTrueText(Operation operation,String trueText)
+	public void setTrueText(String trueText)
 	{
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof TrueFalseQuestion)
 		{
 			if (trueText==null || trueText.equals(getDefaultTrueText()))
@@ -1103,18 +1091,8 @@ public class QuestionBean implements Serializable
 	
 	public String getFalseText()
 	{
-		return getFalseText(null);
-	}
-	
-	public void setFalseText(String falseText)
-	{
-		setFalseText(null,falseText);
-	}
-	
-	private String getFalseText(Operation operation)
-	{
 		String falseText=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null && question instanceof TrueFalseQuestion)
 		{
 			falseText=((TrueFalseQuestion)question).getFalseText();
@@ -1126,9 +1104,9 @@ public class QuestionBean implements Serializable
 		return falseText;
 	}
 	
-	private void setFalseText(Operation operation,String falseText)
+	public void setFalseText(String falseText)
 	{
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof TrueFalseQuestion)
 		{
 			if (falseText==null || falseText.equals(getDefaultFalseText()))
@@ -1164,18 +1142,8 @@ public class QuestionBean implements Serializable
 	
 	public String getXmlContent()
 	{
-		return getXmlContent(null);
-	}
-	
-	public void setXmlContent(String xmlContent)
-	{
-		setXmlContent(null,xmlContent);
-	}
-	
-	private String getXmlContent(Operation operation)
-	{
 		String xmlContent=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null && question instanceof OmXmlQuestion)
 		{
 			xmlContent=((OmXmlQuestion)question).getXmlContent();
@@ -1183,9 +1151,9 @@ public class QuestionBean implements Serializable
 		return xmlContent;
 	}
 	
-	private void setXmlContent(Operation operation,String xmlContent)
+	public void setXmlContent(String xmlContent)
 	{
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof OmXmlQuestion)
 		{
 			((OmXmlQuestion)question).setXmlContent(xmlContent);
@@ -1194,22 +1162,17 @@ public class QuestionBean implements Serializable
 	
 	public List<QuestionResource> getQuestionResourcesSorting()
 	{
-		return getQuestionResourcesSorting(null);
+		if (questionResourcesSorting==null)
+		{
+			Question question=getQuestion();
+			questionResourcesSorting=question.getQuestionResourcesSortedByPosition();
+		}
+		return questionResourcesSorting;
 	}
 	
 	public void setQuestionResourcesSorting(List<QuestionResource> questionResourcesSorting)
 	{
 		this.questionResourcesSorting=questionResourcesSorting;
-	}
-	
-	private List<QuestionResource> getQuestionResourcesSorting(Operation operation)
-	{
-		if (questionResourcesSorting==null)
-		{
-			Question question=getQuestion(getCurrentUserOperation(operation));
-			questionResourcesSorting=question.getQuestionResourcesSortedByPosition();
-		}
-		return questionResourcesSorting;
 	}
 	
 	public Resource getCurrentResource()
@@ -1275,25 +1238,20 @@ public class QuestionBean implements Serializable
 	
 	public String getConditionType()
 	{
-		return getConditionType(null);
-	}
-	
-	public void setConditionType(String conditionType)
-	{
-		this.conditionType=conditionType;
-	}
-	
-	private String getConditionType(Operation operation)
-	{
 		if (conditionType==null)
 		{
-			List<String> conditionTypes=getConditionTypes(getCurrentUserOperation(operation));
+			List<String> conditionTypes=getConditionTypes();
 			if (!conditionTypes.isEmpty())
 			{
 				conditionType=conditionTypes.get(0);
 			}
 		}
 		return conditionType;
+	}
+	
+	public void setConditionType(String conditionType)
+	{
+		this.conditionType=conditionType;
 	}
 	
 	public String getCancelQuestionTarget()
@@ -1311,19 +1269,39 @@ public class QuestionBean implements Serializable
 		boolean found=false;
 		List<Category> specialCategoriesFilters=getSpecialCategoriesFilters(getCurrentUserOperation(operation));
 		Category allQuestionAuthorCategoriesFilter=new Category();
-		allQuestionAuthorCategoriesFilter.setId(allQuestionAuthorCategories.id);
+		allQuestionAuthorCategoriesFilter.setId(ALL_QUESTION_AUTHOR_CATEGORIES.id);
 		if (specialCategoriesFilters.contains(allQuestionAuthorCategoriesFilter))
 		{
-			filterCategoryId=allQuestionAuthorCategories.id;
+			filterCategoryId=ALL_QUESTION_AUTHOR_CATEGORIES.id;
 			found=true;
 		}
 		if (!found)
 		{
 			Category allQuestionAuthorCategoriesExceptGlobalsFilter=new Category();
-			allQuestionAuthorCategoriesExceptGlobalsFilter.setId(allQuestionAuthorCategoriesExceptGlobals.id);
+			allQuestionAuthorCategoriesExceptGlobalsFilter.setId(ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id);
 			if (specialCategoriesFilters.contains(allQuestionAuthorCategoriesExceptGlobalsFilter))
 			{
-				filterCategoryId=allQuestionAuthorCategoriesExceptGlobals.id;
+				filterCategoryId=ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.id;
+				found=true;
+			}
+		}
+		if (!found)
+		{
+			Category allMyCategoriesFilter=new Category();
+			allMyCategoriesFilter.setId(ALL_MY_CATEGORIES.id);
+			if (specialCategoriesFilters.contains(allMyCategoriesFilter))
+			{
+				filterCategoryId=ALL_MY_CATEGORIES.id;
+				found=true;
+			}
+		}
+		if (!found)
+		{
+			Category allMyCategoriesExceptGlobalsFilter=new Category();
+			allMyCategoriesExceptGlobalsFilter.setId(ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id);
+			if (specialCategoriesFilters.contains(allMyCategoriesExceptGlobalsFilter))
+			{
+				filterCategoryId=ALL_MY_CATEGORIES_EXCEPT_GLOBALS.id;
 				found=true;
 			}
 		}
@@ -1410,6 +1388,56 @@ public class QuestionBean implements Serializable
 		this.filterCopyrightId=filterCopyrightId;
 	}
 	
+	
+	public Boolean getFilterGlobalQuestionsEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled(null);
+	}
+	
+	public void setFilterGlobalQuestionsEnabled(Boolean filterGlobalQuestionsEnabled)
+	{
+		this.filterGlobalQuestionsEnabled=filterGlobalQuestionsEnabled;
+	}
+	
+	public boolean isFilterGlobalQuestionsEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterGlobalQuestionsEnabled(Operation operation)
+	{
+		if (filterGlobalQuestionsEnabled==null)
+		{
+			filterGlobalQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_GLOBAL_FILTER_ENABLED"));
+		}
+		return filterGlobalQuestionsEnabled;
+	}
+	
+	public Boolean getFilterOtherUsersQuestionsEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled(null);
+	}
+	public void setFilterOtherUsersQuestionsEnabled(Boolean filterOtherUsersQuestionsEnabled)
+	{
+		this.filterOtherUsersQuestionsEnabled=filterOtherUsersQuestionsEnabled;
+	}
+	
+	public boolean isFilterOtherUsersQuestionsEnabled()
+	{
+		return getFilterOtherUsersQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterOtherUsersQuestionsEnabled(Operation operation)
+	{
+		if (filterOtherUsersQuestionsEnabled==null)
+		{
+			filterOtherUsersQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_OTHER_USERS_FILTER_ENABLED"));
+		}
+		return filterOtherUsersQuestionsEnabled;
+	}
+	
 	public Boolean getGlobalOtherUserCategoryAllowed()
 	{
 		return getGlobalOtherUserCategoryAllowed(null);
@@ -1432,19 +1460,144 @@ public class QuestionBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			if (question.getId()>0L)
 			{
-				globalOtherUserCategoryAllowed=Boolean.valueOf(permissionsService.isGranted(operation,
-					question.getCreatedBy(),"PERMISSION_QUESTION_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
+				globalOtherUserCategoryAllowed=Boolean.valueOf(permissionsService.isGranted(
+					operation,question.getCreatedBy(),"PERMISSION_QUESTION_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
 			}
 			else
 			{
-				globalOtherUserCategoryAllowed=Boolean.valueOf(
-					userSessionService.isGranted(operation,"PERMISSION_QUESTION_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
+				globalOtherUserCategoryAllowed=Boolean.valueOf(userSessionService.isGranted(
+					operation,"PERMISSION_QUESTION_GLOBAL_OTHER_USER_CATEGORY_ALLOWED"));
 			}
 		}
 		return globalOtherUserCategoryAllowed;
+	}
+	
+	public Boolean getAddEnabled()
+	{
+		return getAddEnabled(null);
+	}
+	
+	public void setAddEnabled(Boolean addEnabled)
+	{
+		this.addEnabled=addEnabled;
+	}
+	
+	public boolean isAddEnabled()
+	{
+		return getAddEnabled().booleanValue();
+	}
+	
+	private Boolean getAddEnabled(Operation operation)
+	{
+		if (addEnabled==null)
+		{
+			addEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_ADD_ENABLED"));
+		}
+		return addEnabled;
+	}
+	
+	public Boolean getEditEnabled()
+	{
+		return getEditEnabled(null);
+	}
+	
+	public void setEditEnabled(Boolean editEnabled)
+	{
+		this.editEnabled=editEnabled;
+	}
+	
+	public boolean isEditEnabled()
+	{
+		return getEditEnabled().booleanValue();
+	}
+	
+	private Boolean getEditEnabled(Operation operation)
+	{
+		if (editEnabled==null)
+		{
+			editEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_EDIT_ENABLED"));
+		}
+		return editEnabled;
+	}
+	
+	public Boolean getEditOtherUsersQuestionsEnabled()
+	{
+		return getEditOtherUsersQuestionsEnabled(null);
+	}
+	
+	public void setEditOtherUsersQuestionsEnabled(Boolean editOtherUsersQuestionsEnabled)
+	{
+		this.editOtherUsersQuestionsEnabled=editOtherUsersQuestionsEnabled;
+	}
+	
+	public boolean isEditOtherUsersQuestionsEnabled()
+	{
+		return getEditOtherUsersQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditOtherUsersQuestionsEnabled(Operation operation)
+	{
+		if (editOtherUsersQuestionsEnabled==null)
+		{
+			editOtherUsersQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_EDIT_OTHER_USERS_QUESTIONS_ENABLED"));
+		}
+		return editOtherUsersQuestionsEnabled;
+	}
+	
+	public Boolean getEditAdminsQuestionsEnabled()
+	{
+		return getEditAdminsQuestionsEnabled(null);
+	}
+	
+	public void setEditAdminsQuestionsEnabled(Boolean editAdminsQuestionsEnabled)
+	{
+		this.editAdminsQuestionsEnabled=editAdminsQuestionsEnabled;
+	}
+	
+	public boolean isEditAdminsQuestionsEnabled()
+	{
+		return getEditAdminsQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditAdminsQuestionsEnabled(Operation operation)
+	{
+		if (editAdminsQuestionsEnabled==null)
+		{
+			editAdminsQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_EDIT_ADMINS_QUESTIONS_ENABLED"));
+		}
+		return editAdminsQuestionsEnabled;
+	}
+	
+	public Boolean getEditSuperadminsQuestionsEnabled()
+	{
+		return getEditSuperadminsQuestionsEnabled(null);
+	}
+	
+	public void setEditSuperadminsQuestionsEnabled(Boolean editSuperadminsQuestionsEnabled)
+	{
+		this.editSuperadminsQuestionsEnabled=editSuperadminsQuestionsEnabled;
+	}
+	
+	public boolean isEditSuperadminsQuestionsEnabled()
+	{
+		return getEditSuperadminsQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getEditSuperadminsQuestionsEnabled(Operation operation)
+	{
+		if (editSuperadminsQuestionsEnabled==null)
+		{
+			editSuperadminsQuestionsEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_QUESTIONS_EDIT_SUPERADMINS_QUESTIONS_ENABLED"));
+		}
+		return editSuperadminsQuestionsEnabled;
 	}
 	
 	public Boolean getQuestionAuthorAdmin()
@@ -1462,15 +1615,17 @@ public class QuestionBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		Question question=getQuestion(operation);
-		User questionAuthor=question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+		Question question=getQuestion();
+		User questionAuthor=
+			question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
 		return isAdmin(operation,questionAuthor);
 	}
 	
-	private void resetQuestionAuthorAdmin(Operation operation)
+	private void resetQuestionAuthorAdmin()
 	{
-		Question question=getQuestion(getCurrentUserOperation(operation));
-		long questionAuthorId=question.getId()>0L?question.getCreatedBy().getId():userSessionService.getCurrentUserId();
+		Question question=getQuestion();
+		long questionAuthorId=
+			question.getId()>0L?question.getCreatedBy().getId():userSessionService.getCurrentUserId();
 		admins.remove(Long.valueOf(questionAuthorId));
 	}
 	
@@ -1489,14 +1644,15 @@ public class QuestionBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		Question question=getQuestion(operation);
-		User questionAuthor=question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+		Question question=getQuestion();
+		User questionAuthor=
+			question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
 		return isSuperadmin(operation,questionAuthor);
 	}
 	
-	private void resetQuestionAuthorSuperadmin(Operation operation)
+	private void resetQuestionAuthorSuperadmin()
 	{
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		long questionAuthorId=
 			question.getId()>0L?question.getCreatedBy().getId():userSessionService.getCurrentUserId();
 		superadmins.remove(Long.valueOf(questionAuthorId));
@@ -1510,7 +1666,8 @@ public class QuestionBean implements Serializable
 	public void setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(
 		Boolean viewQuestionsFromOtherUsersPrivateCategoriesEnabled)
 	{
-		this.viewQuestionsFromOtherUsersPrivateCategoriesEnabled=viewQuestionsFromOtherUsersPrivateCategoriesEnabled;
+		this.viewQuestionsFromOtherUsersPrivateCategoriesEnabled=
+			viewQuestionsFromOtherUsersPrivateCategoriesEnabled;
 	}
 	
 	public boolean isViewQuestionsFromOtherUsersPrivateCategoriesEnabled()
@@ -1564,7 +1721,8 @@ public class QuestionBean implements Serializable
 	public void setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(
 		Boolean viewQuestionsFromSuperadminsPrivateCategoriesEnabled)
 	{
-		this.viewQuestionsFromSuperadminsPrivateCategoriesEnabled=viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
+		this.viewQuestionsFromSuperadminsPrivateCategoriesEnabled=
+			viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
 	}
 	
 	public boolean isViewQuestionsFromSuperadminsPrivateCategoriesEnabled()
@@ -1581,6 +1739,56 @@ public class QuestionBean implements Serializable
 				"PERMISSION_QUESTIONS_VIEW_QUESTIONS_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewQuestionsFromSuperadminsPrivateCategoriesEnabled;
+	}
+	
+	public Boolean getFilterGlobalResourcesEnabled()
+	{
+		return getFilterGlobalResourcesEnabled(null);
+	}
+	
+	public void setFilterGlobalResourcesEnabled(Boolean filterGlobalResourcesEnabled)
+	{
+		this.filterGlobalResourcesEnabled=filterGlobalResourcesEnabled;
+	}
+	
+	public boolean isFilterGlobalResourcesEnabled()
+	{
+		return getFilterGlobalQuestionsEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterGlobalResourcesEnabled(Operation operation)
+	{
+		if (filterGlobalResourcesEnabled==null)
+		{
+			filterGlobalResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED"));
+		}
+		return filterGlobalResourcesEnabled;
+	}
+	
+	public Boolean getFilterOtherUsersResourcesEnabled()
+	{
+		return getFilterOtherUsersResourcesEnabled(null);
+	}
+	
+	public void setFilterOtherUsersResourcesEnabled(Boolean filterOtherUsersResourcesEnabled)
+	{
+		this.filterOtherUsersResourcesEnabled=filterOtherUsersResourcesEnabled;
+	}
+	
+	public boolean isFilterOtherUsersResourcesEnabled()
+	{
+		return getFilterOtherUsersResourcesEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterOtherUsersResourcesEnabled(Operation operation)
+	{
+		if (filterOtherUsersResourcesEnabled==null)
+		{
+			filterOtherUsersResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED"));
+		}
+		return filterOtherUsersResourcesEnabled;
 	}
 	
 	public Boolean getUseGlobalResources()
@@ -1605,7 +1813,7 @@ public class QuestionBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			if (question.getId()>0L)
 			{
 				useGlobalResources=Boolean.valueOf(permissionsService.isGranted(
@@ -1613,8 +1821,8 @@ public class QuestionBean implements Serializable
 			}
 			else
 			{
-				useGlobalResources=
-					Boolean.valueOf(userSessionService.isGranted(operation,"PERMISSION_QUESTION_USE_GLOBAL_RESOURCES"));
+				useGlobalResources=Boolean.valueOf(
+					userSessionService.isGranted(operation,"PERMISSION_QUESTION_USE_GLOBAL_RESOURCES"));
 			}
 		}
 		return useGlobalResources;
@@ -1642,7 +1850,7 @@ public class QuestionBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			if (question.getId()>0L)
 			{
 				useOtherUsersResources=Boolean.valueOf(permissionsService.isGranted(
@@ -1720,7 +1928,8 @@ public class QuestionBean implements Serializable
 	public void setViewResourcesFromSuperadminsPrivateCategoriesEnabled(
 		Boolean viewResourcesFromSuperadminsPrivateCategoriesEnabled)
 	{
-		this.viewResourcesFromSuperadminsPrivateCategoriesEnabled=viewResourcesFromSuperadminsPrivateCategoriesEnabled;
+		this.viewResourcesFromSuperadminsPrivateCategoriesEnabled=
+			viewResourcesFromSuperadminsPrivateCategoriesEnabled;
 	}
 	
 	public boolean isViewResourcesFromSuperadminsPrivateCategoriesEnabled()
@@ -1737,139 +1946,6 @@ public class QuestionBean implements Serializable
 				"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
 		}
 		return viewResourcesFromSuperadminsPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-	}
-	
-	public void setQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(
-		Boolean questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled)
-	{
-		this.questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled=
-			questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled;
-	}
-	
-	public boolean isQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(Operation operation)
-	{
-		if (questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			/*
-			if (getQuestion().getId()>0L && 
-				!getQuestion().getCreatedBy().equals(userSessionService.getCurrentUser(operation)))
-			*/
-			Question question=getQuestion(operation);
-			if (question.getId()>0L && question.getCreatedBy().getId()!=userSessionService.getCurrentUserId())
-			{
-				questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,question.getCreatedBy(),
-					"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_OTHER_USERS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-			else
-			{
-				questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled=
-					getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation);
-			}
-		}
-		return questionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-	}
-	
-	public void setQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(
-		Boolean questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled)
-	{
-		this.questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled=
-			questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled;
-	}
-	
-	public boolean isQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(Operation operation)
-	{
-		if (questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			/*
-			if (getQuestion().getId()>0L && 
-				!getQuestion().getCreatedBy().equals(userSessionService.getCurrentUser(operation)))
-			*/
-			Question question=getQuestion(operation);
-			if (question.getId()>0L && question.getCreatedBy().getId()!=userSessionService.getCurrentUserId())
-			{
-				questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,question.getCreatedBy(),
-					"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_ADMINS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-			else
-			{
-				questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled=
-					getViewResourcesFromAdminsPrivateCategoriesEnabled(operation);
-			}
-		}
-		return questionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled;
-	}
-	
-	public Boolean getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-	}
-	
-	public void setQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(
-		Boolean questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled)
-	{
-		this.questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled=
-			questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled;
-	}
-	
-	public boolean isQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled()
-	{
-		return getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled().booleanValue();
-	}
-	
-	private Boolean getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(Operation operation)
-	{
-		if (questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled==null)
-		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			/*
-			if (getQuestion().getId()>0L && 
-				!getQuestion().getCreatedBy().equals(userSessionService.getCurrentUser(operation)))
-			*/
-			
-			Question question=getQuestion(operation);
-			if (question.getId()>0L && question.getCreatedBy().getId()!=userSessionService.getCurrentUserId())
-			{
-				questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled=
-					Boolean.valueOf(permissionsService.isGranted(operation,getQuestion(operation).getCreatedBy(),
-					"PERMISSION_RESOURCES_VIEW_RESOURCES_OF_SUPERADMINS_PRIVATE_CATEGORIES_ENABLED"));
-			}
-			else
-			{
-				questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled=
-					getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation);
-			}
-		}
-		return questionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled;
 	}
 	
 	private void resetAdmins()
@@ -1930,7 +2006,8 @@ public class QuestionBean implements Serializable
 			}
 			else
 			{
-				superadmin=permissionsService.isGranted(getCurrentUserOperation(operation),user,
+				superadmin=permissionsService.isGranted(
+					getCurrentUserOperation(operation),user,
 					"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED");
 				superadmins.put(userId,Boolean.valueOf(superadmin));
 			}
@@ -1943,7 +2020,7 @@ public class QuestionBean implements Serializable
 		return getFeedbackType(null,type);
 	}
 	
-	public FeedbackType getFeedbackType(Operation operation,String type)
+	private FeedbackType getFeedbackType(Operation operation,String type)
 	{
 		return feedbackTypesService.getFeedbackType(getCurrentUserOperation(operation),type);
 	}
@@ -2043,7 +2120,8 @@ public class QuestionBean implements Serializable
 	
 	public String getCurrentResourceImageDescription()
 	{
-		return getCurrentResource()==null || getCurrentResource().getId()==-1L?"":getCurrentResource().getDescription();
+		return getCurrentResource()==null || getCurrentResource().getId()==-1L?
+			"":getCurrentResource().getDescription();
 	}
 	
 	public String getCurrentResourceImageCategoryName()
@@ -2093,7 +2171,8 @@ public class QuestionBean implements Serializable
 	
 	public String getCurrentResourceImageMIMEType()
 	{
-		return getCurrentResource()==null || getCurrentResource().getId()==-1L?"":getCurrentResource().getMimeType();
+		return getCurrentResource()==null || 
+			getCurrentResource().getId()==-1L?"":getCurrentResource().getMimeType();
 	}
 	
 	public String getCurrentResourceImageDimensions()
@@ -2173,38 +2252,27 @@ public class QuestionBean implements Serializable
     		// Get current user session Hibernate operation
     		operation=getCurrentUserOperation(operation);
     		
-    		Question question=getQuestion(operation);
-    		User currentUser=userSessionService.getCurrentUser(operation);
-    		User questionAuthor=question.getId()>0L?question.getCreatedBy():currentUser;
-    		
-    		Category category=getCategory(operation);
+    		Question question=getQuestion();
+    		User questionAuthor=
+    			question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
     		
         	questionsCategories=categoriesService.getCategoriesSortedByHierarchy(operation,questionAuthor,
         		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_QUESTIONS"),true,true,
         		CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES);
    			
-			// We need to check if question's author is allowed to assign a global category of other user
-			// to his/her owned questions
-        	if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue())
+			// Remove from list categories not allowed
+        	List<Category> questionsCategoriesToRemove=new ArrayList<Category>();
+        	for (Category questionCategory:questionsCategories)
         	{
-				// As question's author is not allowed to assign a global category of other user
-				// to his/her owned questions we remove them from results 
-        		// (except current question category)
-        		removeGlobalOtherUserCategories(questionsCategories,questionAuthor,category);
+        		if (!checkCategory(operation,questionCategory))
+        		{
+        			questionsCategoriesToRemove.add(questionCategory);
+        		}
         	}
-        	
-			// We need to check if current user is allowed to see private categories of question's author
-			if (!questionAuthor.equals(currentUser) && 
-				(!getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() || 
-				(getQuestionAuthorAdmin(operation).booleanValue() && 
-				!getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) || 
-				(getQuestionAuthorSuperadmin(operation).booleanValue() && 
-				!getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue())))
-			{
-				// As current user is not allowed to see private categories of question's author
-				// we remove them from results (except current question category)
-				removePrivateCategories(operation,questionsCategories,questionAuthor,category);
-			}
+        	for (Category questionCategoryToRemove:questionsCategoriesToRemove)
+        	{
+        		questionsCategories.remove(questionCategoryToRemove);
+        	}
     	}
     	return questionsCategories;
 	}
@@ -2247,14 +2315,16 @@ public class QuestionBean implements Serializable
 	{
 		if (specialCategoriesFilters==null)
 		{
+			specialCategoriesFilters=new ArrayList<Category>();
+			
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			specialCategoriesFilters=new ArrayList<Category>();
-			
-			Question question=getQuestion(operation);
-			User questionAuthor=question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+			Question question=getQuestion();
+			User questionAuthor=
+				question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
 			Map<String,Boolean> cachedPermissions=new HashMap<String,Boolean>();
+			Map<String,Boolean> cachedAuthorPermissions=new HashMap<String,Boolean>();
 			for (SpecialCategoryFilter specialCategoryFilter:specialCategoryFiltersMap.values())
 			{
 				boolean granted=true;
@@ -2266,7 +2336,7 @@ public class QuestionBean implements Serializable
 					}
 					else
 					{
-						granted=permissionsService.isGranted(operation,questionAuthor,requiredPermission);
+						granted=userSessionService.isGranted(operation,requiredPermission);
 						cachedPermissions.put(requiredPermission,Boolean.valueOf(granted));
 					}
 					if (!granted)
@@ -2276,10 +2346,30 @@ public class QuestionBean implements Serializable
 				}
 				if (granted)
 				{
-					Category specialCategory=new Category();
-					specialCategory.setId(specialCategoryFilter.id);
-					specialCategory.setName(specialCategoryFilter.name);
-					specialCategoriesFilters.add(specialCategory);
+					for (String requiredAuthorPermission:specialCategoryFilter.requiredAuthorPermissions)
+					{
+						if (cachedAuthorPermissions.containsKey(requiredAuthorPermission))
+						{
+							granted=cachedAuthorPermissions.get(requiredAuthorPermission).booleanValue();
+						}
+						else
+						{
+							granted=
+								permissionsService.isGranted(operation,questionAuthor,requiredAuthorPermission);
+							cachedAuthorPermissions.put(requiredAuthorPermission,Boolean.valueOf(granted));
+						}
+						if (!granted)
+						{
+							break;
+						}
+					}
+					if (granted)
+					{
+						Category specialCategory=new Category();
+						specialCategory.setId(specialCategoryFilter.id);
+						specialCategory.setName(specialCategoryFilter.name);
+						specialCategoriesFilters.add(specialCategory);
+					}
 				}
 			}
 		}
@@ -2292,23 +2382,12 @@ public class QuestionBean implements Serializable
 	 */
 	public String getSpecialCategoryFilterName(Category specialCategoryFilter)
 	{
-		return getSpecialCategoryFilterName(null,specialCategoryFilter);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param specialCategoryFilter Special category that represents an special category filter
-	 * @return Localized special category filter's name (including question's author nick if needed)
-	 */
-	private String getSpecialCategoryFilterName(Operation operation,Category specialCategoryFilter)
-	{
-		String specialCategoryFilterName=
-			localizationService.getLocalizedMessage(specialCategoryFilter.getName());
+		String specialCategoryFilterName=localizationService.getLocalizedMessage(specialCategoryFilter.getName());
 		if (specialCategoryFilterName.contains("?"))
 		{
-			Question question=getQuestion(operation);
-			User questionAuthor=question.getId()>0L?
-				question.getCreatedBy():userSessionService.getCurrentUser(getCurrentUserOperation(operation));
+			// Get question
+			Question question=getQuestion();
+			User questionAuthor=question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser();
 			specialCategoryFilterName=specialCategoryFilterName.replace("?",questionAuthor.getNick());
 		}
 		return specialCategoryFilterName;
@@ -2343,6 +2422,11 @@ public class QuestionBean implements Serializable
     	return getImagesCategories(null);
     }
     
+    public void setImagesCategories(List<Category> imagesCategories)
+    {
+    	this.imagesCategories=imagesCategories;
+    }
+    
     /**
      * @param operation Operation
 	 * @return List of visible categories for images
@@ -2354,71 +2438,99 @@ public class QuestionBean implements Serializable
     		// Get current user session Hibernate operation
     		operation=getCurrentUserOperation(operation);
     		
-    		User currentUser=userSessionService.getCurrentUser(operation);
-    		Question question=getQuestion(operation);
-    		User questionAuthor=question.getId()>0L?question.getCreatedBy():currentUser;
+       		// Get filter value for viewing resources from global categories
+       		boolean includeGlobalCategories=getFilterGlobalResourcesEnabled(operation).booleanValue();
     		
-    		Category category=getCurrentResource()==null?null:getCurrentResource().getCategory();
-    		
-        	// Get filter value for viewing resources from categories of other users based on permissions
-        	// of current user
-        	int includeOtherUsersCategories=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
-        	if (getUseOtherUsersResources(operation).booleanValue())
+       		// Get filter value for viewing resources from categories of other users based on permissions
+       		// of current user
+       		int includeOtherUsersCategories=CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES;
+       		if (getFilterOtherUsersResourcesEnabled(operation).booleanValue())
+       		{
+       			if (getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue())
+       			{
+       				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES;
+       			}
+       			else
+       			{
+       				includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES;
+       			}
+       		}
+       		
+       		// In case that current user is allowed to view resources from private categories of other users 
+       		// we also need to check if he/she has permission to view resources from private categories 
+       		// of administrators and/or users with permission to improve permissions over their owned ones 
+       		// (superadmins)
+       		boolean includeAdminsPrivateCategories=false;
+       		boolean includeSuperadminsPrivateCategories=false;
+       		if (includeOtherUsersCategories==CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES)
+       		{
+       			includeAdminsPrivateCategories=
+       				getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue();
+       			includeSuperadminsPrivateCategories=
+       				getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue();
+       		}
+       		
+       		// We need to get get resource category
+    		Category resourceCategory=getCurrentResource()==null?null:getCurrentResource().getCategory();
+       		
+    		// If it is required we will need to change previous filters to be sure that query results will
+       		// include resource category
+    		if (resourceCategory!=null)
+    		{
+        		Visibility resourceCategoryVisibility=
+        			visibilitiesService.getVisibilityFromCategoryId(operation,resourceCategory.getId());
+        		User resourceCategoryUser=resourceCategory.getUser();
+        		boolean isResourceCategoryVisibilityGlobal=resourceCategoryVisibility.isGlobal();
+        		boolean isResourceCategoryFromOtherUser=!isResourceCategoryVisibilityGlobal &&
+        			resourceCategoryUser.getId()!=userSessionService.getCurrentUserId();
+        		boolean isResourceCategoryVisibilityPrivate=isResourceCategoryFromOtherUser && 
+        			resourceCategoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+        			operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel();
+        		
+        		includeGlobalCategories=includeGlobalCategories || isResourceCategoryVisibilityGlobal;
+    			if (isResourceCategoryFromOtherUser)
+    			{
+    				if (isResourceCategoryVisibilityPrivate)
+    				{
+    					includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES;
+    					includeAdminsPrivateCategories=includeAdminsPrivateCategories || 
+    						isAdmin(operation,resourceCategoryUser);
+    					includeSuperadminsPrivateCategories=
+    						includeSuperadminsPrivateCategories || isSuperadmin(operation,resourceCategoryUser);
+    				}
+    				else
+    				{
+    					if (includeOtherUsersCategories!=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES)
+    					{
+    						includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES;
+    					}
+    				}
+    			}
+    		}
+       		
+       		// Get visible categories for images taking account all user permissions
+       		imagesCategories=categoriesService.getCategoriesSortedByHierarchy(operation,
+       			userSessionService.getCurrentUser(operation),
+       			categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),true,
+       			includeGlobalCategories,includeOtherUsersCategories,includeAdminsPrivateCategories,
+       			includeSuperadminsPrivateCategories);
+       		
+			// Remove from list categories not allowed (except resource category)
+        	List<Category> imagesCategoriesToRemove=new ArrayList<Category>();
+        	for (Category imageCategory:imagesCategories)
         	{
-        		if (getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-        			getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue())
+        		if (!imageCategory.equals(resourceCategory) && 
+        			!checkImagesFilterPermission(operation,imageCategory))
         		{
-        			includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES;
-        		}
-        		else
-        		{
-        			includeOtherUsersCategories=CategoriesService.VIEW_OTHER_USERS_PUBLIC_CATEGORIES;
+        			imagesCategoriesToRemove.add(imageCategory);
         		}
         	}
-        	
-        	// In case that current user is allowed to view private categories of other users 
-        	// we also need to check if he/she has permission to view private categories of administrators
-        	// and/or users with permission to improve permissions over their owned ones (superadmins)
-        	boolean includeAdminsPrivateCategories=false;
-        	boolean includeSuperadminsPrivateCategories=false;
-        	if (includeOtherUsersCategories==CategoriesService.VIEW_OTHER_USERS_ALL_CATEGORIES)
+        	for (Category imageCategoryToRemove:imagesCategoriesToRemove)
         	{
-        		includeAdminsPrivateCategories=
-        			getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue();
-       			includeSuperadminsPrivateCategories=
-       				getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue();
-       		}
-   			
-   			imagesCategories=categoriesService.getCategoriesSortedByHierarchy(operation,questionAuthor,
-    			categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),true,
-    			getUseGlobalResources(operation).booleanValue(),includeOtherUsersCategories,
-    			includeAdminsPrivateCategories,includeSuperadminsPrivateCategories);
-   			
-			// We need to check if question's author is allowed to assign a resource from a 
-   			// global category of other user to his/her owned questions
-       		if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue())
-       		{
-				// As question's author is not allowed to assign a resource from a global category 
-       			// of other user to his/her owned questions we remove them from results 
-       			// (except current resource category)
-       			removeGlobalOtherUserCategories(imagesCategories,questionAuthor,category);
-       		}
-   			
-			// We need to check if current user is allowed to see resources from private categories 
-       		// of question's author
-			if (!questionAuthor.equals(currentUser) && 
-				(!getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() || 
-				(getQuestionAuthorAdmin(operation).booleanValue() && 
-				!getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) || 
-				(getQuestionAuthorSuperadmin(operation).booleanValue() && 
-				!getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue())))
-			{
-				// As current user is not allowed to see resources from private categories of 
-				// question's author we remove them from results (except current resource category)
-				removePrivateCategories(operation,imagesCategories,questionAuthor,category);
-			}
+        		imagesCategories.remove(imageCategoryToRemove);
+        	}
     	}
-    	return imagesCategories==null?new ArrayList<Category>():imagesCategories;
+    	return imagesCategories;
     }
     
     /**
@@ -2493,78 +2605,98 @@ public class QuestionBean implements Serializable
      */
     public List<Resource> getImages()
     {
-    	return getImages(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return Images for "Select image" dialog
-     */
-    private List<Resource> getImages(Operation operation)
-    {
     	if (images==null)
     	{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+    		
     		try
     		{
-    			// Get current user session Hibernate operation
-    			operation=getCurrentUserOperation(operation);
-    			
     			User currentUser=userSessionService.getCurrentUser(operation);
-    			Question question=getQuestion(operation);
+    			Question question=getQuestion();
     			User questionAuthor=question.getId()>0L?question.getCreatedBy():currentUser;
     			
-    			if (checkImagesFilterPermission(operation,null))
+    			Resource resource=getCurrentResource();
+    			Category resourceCategory=
+    				resource==null?null:categoriesService.getCategoryFromResourceId(operation,resource.getId());
+    			Category filterCategory=null;
+				long filterCategoryId=getFilterCategoryId(operation);
+    			if (filterCategoryId>0L)
     			{
-    				long filterCategoryId=getFilterCategoryId(operation);
+    				if (categoriesService.checkCategoryId(operation, filterCategoryId))
+    				{
+    					filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+    				}
+    			}
+    			else
+    			{
+    				filterCategory=new Category();
+    				filterCategory.setId(filterCategoryId);
+    			}
+    			if (filterCategory!=null && (filterCategory.equals(resourceCategory) || 
+    				checkImagesFilterPermission(operation,filterCategory)))
+    			{
     				if (specialCategoryFiltersMap.containsKey(Long.valueOf(filterCategoryId)))
     				{
-    					SpecialCategoryFilter filter=
-    						specialCategoryFiltersMap.get(Long.valueOf(filterCategoryId));
+    					SpecialCategoryFilter filter=specialCategoryFiltersMap.get(Long.valueOf(filterCategoryId));
     					if (allCategories.equals(filter))
     					{
     						images=resourcesService.getAllVisibleCategoriesResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
-    					else if (allEvenPrivateCategories.equals(filter))
+    					else if (ALL_EVEN_PRIVATE_CATEGORIES.equals(filter))
     					{
     						images=resourcesService.getAllCategoriesResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
-    					else if (allQuestionAuthorCategories.equals(filter))
+    					else if (ALL_MY_CATEGORIES.equals(filter))
     					{
     						images=resourcesService.getAllMyCategoriesResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
-    					else if (allQuestionAuthorCategoriesExceptGlobals.equals(filter))
+    					else if (ALL_MY_CATEGORIES_EXCEPT_GLOBALS.equals(filter))
     					{
     						images=resourcesService.getAllMyCategoriesExceptGlobalsResourcesSortedByName(
-    								operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
+    					}
+    					else if (ALL_QUESTION_AUTHOR_CATEGORIES.equals(filter))
+    					{
+    						images=resourcesService.getAllUserCategoriesResourcesSortedByName(
+    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    					}
+    					else if (ALL_QUESTION_AUTHOR_CATEGORIES_EXCEPT_GLOBALS.equals(filter))
+    					{
+    						images=resourcesService.getAllUserCategoriesExceptGlobalsResourcesSortedByName(
+    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
     					}
     					else if (ALL_GLOBAL_CATEGORIES.equals(filter))
     					{
     						images=resourcesService.getAllGlobalCategoriesResourcesSortedByName(
-    								operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
     					else if (ALL_PUBLIC_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						images=resourcesService.getAllPublicCategoriesOfOtherUsersResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
-    					else if (allPrivateCategories.equals(filter))
+    					else if (ALL_PRIVATE_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						images=resourcesService.getAllPrivateCategoriesOfOtherUsersResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
     					else if (ALL_CATEGORIES_OF_OTHER_USERS.equals(filter))
     					{
     						images=resourcesService.getAllCategoriesOfOtherUsersResourcesSortedByName(
-    							operation,questionAuthor,null,getFilterMimeType(),getFilterCopyrightId());
+    							operation,null,getFilterMimeType(),getFilterCopyrightId());
     					}
     				}
     				else
     				{
-   						images=resourcesService.getResources(operation,questionAuthor,null,filterCategoryId,
-   							isFilterIncludeSubcategories(),getFilterMimeType(),getFilterCopyrightId());
+    					images=resourcesService.getResources(operation,null,filterCategoryId,
+    						isFilterIncludeSubcategories(),getFilterMimeType(),getFilterCopyrightId());
     				}
     				
     				// We need to remove images not visible for current user
@@ -2580,10 +2712,10 @@ public class QuestionBean implements Serializable
     					}
     					else
     					{
-    						checkImageCategory=checkImageCategoryFilterPermission(operation,imageCategory);
-    						imagesCategories.put(imageCategory, Boolean.valueOf(checkImageCategory));
+    						checkImageCategory=checkImagesFilterPermission(operation,imageCategory);
+    						imagesCategories.put(imageCategory,Boolean.valueOf(checkImageCategory));
     					}
-    					if (!checkImageCategory && !image.equals(getCurrentResource()))
+    					if (!checkImageCategory && !image.equals(resource))
     					{
     						imagesToRemove.add(image);
     					}
@@ -2655,19 +2787,10 @@ public class QuestionBean implements Serializable
      */
     public List<String> getConditionTypes()
     {
-    	return getConditionTypes(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return Available condition's types for current feedback
-     */
-    private List<String> getConditionTypes(Operation operation)
-    {
     	List<String> conditionTypes=new ArrayList<String>();
     	if (getCurrentFeedback()!=null)
     	{
-    		Question question=getQuestion(getCurrentUserOperation(operation));
+    		Question question=getQuestion();
     		if (question instanceof TrueFalseQuestion)
     		{
             	if (getCurrentFeedback().getTestCondition()==null)
@@ -2752,16 +2875,7 @@ public class QuestionBean implements Serializable
      */
     public int getConditionTypesSize()
     {
-    	return getConditionTypesSize(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return Number of available condition's types for current feedback
-     */
-    private int getConditionTypesSize(Operation operation)
-    {
-    	return getConditionTypes(getCurrentUserOperation(operation)).size();
+    	return getConditionTypes().size();
     }
     
     /** 
@@ -2883,17 +2997,8 @@ public class QuestionBean implements Serializable
 	 */
 	public int getNumberOfSelectableAnswers()
 	{
-		return getNumberOfSelectableAnswers(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Number of selectable answers
-	 */
-	public int getNumberOfSelectableAnswers(Operation operation)
-	{
 		int selectableAnswers=0;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null)
 		{
 			if (question instanceof TrueFalseQuestion)
@@ -2925,17 +3030,8 @@ public class QuestionBean implements Serializable
 	 */
 	public int getNumberOfSelectableRightAnswers()
 	{
-		return getNumberOfSelectableRightAnswers(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Number of selectable right answers
-	 */
-	public int getNumberOfSelectableRightAnswers(Operation operation)
-	{
 		int selectableRightAnswers=0;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null)
 		{
 			if (question instanceof TrueFalseQuestion)
@@ -2973,17 +3069,8 @@ public class QuestionBean implements Serializable
 	 */
 	public int getNumberOfSelectableWrongAnswers()
 	{
-		return getNumberOfSelectableWrongAnswers(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Number of selectable wrong answers
-	 */
-	public int getNumberOfSelectableWrongAnswers(Operation operation)
-	{
 		int selectableWrongAnswers=0;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question!=null)
 		{
 			if (question instanceof TrueFalseQuestion)
@@ -3022,18 +3109,8 @@ public class QuestionBean implements Serializable
 	 */
 	public List<Answer> getAvailableDraggableItemsForDroppableAnswer(Answer answer)
 	{
-		return getAvailableDraggableItemsForDroppableAnswer(null,answer);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param answer Answer
-	 * @return Available draggable items for an answer in a "Drag & Drop" question 
-	 */
-	private List<Answer> getAvailableDraggableItemsForDroppableAnswer(Operation operation,Answer answer)
-	{
 		List<Answer> availableDraggableItems=new ArrayList<Answer>();
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof DragDropQuestion && answer!=null && answer instanceof DragDropAnswer && 
 			!((DragDropAnswer)answer).isDraggable())
 		{
@@ -3060,17 +3137,8 @@ public class QuestionBean implements Serializable
      */
     public List<DragDropAnswer> getDraggableItemsSortedByPosition()
     {
-    	return getDraggableItemsSortedByPosition(null);
-    }
-	
-    /**
-     * @param operation Operation
-     * @return List of draggable items of a "Drag & Drop" question
-     */
-    private List<DragDropAnswer> getDraggableItemsSortedByPosition(Operation operation)
-    {
     	List<DragDropAnswer> draggableItemsSortedByPosition=new ArrayList<DragDropAnswer>();
-    	Question question=getQuestion(getCurrentUserOperation(operation));
+    	Question question=getQuestion();
     	if (question instanceof DragDropQuestion)
     	{
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -3081,22 +3149,12 @@ public class QuestionBean implements Serializable
     	}
     	return draggableItemsSortedByPosition;
     }
-    
+	
 	/**
 	 * @param draggableItem Draggable item
 	 * @return Draggable item's title
 	 */
 	public String getDraggableItemTitle(Answer draggableItem)
-	{
-    	return getDraggableItemTitle(null,draggableItem);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @param draggableItem Draggable item
-	 * @return Draggable item's title
-	 */
-	private String getDraggableItemTitle(Operation operation,Answer draggableItem)
 	{
     	StringBuffer draggableItemTitle=new StringBuffer();
     	draggableItemTitle.append(localizationService.getLocalizedMessage("DRAGGABLE_ITEM"));
@@ -3108,7 +3166,7 @@ public class QuestionBean implements Serializable
     		!activeDraggableItemName.equals("") && checkDraggableItemName(activeDraggableItemName,false)))
     	{
     		draggableItemTitle.append(": ");
-    		draggableItemTitle.append(getNumberedDraggableItemName(getCurrentUserOperation(operation),draggableItem));
+    		draggableItemTitle.append(getNumberedDraggableItemName(draggableItem));
     	}
     	return draggableItemTitle.toString();
 	}
@@ -3120,17 +3178,6 @@ public class QuestionBean implements Serializable
      */
     public String getNumberedDraggableItemName(Answer draggableItem)
     {
-    	return getNumberedDraggableItemName(null,draggableItem);
-    }
-	
-    /**
-     * @param operation Operation
-     * @param draggableItem Draggable item
-     * @return Draggable item's name with a number appended if it is needed to distinguish draggable items 
-     * with the same name
-     */
-    public String getNumberedDraggableItemName(Operation operation,Answer draggableItem)
-    {
     	StringBuffer draggableItemName=new StringBuffer();
     	if (draggableItem!=null)
     	{
@@ -3141,7 +3188,7 @@ public class QuestionBean implements Serializable
     			!activeDraggableItemName.equals("") && checkDraggableItemName(activeDraggableItemName,false);
         	if (okDraggableItemName || okActiveDraggableItemName)
             {
-            	DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion(getCurrentUserOperation(operation));
+            	DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion();
             	draggableItemName.append(okDraggableItemName?draggableItem.getName():activeDraggableItemName);
             	int itNumber=1;
     			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -3173,22 +3220,12 @@ public class QuestionBean implements Serializable
     	}
     	return draggableItemName.toString();
     }
-    
+	
     /**
      * @param answer Answer
      * @return Answer's title
      */
     public String getAnswerTitle(Answer answer)
-    {
-    	return getAnswerTitle(null,answer);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param answer Answer
-     * @return Answer's title
-     */
-    private String getAnswerTitle(Operation operation,Answer answer)
     {
     	StringBuffer answerTitle=new StringBuffer();
     	answerTitle.append(localizationService.getLocalizedMessage("ANSWER"));
@@ -3199,7 +3236,7 @@ public class QuestionBean implements Serializable
     		!activeAnswerName.equals("") && checkAnswerName(activeAnswerName,false)))
     	{
     		answerTitle.append(": ");
-    		answerTitle.append(getNumberedAnswerName(getCurrentUserOperation(operation),answer));
+    		answerTitle.append(getNumberedAnswerName(answer));
     	}
     	return answerTitle.toString();
     }
@@ -3209,16 +3246,6 @@ public class QuestionBean implements Serializable
      * @return Answer's name with a number appended if it is needed to distinguish answers with the same name
      */
     public String getNumberedAnswerName(Answer answer)
-    {
-    	return getNumberedAnswerName(null,answer);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param answer Answer
-     * @return Answer's name with a number appended if it is needed to distinguish answers with the same name
-     */
-    public String getNumberedAnswerName(Operation operation,Answer answer)
     {
     	StringBuffer answerName=new StringBuffer();
     	if (answer!=null)
@@ -3232,7 +3259,7 @@ public class QuestionBean implements Serializable
     		{
         		answerName.append(okAnswerName?answer.getName():activeAnswerName);
         		int itNumber=1;
-        		for (Answer a:getQuestion(getCurrentUserOperation(operation)).getAnswers())
+        		for (Answer a:getQuestion().getAnswers())
         		{
         			if (a.getPosition()<answer.getPosition())
         			{
@@ -3266,17 +3293,8 @@ public class QuestionBean implements Serializable
      */
     public List<DragDropAnswer> getDroppableAnswersSortedByPosition()
     {
-    	return getDroppableAnswersSortedByPosition(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return List of answers of a "Drag & Drop" question
-     */
-    public List<DragDropAnswer> getDroppableAnswersSortedByPosition(Operation operation)
-    {
     	List<DragDropAnswer> droppableAnswersSortedByPosition=new ArrayList<DragDropAnswer>();
-    	Question question=getQuestion(getCurrentUserOperation(operation));
+    	Question question=getQuestion();
     	if (question instanceof DragDropQuestion)
     	{
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -3294,16 +3312,6 @@ public class QuestionBean implements Serializable
      */
     public String getDroppableAnswerTitle(Answer answer)
     {
-    	return getDroppableAnswerTitle(null,answer);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param answer Answer
-     * @return Answer's title
-     */
-    private String getDroppableAnswerTitle(Operation operation,Answer answer)
-    {
     	StringBuffer answerTitle=new StringBuffer();
     	answerTitle.append(localizationService.getLocalizedMessage("ANSWER"));
     	answerTitle.append(' ');
@@ -3313,7 +3321,7 @@ public class QuestionBean implements Serializable
     		!activeAnswerName.equals("") && checkAnswerName(activeAnswerName,false)))
     	{
     		answerTitle.append(": ");
-    		answerTitle.append(getNumberedDroppableAnswerName(getCurrentUserOperation(operation),answer));
+    		answerTitle.append(getNumberedDroppableAnswerName(answer));
     	}
     	return answerTitle.toString();
     }
@@ -3323,16 +3331,6 @@ public class QuestionBean implements Serializable
      * @return Answer's name with a number appended if it is needed to distinguish answers with the same name
      */
     public String getNumberedDroppableAnswerName(Answer answer)
-    {
-    	return getNumberedDroppableAnswerName(null,answer);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param answer Answer
-     * @return Answer's name with a number appended if it is needed to distinguish answers with the same name
-     */
-    public String getNumberedDroppableAnswerName(Operation operation,Answer answer)
     {
     	StringBuffer answerName=new StringBuffer();
     	if (answerName!=null)
@@ -3344,7 +3342,7 @@ public class QuestionBean implements Serializable
     			checkAnswerName(activeAnswerName,false);
         	if (okAnswerName || okActiveAnswerName)
         	{
-        		DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion(getCurrentUserOperation(operation));
+        		DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion();
         		answerName.append(okAnswerName?answer.getName():activeAnswerName);
         		int itNumber=1;
     			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
@@ -3383,21 +3381,8 @@ public class QuestionBean implements Serializable
      */
     public String getResourceTitle(QuestionResource questionResource)
     {
-    	return getResourceTitle(null,questionResource);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param questionResource Resource
-     * @return Question resource's title
-     */
-    private String getResourceTitle(Operation operation,QuestionResource questionResource)
-    {
-    	// Get current user session operation
-    	operation=getCurrentUserOperation(operation);
-    	
     	// Get question
-    	Question question=getQuestion(operation);
+    	Question question=getQuestion();
     	
     	StringBuffer resourceTitle=new StringBuffer();
     	resourceTitle.append(localizationService.getLocalizedMessage("RESOURCE"));
@@ -3410,7 +3395,7 @@ public class QuestionBean implements Serializable
     		checkResourceName(question,activeQuestionResourceName,activeQuestionResourceIndex+1,false)))
     	{
     		resourceTitle.append(": ");
-    		resourceTitle.append(getValidResourceName(operation,questionResource));
+    		resourceTitle.append(getValidResourceName(questionResource));
     	}
     	return resourceTitle.toString();
     }
@@ -3421,18 +3406,8 @@ public class QuestionBean implements Serializable
      */
     public String getValidResourceName(QuestionResource questionResource)
     {
-    	return getValidResourceName(null,questionResource);
-    }
-    
-    /**
-     * @param operation Operation
-     * @param questionResource Resource
-     * @return Valid resource's name
-     */
-    public String getValidResourceName(Operation operation,QuestionResource questionResource)
-    {
     	// Get question
-    	Question question=getQuestion(getCurrentUserOperation(operation));
+    	Question question=getQuestion();
     	
     	StringBuffer resourceName=new StringBuffer();
     	if (questionResource!=null)
@@ -3525,22 +3500,13 @@ public class QuestionBean implements Serializable
      */
     public boolean isCurrentResourceSelectedImage()
     {
-    	return isCurrentResourceSelectedImage(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if current resource selected is an image, otherwise false
-     */
-    private boolean isCurrentResourceSelectedImage(Operation operation)
-    {
     	boolean isCurrentResSelImg=false;
     	if (getCurrentResource()!=null && getCurrentResource().getId()!=-1L)
     	{
     		ResourceBean resourceBean=new ResourceBean(getCurrentResource());
     		resourceBean.setResourcesService(resourcesService);
     		resourceBean.setUserSessionService(userSessionService);
-    		isCurrentResSelImg=resourceBean.isImage(getCurrentUserOperation(operation));
+    		isCurrentResSelImg=resourceBean.isImage();
     	}
     	return isCurrentResSelImg;
     }
@@ -3551,16 +3517,7 @@ public class QuestionBean implements Serializable
      */
     public boolean isRemoveAnswerEnabled()
     {
-    	return isRemoveAnswerEnabled(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if it is allowed to remove an answer from question (answers>2), otherwise false
-     */
-    private boolean isRemoveAnswerEnabled(Operation operation)
-    {
-    	return getQuestion(getCurrentUserOperation(operation)).getAnswers().size()>2;
+    	return getQuestion().getAnswers().size()>2;
     }
     
     /**
@@ -3569,19 +3526,10 @@ public class QuestionBean implements Serializable
      */
     public boolean isRemoveDraggableItemEnabled()
     {
-    	return isRemoveDraggableItemEnabled(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if it is allowed to remove a draggable item from a "Drag & Drop" question (draggable items>1),
-     * otherwise false
-     */
-    private boolean isRemoveDraggableItemEnabled(Operation operation)
-    {
 		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-    	Question question=getQuestion(getCurrentUserOperation(operation));
-    	return question instanceof DragDropQuestion?((DragDropQuestion)question).getDraggableItems(1).size()>1:false;
+    	Question question=getQuestion();
+    	return question instanceof DragDropQuestion?
+    		((DragDropQuestion)question).getDraggableItems(1).size()>1:false;
     }
     
     /**
@@ -3590,19 +3538,10 @@ public class QuestionBean implements Serializable
      */
     public boolean isRemoveDroppableAnswerEnabled()
     {
-    	return isRemoveDroppableAnswerEnabled(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if it is allowed to remove an answer from a "Drag & Drop" question (answer>1), 
-     * otherwise false
-     */
-    private boolean isRemoveDroppableAnswerEnabled(Operation operation)
-    {
 		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-    	Question question=getQuestion(getCurrentUserOperation(operation));
-    	return question instanceof DragDropQuestion?((DragDropQuestion)question).getDroppableAnswers(1).size()>1:false;
+    	Question question=getQuestion();
+    	return question instanceof DragDropQuestion?
+    		((DragDropQuestion)question).getDroppableAnswers(1).size()>1:false;
     }
     
     /**
@@ -3745,17 +3684,25 @@ public class QuestionBean implements Serializable
     {
     	boolean ok=true;
     	
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(operation);
     	
-    	// Get question
-    	Question question=getQuestion(operation);
-    	
+		// Get Question
+		Question question=getQuestion();
+		
     	// Check question name
     	ok=checkQuestionName(question.getName());
     	
     	// Check category
-    	if (checkCategory(operation))
+		if (!categoriesService.checkCategoryId(categoryId))
+		{
+    		addErrorMessage("QUESTION_CATEGORY_STEP_NOT_FOUND");
+			ok=false;
+    		
+    		// Refresh question categories from DB
+			resetQuestionsCategories(operation);
+		}
+		else if (checkCategory(operation))
     	{
     		if (!checkAvailableQuestionName(operation))
     		{
@@ -3765,61 +3712,96 @@ public class QuestionBean implements Serializable
     	}
     	else
     	{
-    		addErrorMessage("QUESTION_CATEGORY_ASSIGN_ERROR");
+    		addErrorMessage("QUESTION_CATEGORY_NOT_GRANTED_ERROR");
     		ok=false;
     		
-    		// Reload question categories from DB
-    		setQuestionsCategories(null);
+    		// Refresh question categories from DB
+			resetQuestionsCategories(operation);
     	}
-    	
-    	/*
-    	// Check question text
-    	if (question.getQuestionText()==null || question.getQuestionText().equals(""))
-    	{
-            addErrorMessage("QUESTION_TEXT_REQUIRED");
-            ok=false;
-    	}
-    	*/
     	return ok;
     }
     
+	/**
+	 * @param operation Operation
+	 * @return true if category selected is usable by current user, false otherwise
+	 */
     private boolean checkCategory(Operation operation)
     {
-    	boolean ok=true;
-    	try
-    	{
-    		// Get current user session Hibernate operation
-    		operation=getCurrentUserOperation(operation);
-    		
-    		User currentUser=userSessionService.getCurrentUser(operation);
-    		Question question=getQuestion(operation);
-    		User questionAuthor=question.getId()>0L?question.getCreatedBy():currentUser;
-    		Category category=getCategory(operation);
-    		
-			if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue() && 
-				!category.getUser().equals(questionAuthor) && category.getVisibility().isGlobal())
-			{
-				ok=false;
-			}
-			else if (!questionAuthor.equals(currentUser) && category.getUser().equals(questionAuthor))
-			{
-				Visibility questionCategoryVisibility=category.getVisibility();
-				if (!questionCategoryVisibility.isGlobal() && questionCategoryVisibility.getLevel()>=
-					visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
-				{
-					ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-						(!getQuestionAuthorAdmin(operation).booleanValue() || 
-						getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-						(!getQuestionAuthorSuperadmin(operation).booleanValue() || 
-						getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
-				}
-			}
-    	}
-    	catch (ServiceException se)
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(operation,getCategory(operation));
+    }
+    
+	/**
+	 * @param operation Operation
+	 * @param category Category
+	 * @return true if a category is usable by current user, false otherwise
+	 */
+    private boolean checkCategory(Operation operation,Category category)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	// Check category type
+    	boolean ok=category!=null && categoryTypesService.isDerivedFrom(operation,
+    		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),
+    		categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
+    	
+    	// Check visibility
+    	if (ok)
     	{
     		ok=false;
-		}
+    		Question question=getQuestion();
+    		User questionAuthor=
+    			question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+    		Visibility categoryVisibility=
+    			visibilitiesService.getVisibilityFromCategoryId(operation,category.getId());
+    		if (categoryVisibility.isGlobal())
+    		{
+    			ok=getFilterGlobalQuestionsEnabled(operation).booleanValue() && 
+    				((initialCategoryId>0L && category.getId()==initialCategoryId) || 
+    				questionAuthor.equals(category.getUser()) || 
+    				getGlobalOtherUserCategoryAllowed(operation).booleanValue());
+    		}
+    		else if (questionAuthor.equals(category.getUser()))
+    		{
+    			if (questionAuthor.getId()==userSessionService.getCurrentUserId())
+    			{
+    				ok=true;
+    			}
+    			else if (getFilterOtherUsersQuestionsEnabled(operation).booleanValue())
+    			{
+    				if (categoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+    					operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    				{
+    					ok=getViewQuestionsFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() && 
+    						(!getQuestionAuthorAdmin(operation).booleanValue() || 
+    						getViewQuestionsFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
+    						(!getQuestionAuthorSuperadmin(operation).booleanValue() || 
+    						getViewQuestionsFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+    				}
+    				else
+    				{
+    					ok=true;
+    				}
+    			}
+    		}
+    	}
     	return ok;
+    }
+    
+	/**
+	 * @param operation Operation
+	 * @return true if current category of the question we are editing is usable by current user, false otherwise
+	 */
+    private boolean checkCurrentCategory(Operation operation)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(
+    		operation,categoriesService.getCategoryFromQuestionId(operation,getQuestion().getId()));
     }
     
     /**
@@ -3831,37 +3813,33 @@ public class QuestionBean implements Serializable
 		boolean ok=true;
 		
 		// Get current user session Hibernate operation
-		operation= getCurrentUserOperation(operation);
+		operation=getCurrentUserOperation(operation);
 		
-		Question question=getQuestion(operation);
+		Question question=getQuestion();
 		String questionName=question.getName();
-		long categoryId=question.getCategory()==null?0L:question.getCategory().getId();
-		if (questionName!=null)
+		long categoryId=question.getCategory()==null?0L:this.categoryId;
+		if (categoryId>0L && questionName!=null)
 		{
 			ok=questionsService.isQuestionNameAvailable(operation,questionName,categoryId,question.getId());
 		}
 		return ok;
 	}
     
-    private boolean checkAnswersFields(Operation operation)
+    private boolean checkAnswersFields()
     {
     	boolean ok=true;
-    	
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-    	if (getQuestion(operation) instanceof MultichoiceQuestion)
+    	if (getQuestion() instanceof MultichoiceQuestion)
     	{
-    		ok=checkMultichoiceAnswersFields(operation);
+    		ok=checkMultichoiceAnswersFields();
     	}
     	return ok;
     }
     
-    private boolean checkMultichoiceAnswersFields(Operation operation)
+    private boolean checkMultichoiceAnswersFields()
     {
 		boolean ok=true;
     	int correctAnswers=0;
-		for (Answer answer:getQuestion(getCurrentUserOperation(operation)).getAnswers()) // We count right answers
+		for (Answer answer:getQuestion().getAnswers()) // We count right answers
 		{
 			if (answer.getCorrect())
 			{
@@ -4092,7 +4070,8 @@ public class QuestionBean implements Serializable
      * @param displayError true to display error message, false otherwise
 	 * @return true if current draggable item name does not include consecutive whitespaces, false otherwise
      */
-    private boolean checkNonConsecutiveWhitespacesForDraggableItemName(String draggableItemName,boolean displayError)
+    private boolean checkNonConsecutiveWhitespacesForDraggableItemName(String draggableItemName,
+    	boolean displayError)
     {
     	boolean ok=true;
     	if (StringUtils.hasConsecutiveWhitespaces(draggableItemName))
@@ -4484,6 +4463,112 @@ public class QuestionBean implements Serializable
     	return checkQuestionResource(question,questionResource,true);
     }
     
+    
+	/**
+	 * Refresh available categories of the combo box.
+	 * @param event Action event
+	 */
+	public void refreshQuestionCategories(ActionEvent event)
+	{
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
+		setGlobalOtherUserCategoryAllowed(null);
+		resetQuestionAuthorAdmin();
+		resetQuestionAuthorSuperadmin();
+		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+		if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+		{
+			// Refresh questions categories from DB
+			resetQuestionsCategories(operation);
+		}
+		else
+		{
+			// Reload questions categories from DB
+			setQuestionsCategories(null);
+		}
+	}
+    
+	private void resetQuestionsCategories(Operation operation)
+	{
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		// Reload questions categories from DB
+		setQuestionsCategories(null);
+		
+		// Check that initial category already exists and it is valid
+		long resetCategoryId=0L;
+		if (initialCategoryId>0L)
+		{
+			if (!categoriesService.checkCategoryId(operation,initialCategoryId))
+			{
+				initialCategoryId=0L;
+			}
+			else if (checkCategory(operation,categoriesService.getCategory(operation,initialCategoryId)))
+			{
+				resetCategoryId=initialCategoryId;
+			}
+		}
+		
+		// Reset selected category
+		if (resetCategoryId==0L)
+		{
+			List<Category> questionsCategories=getQuestionsCategories(operation);
+			if (!questionsCategories.isEmpty())
+			{
+				resetCategoryId=questionsCategories.get(0).getId();
+			}
+		}
+		setCategoryId(operation,resetCategoryId);
+	}
+	
+	/**
+	 * Refresh available categories of the combo box within the 'Select image' dialog.
+	 * @param event Action event
+	 */
+	public void refreshImagesCategories(ActionEvent event)
+	{
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+		setUseGlobalResources(null);
+		setUseOtherUsersResources(null);
+	    setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+	    setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+	    setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+	    resetAdmins();
+	    resetSuperadmins();
+	    
+	    Category filterCategory=null;
+	    long filterCategoryId=getFilterCategoryId(operation);
+	    if (filterCategoryId>0L)
+	    {
+	    	if (categoriesService.checkCategoryId(operation,filterCategoryId))
+	    	{
+	    		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+	    	}
+	    }
+	    else
+	    {
+	    	filterCategory=new Category();
+	    	filterCategory.setId(filterCategoryId);
+	    }
+	    if (filterCategory==null || !checkImagesFilterPermission(operation,filterCategory))
+	    {
+	    	setFilterCategoryId(Long.MIN_VALUE);
+	    }
+	    
+		// Reload images categories from DB
+		setImagesCategories(null);
+	}
+	
     /**
      * Flow listener to handle a step change within wizard component. 
      * @param event Flow event
@@ -4494,25 +4579,29 @@ public class QuestionBean implements Serializable
     	boolean ok=true;
     	String oldStep=event.getOldStep();
     	String nextStep=event.getNewStep();
+    	
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+    	
     	if (GENERAL_WIZARD_TAB.equals(oldStep))
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
             setGlobalOtherUserCategoryAllowed(null);
-            resetQuestionAuthorAdmin(operation);
-            resetQuestionAuthorSuperadmin(operation);
+            resetQuestionAuthorAdmin();
+            resetQuestionAuthorSuperadmin();
             setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
             setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
             setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+            
         	ok=checkCommonDataInputFields(operation);
         	if (ok && ANSWERS_WIZARD_TAB.equals(nextStep))
         	{
-        		Question question=getQuestion(operation);
+        		Question question=getQuestion();
         		if (question instanceof MultichoiceQuestion)
         		{
             		// Get current answer
-            		Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+            		Answer currentAnswer=getActiveAnswer(event.getComponent());
         			
             		// Restore old answer name
             		currentAnswer.setName(activeAnswerName);
@@ -4520,13 +4609,13 @@ public class QuestionBean implements Serializable
         		else if (question instanceof DragDropQuestion)
         		{
         			// Get current draggable item
-        			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+        			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
         			
         			// Restore old draggable item name
         			currentDraggableItem.setName(activeDraggableItemName);
         			
             		// Get current answer
-            		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+            		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
         			
         			// Restore old answer name
            			currentAnswer.setName(activeAnswerName);
@@ -4535,17 +4624,14 @@ public class QuestionBean implements Serializable
     	}
     	else if (ANSWERS_WIZARD_TAB.equals(oldStep))
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		boolean errors=false;
     		boolean displayErrors=isResourcesTabDisplayed()?
     			RESOURCES_WIZARD_TAB.equals(nextStep):FEEDBACK_WIZARD_TAB.equals(nextStep);
-    		Question question=getQuestion(operation);
+       		Question question=getQuestion();
     		if (question instanceof MultichoiceQuestion)
     		{
     			// Get current answer
-    			Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+    			Answer currentAnswer=getActiveAnswer(event.getComponent());
     			
     			// Check that current answer name entered by user is valid
     			if (checkAnswerName(currentAnswer.getName(),displayErrors))
@@ -4558,7 +4644,7 @@ public class QuestionBean implements Serializable
     				if (displayErrors)
     				{
     					// Restore old answer tab without changing its name
-    					updateAnswersTextFields(operation,event.getComponent(),question.getAnswers().size());
+    					updateAnswersTextFields(event.getComponent(),question.getAnswers().size());
     					currentAnswer.setName(activeAnswerName);
     				}
     			}
@@ -4566,10 +4652,10 @@ public class QuestionBean implements Serializable
     		else if (question instanceof DragDropQuestion)
     		{
     			// Get current draggable item
-    			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+    			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
     			
     			// Get current answer
-    			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+    			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
     			
     			// Check that current draggable item and answer names entered by user are valid
     			if (!checkDraggableItemName(currentDraggableItem.getName(),displayErrors))
@@ -4587,13 +4673,12 @@ public class QuestionBean implements Serializable
     				// Restore old draggable item without changing its name
     				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
     				updateDraggableItemsTextFields(
-    					operation,event.getComponent(),dragDropQuestion.getDraggableItems(1).size());
+    					event.getComponent(),dragDropQuestion.getDraggableItems(1).size());
     				currentDraggableItem.setName(activeDraggableItemName);
     				
 					// Restore old answer tab without changing its name
     				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-    				updateAnswersTextFields(
-    					operation,event.getComponent(),dragDropQuestion.getDroppableAnswers(1).size());
+    				updateAnswersTextFields(event.getComponent(),dragDropQuestion.getDroppableAnswers(1).size());
 					currentAnswer.setName(activeAnswerName);
     			}
     			else
@@ -4608,7 +4693,7 @@ public class QuestionBean implements Serializable
     			errors=!checkXmlContent(((OmXmlQuestion)question).getXmlContent(),displayErrors);
     		}
     		// Check answers fields
-    		if (displayErrors && !checkAnswersFields(operation))
+    		if (displayErrors && !checkAnswersFields())
     		{
     			errors=true;
     		}
@@ -4617,34 +4702,31 @@ public class QuestionBean implements Serializable
     		
     		if (ok && RESOURCES_WIZARD_TAB.equals(nextStep))
     		{
-    			// Get current resource
-    			QuestionResource currentQuestionResource=
-    				getActiveQuestionResource(operation,event.getComponent());
-    			
-    			// Restore old resource name
-    			if (currentQuestionResource!=null)
-    			{
-    				currentQuestionResource.setName(activeQuestionResourceName);
-    			}
+       			// Get current resource
+       			QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
+       			
+       			// Restore old resource name
+       			if (currentQuestionResource!=null)
+       			{
+       				currentQuestionResource.setName(activeQuestionResourceName);
+      			}
     		}
     	}
     	else if (RESOURCES_WIZARD_TAB.equals(oldStep))
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
+    		// Get question
+    		Question question=getQuestion();
     		
     		boolean errors=false;
     		boolean displayErrors=FEEDBACK_WIZARD_TAB.equals(nextStep);
-    		Question question=getQuestion(operation);
     		
 			// Get current resource
-    		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+    		QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
 			
     		if (currentQuestionResource!=null)
     		{
-    			// Check that current resource name entered by user is valid
-    			if (checkResourceName(question,currentQuestionResource.getName(),
-    				currentQuestionResource.getPosition(),displayErrors))
+    			// Check that current resource is valid
+    			if (checkQuestionResource(question,currentQuestionResource,displayErrors))
     			{
     				activeQuestionResourceName=currentQuestionResource.getName();
     			}
@@ -4654,8 +4736,7 @@ public class QuestionBean implements Serializable
         			if (displayErrors)
         			{
        					// Restore old answer tab without changing its name
-       					updateResourcesTextFields(
-       						operation,event.getComponent(),question.getQuestionResources().size());
+       					updateResourcesTextFields(event.getComponent(),question.getQuestionResources().size());
        					currentQuestionResource.setName(activeQuestionResourceName);
         			}
     			}
@@ -4668,37 +4749,57 @@ public class QuestionBean implements Serializable
     		nextStep=oldStep;
     		
     		// Reset user permissions
+    		setAddEnabled(null);
+    		setEditEnabled(null);
+    		setEditOtherUsersQuestionsEnabled(null);
+    		setEditAdminsQuestionsEnabled(null);
+    		setEditSuperadminsQuestionsEnabled(null);
+    		setFilterGlobalResourcesEnabled(null);
+    		setFilterOtherUsersResourcesEnabled(null);
     		setUseGlobalResources(null);
     		setUseOtherUsersResources(null);
     		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
     		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
     		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
     		resetAdmins();
     		resetSuperadmins();
     		
 			// Scroll page to top position
 			scrollToTop();
     	}
-    	if (GENERAL_WIZARD_TAB.equals(nextStep))
-    	{
-    		setQuestionsCategories(null);
-    	}
     	activeQuestionTabName=nextStep;
+    	if (ok)
+    	{
+    		if (GENERAL_WIZARD_TAB.equals(nextStep))
+    		{
+    			setFilterGlobalQuestionsEnabled(null);
+    			setFilterOtherUsersQuestionsEnabled(null);
+    			setGlobalOtherUserCategoryAllowed(null);
+    			resetQuestionAuthorAdmin();
+    			resetQuestionAuthorSuperadmin();
+    			setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+    			setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+    			setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+    			if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+    			{
+    				// Refresh questions categories from DB
+    				resetQuestionsCategories(operation);
+    			}
+    			else
+    			{
+    				// Reload questions categories from DB
+    				setQuestionsCategories(null);
+    			}
+    		}
+    		updateResourcesImages();
+    	}
     	return nextStep;
     }
     
     public String getActiveQuestionTabName()
     {
-    	return getActiveQuestionTabName(null);
-    }
-    
-    private String getActiveQuestionTabName(Operation operation)
-    {
     	String activeQuestionTabName=null;
-    	if (getQuestion(getCurrentUserOperation(operation)).getId()>0L)
+    	if (getQuestion().getId()>0L)
     	{
     		switch (activeQuestionTabIndex)
     		{
@@ -4726,24 +4827,50 @@ public class QuestionBean implements Serializable
     	return activeQuestionTabName;
     }
     
+    private int getQuestionTabIndex(String questionTabName)
+    {
+    	int questionTabIndex=-1;
+    	if (GENERAL_WIZARD_TAB.equals(questionTabName))
+    	{
+    		questionTabIndex=GENERAL_TABVIEW_TAB;
+    	}
+    	else if (ANSWERS_WIZARD_TAB.equals(questionTabName))
+    	{
+    		questionTabIndex=ANSWERS_TABVIEW_TAB;
+    	}
+    	else if (RESOURCES_WIZARD_TAB.equals(questionTabName))
+    	{
+    		questionTabIndex=resourcesTabviewTab;
+    	}
+    	else if (FEEDBACK_WIZARD_TAB.equals(questionTabName))
+    	{
+    		questionTabIndex=feedbackTabviewTab;
+    	}
+    	return questionTabIndex;
+    }
+    
 	/**
 	 * Tab change listener for displaying other tab of a question.
 	 * @param event Tab change event
 	 */
     public void changeActiveQuestionTab(TabChangeEvent event)
     {
+    	boolean ok=true;
     	TabView questionFormTab=(TabView)event.getComponent();
+    	
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+    	
     	if (activeQuestionTabIndex==GENERAL_TABVIEW_TAB)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
     		// We need to process some input fields
-    		processCommonDataInputFields(operation,questionFormTab);
+    		processCommonDataInputFields(questionFormTab);
     		
-            setGlobalOtherUserCategoryAllowed(null);
-            resetQuestionAuthorAdmin(operation);
-            resetQuestionAuthorSuperadmin(operation);
+    		setFilterGlobalQuestionsEnabled(null);
+    		setFilterOtherUsersQuestionsEnabled(null);
+    		setGlobalOtherUserCategoryAllowed(null);
+            resetQuestionAuthorAdmin();
+            resetQuestionAuthorSuperadmin();
             setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
             setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
             setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
@@ -4753,17 +4880,22 @@ public class QuestionBean implements Serializable
         	}
         	else
         	{
+        		ok=false;
         		questionFormTab.setActiveIndex(activeQuestionTabIndex);
         		
         		// Reset user permissions
+        		setAddEnabled(null);
+        		setEditEnabled(null);
+        		setEditOtherUsersQuestionsEnabled(null);
+        		setEditAdminsQuestionsEnabled(null);
+        		setEditSuperadminsQuestionsEnabled(null);
+        		setFilterGlobalResourcesEnabled(null);
+        		setFilterOtherUsersResourcesEnabled(null);
         		setUseGlobalResources(null);
         		setUseOtherUsersResources(null);
         		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
         		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
         		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-        		setQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-        		setQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-        		setQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
         		resetAdmins();
         		resetSuperadmins();
         		
@@ -4773,19 +4905,16 @@ public class QuestionBean implements Serializable
     	}
     	else if (activeQuestionTabIndex==ANSWERS_TABVIEW_TAB)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
+    		// Get question
+    		Question question=getQuestion();
     		
-    		boolean ok=true;
-    		Question question=getQuestion(operation);
     		if (question instanceof MultichoiceQuestion)
     		{
     			// Get current answer
-    			Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+    			Answer currentAnswer=getActiveAnswer(event.getComponent());
     			
         		// We need to process some input fields
-    			processMultichoiceAnswersInputFields(
-    				operation,questionFormTab,currentAnswer,true,new ArrayList<String>());
+    			processMultichoiceAnswersInputFields(questionFormTab,currentAnswer,true,new ArrayList<String>());
     			
     			// Check that current answer name entered by user is valid
     			if (checkAnswerName(currentAnswer.getName()))
@@ -4803,14 +4932,14 @@ public class QuestionBean implements Serializable
     		else if (question instanceof DragDropQuestion)
     		{
     			// Get current draggable item
-    			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+    			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
     			
     			// Get current answer
-    			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+    			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
     			
         		// We need to process some input fields
     			processDragDropAnswersInputFields(
-    				operation,questionFormTab,currentDraggableItem,currentAnswer,true,new ArrayList<String>(0));
+    				questionFormTab,currentDraggableItem,currentAnswer,true,new ArrayList<String>(0));
     			
     			// Check that current draggable item and answer names entered by user are valid
     			if (!checkDraggableItemName(currentDraggableItem.getName()))
@@ -4838,7 +4967,7 @@ public class QuestionBean implements Serializable
     		else if (question instanceof OmXmlQuestion)
     		{
     			// We need to process some input fields
-    			processOmXmlContentInputFields(operation,questionFormTab);
+    			processOmXmlContentInputFields(questionFormTab);
     			
     			// Check that xml content is a valid xml document
     			ok=checkXmlContent(((OmXmlQuestion)question).getXmlContent());
@@ -4846,9 +4975,9 @@ public class QuestionBean implements Serializable
     		else
     		{
         		// We need to process some input fields
-    			processAnswersInputFields(operation,questionFormTab,null);    			
+    			processAnswersInputFields(questionFormTab,null);    			
     		}
-    		if (!checkAnswersFields(operation))
+    		if (!checkAnswersFields())
     		{
     			ok=false;
     		}
@@ -4866,13 +4995,8 @@ public class QuestionBean implements Serializable
     	}
     	else if (activeQuestionTabIndex==resourcesTabviewTab)
     	{
-    		// Get current user session Hibernate operation
-    		Operation operation=getCurrentUserOperation(null);
-    		
-    		boolean ok=true;
-    		
 			// Get current resource
-    		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+    		QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
 			
     		// We need to process some input fields
     		processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
@@ -4880,7 +5004,7 @@ public class QuestionBean implements Serializable
     		if (currentQuestionResource!=null)
     		{
     			// Check that current resource name entered by user is valid
-        		if (checkQuestionResource(getQuestion(operation),currentQuestionResource))
+        		if (checkQuestionResource(getQuestion(),currentQuestionResource))
         		{
         			activeQuestionResourceName=currentQuestionResource.getName();
     			}
@@ -4907,9 +5031,35 @@ public class QuestionBean implements Serializable
     	else if (activeQuestionTabIndex==feedbackTabviewTab)
     	{
     		// We need to process some input fields
-    		processFeedbackInputFields(getCurrentUserOperation(null),questionFormTab);
+    		processFeedbackInputFields(questionFormTab);
     		
     		activeQuestionTabIndex=questionFormTab.getActiveIndex();
+    	}
+    	if (ok)
+    	{
+    		if (activeQuestionTabIndex==GENERAL_TABVIEW_TAB)
+    		{
+    			
+        		setFilterGlobalQuestionsEnabled(null);
+        		setFilterOtherUsersQuestionsEnabled(null);
+        		setGlobalOtherUserCategoryAllowed(null);
+                resetQuestionAuthorAdmin();
+                resetQuestionAuthorSuperadmin();
+                setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+                setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+                setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+        		if (!categoriesService.checkCategoryId(operation,getCategoryId()) || !checkCategory(operation))
+        		{
+        			// Refresh questions categories from DB
+        			resetQuestionsCategories(operation);
+        		}
+        		else
+        		{
+        			// Reload questions categories from DB
+        			setQuestionsCategories(null);
+        		}
+    		}
+        	updateResourcesImages();
     	}
     }
     
@@ -4918,17 +5068,8 @@ public class QuestionBean implements Serializable
      */
     public String getAnswersTabTitle()
     {
-    	return getAnswersTabTitle(null);
-    }
-    
-    /**
-     * @param operation Operation
-     * @return Localized title for "Answers" tab
-     */
-    private String getAnswersTabTitle(Operation operation)
-    {
     	String answersTabTitle="";
-    	if (getQuestion(getCurrentUserOperation(operation)) instanceof OmXmlQuestion)
+    	if (getQuestion() instanceof OmXmlQuestion)
     	{
     		answersTabTitle=localizationService.getLocalizedMessage("CONTENT");
     	}
@@ -4952,16 +5093,7 @@ public class QuestionBean implements Serializable
      */
     public boolean isAdvancedFeedbacksEnabled()
     {
-    	return isAdvancedFeedbacksEnabled(null); 
-    }
-    
-    /**
-     * @param operation Operation
-     * @return true if this question allows to define advanced feedbacks, false otherwise
-     */
-    public boolean isAdvancedFeedbacksEnabled(Operation operation)
-    {
-    	return !(getQuestion(getCurrentUserOperation(operation)) instanceof OmXmlQuestion);
+    	return !(getQuestion() instanceof OmXmlQuestion);
     }
     
 	/**
@@ -4969,33 +5101,15 @@ public class QuestionBean implements Serializable
 	 */
 	public boolean isEnabledReSortAnswers()
 	{
-		return isEnabledReSortAnswers(null);
+		return getQuestion().getAnswers().size()>1;
 	}
 	
-	/**
-     * @param operation Operation
-     * @return true if it is allowed to re-sort answers (answers>=2), otherwise false
-	 */
-	private boolean isEnabledReSortAnswers(Operation operation)
-	{
-		return getQuestion(getCurrentUserOperation(operation)).getAnswers().size()>1;
-	}
-    
 	/**
      * @return true if it is allowed to re-sort draggable items (draggable items>=2), otherwise false
 	 */
 	public boolean isEnabledReSortDraggableItems()
 	{
-		return isEnabledReSortDraggableItems(null);
-	}
-	
-	/**
-     * @param operation Operation
-     * @return true if it is allowed to re-sort draggable items (draggable items>=2), otherwise false
-	 */
-	private boolean isEnabledReSortDraggableItems(Operation operation)
-	{
-		return ((DragDropQuestion)getQuestion(getCurrentUserOperation(operation))).getDraggableItems().size()>1;
+		return ((DragDropQuestion)getQuestion()).getDraggableItems().size()>1;
 	}
 	
 	/**
@@ -5003,33 +5117,22 @@ public class QuestionBean implements Serializable
 	 */
 	public boolean isEnabledReSortDroppableAnswers()
 	{
-		return isEnabledReSortDroppableAnswers(null);
+		return ((DragDropQuestion)getQuestion()).getDroppableAnswers().size()>1;
 	}
 	
-	/**
-     * @param operation Operation
-     * @return true if it is allowed to re-sort draggable items (draggable items>=2), otherwise false
-	 */
-	private boolean isEnabledReSortDroppableAnswers(Operation operation)
-	{
-		
-		return ((DragDropQuestion)getQuestion(getCurrentUserOperation(operation))).getDroppableAnswers().size()>1;
-	}
-    
 	/**
 	 * Action listener to show the dialog to re-sort answers.
 	 * @param event Action event
 	 */
 	public void showReSortAnswers(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		updateMultichoiceAnswersResourcesImages((MultichoiceQuestion)getQuestion());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentAnswer);
+		processAnswersInputFields(event.getComponent(),currentAnswer);
 		
 		// Check that current answer name entered by user is valid
 		if (checkAnswerName(currentAnswer.getName()))
@@ -5056,12 +5159,9 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptReSortAnswers(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// First we need to change position of answers conditions of feedbacks
-		List<Answer> answersSorting=getAnswersSorting(operation);
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		List<Answer> answersSorting=getAnswersSorting();
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			for (AnswerConditionBean answerCondition:feedback.getAnswerConditions())
 			{
@@ -5080,6 +5180,7 @@ public class QuestionBean implements Serializable
 				}
 			}
 		}
+		Answer activeAnswer=null;
 		// We change answers positions
 		for (int answerPos=1;answerPos<=answersSorting.size();answerPos++)
 		{
@@ -5087,14 +5188,27 @@ public class QuestionBean implements Serializable
 			answer.setPosition(answerPos);
 			if (answerPos==activeAnswerIndex+1)
 			{
+				activeAnswer=answer;
 				activeAnswerName=answer.getName()==null?"":answer.getName();
 			}
 		}
 		
-		getQuestion(operation).setAnswers(answersSorting);
+		getQuestion().setAnswers(answersSorting);
 		
 		// We need to update answers text fields
-		updateAnswersTextFields(operation,event.getComponent(),answersSorting.size());
+		updateAnswersTextFields(event.getComponent(),answersSorting.size());
+		
+		updateAnswerResourceImage(activeAnswer);
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * re-sorting answers. 
+	 * @param event Action event
+	 */
+	public void cancelReSortAnswers(ActionEvent event)
+	{
+		updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 	}
 	
 	/**
@@ -5103,18 +5217,16 @@ public class QuestionBean implements Serializable
 	 */
 	public void showReSortDraggableItems(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		updateDragDropDraggableItemsResourcesImages((DragDropQuestion)getQuestion());
 		
 		// Get current draggable item
-		Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+		Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
-		
+		processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 		
 		// Check that current draggable item and answer names entered by user are valid
 		boolean ok=true;
@@ -5155,23 +5267,36 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptReSortDraggableItems(ActionEvent event)
 	{
-		// We get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
+		Answer activeDraggableItem=null;
 		// We change draggable items positions
-		List<Answer> draggableItemsSorting=getDraggableItemsSorting(operation);
+		List<Answer> draggableItemsSorting=getDraggableItemsSorting();
 		for (int draggableItemPos=1;draggableItemPos<=draggableItemsSorting.size();draggableItemPos++)
 		{
 			Answer draggableItem=draggableItemsSorting.get(draggableItemPos-1);
 			draggableItem.setPosition(draggableItemPos);
 			if (draggableItemPos==activeDraggableItemIndex+1)
 			{
+				activeDraggableItem=draggableItem;
 				activeDraggableItemName=draggableItem.getName()==null?"":draggableItem.getName();
 			}
 		}
 		
 		// We need to update draggable items text fields
-		updateDragDropDraggableItemsTextFields(operation,event.getComponent(),draggableItemsSorting.size());
+		updateDragDropDraggableItemsTextFields(event.getComponent(),draggableItemsSorting.size());
+		
+		Operation operation=updateAnswerResourceImage(activeDraggableItem);
+		updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * re-sorting draggable items of a "Drag & Drop" question. 
+	 * @param event Action event
+	 */
+	public void cancelReSortDraggableItems(ActionEvent event)
+	{
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 	}
 	
 	/**
@@ -5180,17 +5305,16 @@ public class QuestionBean implements Serializable
 	 */
 	public void showReSortDroppableAnswers(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		updateDragDropAnswersResourcesImages((DragDropQuestion)getQuestion());
 		
 		// Get current draggable item
-		Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+		Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
+		processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 		
 		// Check that current draggable item and answer names entered by user are valid
 		boolean ok=true;
@@ -5231,23 +5355,36 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptReSortDroppableAnswers(ActionEvent event)
 	{
-		// We get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
+		Answer activeAnswer=null;
 		// We change answers positions
-		List<Answer> droppableAnswersSorting=getDroppableAnswersSorting(operation);
+		List<Answer> droppableAnswersSorting=getDroppableAnswersSorting();
 		for (int answerPos=1;answerPos<=droppableAnswersSorting.size();answerPos++)
 		{
 			Answer answer=droppableAnswersSorting.get(answerPos-1);
 			answer.setPosition(answerPos);
 			if (answerPos==activeAnswerIndex+1)
 			{
+				activeAnswer=answer;
 				activeAnswerName=answer.getName()==null?"":answer.getName();
 			}
 		}
 		
 		// We need to update answers text fields
-		updateDragDropAnswersTextFields(operation,event.getComponent(),droppableAnswersSorting.size());
+		updateDragDropAnswersTextFields(event.getComponent(),droppableAnswersSorting.size());
+		
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,activeAnswer);
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * re-sorting answers of a "Drag & Drop" question. 
+	 * @param event Action event
+	 */
+	public void cancelReSortDroppableAnswers(ActionEvent event)
+	{
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 	}
 	
     // Añade una nueva respuesta a la pregunta
@@ -5257,30 +5394,29 @@ public class QuestionBean implements Serializable
      */
 	public void addAnswer(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get current answer
-		Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentAnswer);
+		processAnswersInputFields(event.getComponent(),currentAnswer);
 		
 		// Check that current answer name entered by user is valid
 		if (checkAnswerName(currentAnswer.getName()))
 		{
+			// Get question
+			Question question=getQuestion();
+			
 			// Add a new answer
-			Question question=getQuestion(operation);
 			question.addAnswer(new Answer());
 			int numberAnswers=question.getAnswers().size();
 			
 			// Change active tab of answers accordion to display the new answer
 			activeAnswerIndex=numberAnswers-1;
 			activeAnswerName="";
-			refreshActiveAnswer(operation,event.getComponent());
+			refreshActiveAnswer(event.getComponent());
 			
 			// We need to update answers text fields
-			updateAnswersTextFields(operation,event.getComponent(),numberAnswers);
+			updateAnswersTextFields(event.getComponent(),numberAnswers);
 		}
 		else
 		{
@@ -5289,6 +5425,8 @@ public class QuestionBean implements Serializable
 			
 			// Scroll page to top position
 			scrollToTop();
+			
+			updateAnswerResourceImage(currentAnswer);
 		}
 	}
 	
@@ -5298,17 +5436,14 @@ public class QuestionBean implements Serializable
      */
 	public void addDraggableItem(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get current draggable item
-		Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+		Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer,false);
+		processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer,false);
 		
 		// Check that current draggable item and answer names entered by user are valid
 		boolean ok=true;
@@ -5320,21 +5455,24 @@ public class QuestionBean implements Serializable
 		{
 			ok=false;
 		}
+		Operation operation=null;
 		if (ok)
 		{
+			// Get question
+			DragDropQuestion question=(DragDropQuestion)getQuestion();
+			
 			// Add a new draggable item
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-			DragDropQuestion question=(DragDropQuestion)getQuestion(operation);
 			question.addDraggableItem(new DragDropAnswer(),1);
 			int numberDraggableItems=question.getDraggableItems(1).size();
 			
 			// Change active tab of draggable items accordion to display the new draggable item
 			activeDraggableItemIndex=numberDraggableItems-1;
 			activeDraggableItemName="";
-			refreshActiveDraggableItem(operation,event.getComponent());
+			refreshActiveDraggableItem(event.getComponent());
 			
 			// We need to update draggable items text fields
-			updateDraggableItemsTextFields(operation,event.getComponent(),numberDraggableItems);
+			updateDraggableItemsTextFields(event.getComponent(),numberDraggableItems);
 		}
 		else
 		{
@@ -5346,26 +5484,25 @@ public class QuestionBean implements Serializable
 			
 			// Scroll page to top position
 			scrollToTop();
+			
+			operation=updateAnswerResourceImage(currentDraggableItem);
 		}
+		operation=updateAnswerResourceImage(operation,currentAnswer);
 	}
-	
     /**
      * Adds a new draggable item to a "Drag & Drop" question.
 	 * @param event Action event
      */
 	public void addDroppableAnswer(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get current draggable item
-		Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+		Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),null,currentAnswer,false);
+		processAnswersInputFields(event.getComponent(),null,currentAnswer,false);
 		
 		// Check that current draggable item and answer names entered by user are valid
 		boolean ok=true;
@@ -5377,21 +5514,24 @@ public class QuestionBean implements Serializable
 		{
 			ok=false;
 		}
+		Operation operation=null;
 		if (ok)
 		{
+			// Get question
+			DragDropQuestion question=(DragDropQuestion)getQuestion();
+			
 			// Add a new answer
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-			DragDropQuestion question=(DragDropQuestion)getQuestion(operation);
 			question.addDroppableAnswer(new DragDropAnswer(),1);
 			int numberAnswers=question.getDroppableAnswers(1).size();
 			
 			// Change active tab of answers accordion to display the new answer
 			activeAnswerIndex=numberAnswers-1;
 			activeAnswerName="";
-			refreshActiveAnswer(operation,event.getComponent());
+			refreshActiveAnswer(event.getComponent());
 			
 			// We need to update answers text fields
-			updateAnswersTextFields(operation,event.getComponent(),numberAnswers);
+			updateAnswersTextFields(event.getComponent(),numberAnswers);
 		}
 		else
 		{
@@ -5403,25 +5543,26 @@ public class QuestionBean implements Serializable
 			
 			// Scroll page to top position
 			scrollToTop();
+			
+			operation=updateAnswerResourceImage(currentAnswer);
 		}
+		updateAnswerResourceImage(operation,currentDraggableItem);
 	}
 	
 	/**
 	 * Checks if deleting an answer will affect to the feedbacks already defined.
-	 * @param operation Operation
 	 * @param deletePosition Position of answer to delete
 	 * @return true if deleting an answer won't affect to the feedbacks already defined, false otherwise
 	 */
-	private boolean checkFeedbacksForDeleteAnswer(Operation operation,int deletePosition)
+	private boolean checkFeedbacksForDeleteAnswer(int deletePosition)
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
 		boolean noSingleMultichoice=false;
 		boolean correct=false;
-		Question question=getQuestion(operation);
 		if (question instanceof MultichoiceQuestion)
 		{
 			MultichoiceQuestion multichoiceQuestion=(MultichoiceQuestion)question;
@@ -5429,7 +5570,7 @@ public class QuestionBean implements Serializable
 			Answer answer=multichoiceQuestion.getAnswer(deletePosition);
 			correct=answer.getCorrect();
 		}
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Check answer conditions
 			ok=checkAnswerConditions(feedback,deletePosition);
@@ -5442,7 +5583,7 @@ public class QuestionBean implements Serializable
 			{
 				// Check selected answers condition 
 				// (answer has not been deleted so a maximum value variation needed)
-				ok=checkSelectedAnswersCondition(operation,feedback,-1);
+				ok=checkSelectedAnswersCondition(feedback,-1);
 				if (!ok)
 				{
 					break;
@@ -5450,7 +5591,7 @@ public class QuestionBean implements Serializable
 				
 				// Check unselected answers condition 
 				// (answer has not been deleted so a maximum value variation needed)
-				ok=checkUnselectedAnswersCondition(operation,feedback,-1);
+				ok=checkUnselectedAnswersCondition(feedback,-1);
 				if (!ok)
 				{
 					break;
@@ -5460,7 +5601,7 @@ public class QuestionBean implements Serializable
 				{
 					// Check selected right answers condition 
 					// (answer has not been deleted so a maximum value variation needed)
-					ok=checkSelectedRightAnswersCondition(operation,feedback,-1);
+					ok=checkSelectedRightAnswersCondition(feedback,-1);
 					if (!ok)
 					{
 						break;
@@ -5468,7 +5609,7 @@ public class QuestionBean implements Serializable
 					
 					// Check unselected right answers condition 
 					// (answer has not been deleted so a maximum value variation needed)
-					ok=checkUnselectedRightAnswersCondition(operation,feedback,-1);
+					ok=checkUnselectedRightAnswersCondition(feedback,-1);
 					if (!ok)
 					{
 						break;
@@ -5476,7 +5617,7 @@ public class QuestionBean implements Serializable
 					
 					// Check right distance answers condition 
 					// (answer is correct and has not been deleted so a right variation needed)
-					ok=checkRightDistanceCondition(operation,feedback,-1,0);
+					ok=checkRightDistanceCondition(feedback,-1,0);
 					if (!ok)
 					{
 						break;
@@ -5486,7 +5627,7 @@ public class QuestionBean implements Serializable
 				{
 					// Check selected wrong answers condition 
 					// (answer has not been deleted so a maximum value variation needed)
-					ok=checkSelectedWrongAnswersCondition(operation,feedback,-1);
+					ok=checkSelectedWrongAnswersCondition(feedback,-1);
 					if (!ok)
 					{
 						break;
@@ -5494,7 +5635,7 @@ public class QuestionBean implements Serializable
 					
 					// Check unselected wrong answers condition 
 					// (answer has not been deleted so a maximum value variation needed)
-					ok=checkUnselectedWrongAnswersCondition(operation,feedback,-1);
+					ok=checkUnselectedWrongAnswersCondition(feedback,-1);
 					if (!ok)
 					{
 						break;
@@ -5502,7 +5643,7 @@ public class QuestionBean implements Serializable
 					
 					// Check right distance answers condition 
 					// (answer is incorrect and has not been deleted so a wrong variation needed)
-					ok=checkRightDistanceCondition(operation,feedback,0,-1);
+					ok=checkRightDistanceCondition(feedback,0,-1);
 					if (!ok)
 					{
 						break;
@@ -5515,18 +5656,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Updates feebacks related to the deleted answer if needed.
-	 * @param operation Operation
 	 * @param deletePosition Position of deleted answer
 	 */
-	private void updateFeedbacksForDeleteAnswer(Operation operation,int deletePosition)
+	private void updateFeedbacksForDeleteAnswer(int deletePosition)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
 		boolean noSingleMultichoice=question instanceof MultichoiceQuestion && 
 			!((MultichoiceQuestion)question).isSingle();
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Update answer conditions
 			updateAnswerConditions(feedback,deletePosition);
@@ -5535,32 +5674,34 @@ public class QuestionBean implements Serializable
 			{
 				// Update selected answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateSelectedAnswersCondition(operation,feedback,0);
+				updateSelectedAnswersCondition(feedback,0);
 				
 				// Update selected right answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateSelectedRightAnswersCondition(operation,feedback,0);
+				updateSelectedRightAnswersCondition(feedback,0);
 				
 				// Update selected wrong answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateSelectedWrongAnswersCondition(operation,feedback,0);
+				updateSelectedWrongAnswersCondition(feedback,0);
 				
 				// Update unselected answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateUnselectedAnswersCondition(operation,feedback,0);
+				updateUnselectedAnswersCondition(feedback,0);
 				
 				// Update unselected right answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateUnselectedRightAnswersCondition(operation,feedback,0);
+				updateUnselectedRightAnswersCondition(feedback,0);
 				
 				// Update unselected wrong answers condition 
 				// (answer has been deleted so no maximum value variation needed)
-				updateUnselectedWrongAnswersCondition(operation,feedback,0);
+				updateUnselectedWrongAnswersCondition(feedback,0);
 				
 				// Update right distance condition 
 				// (answer has been deleted so no right nor wrong variations needed)
-				updateRightDistanceCondition(operation,feedback,0,0);
+				updateRightDistanceCondition(feedback,0,0);
 			}
+			// Update raw feedback
+			question.getFeedback(feedback.getPosition()).setFromOtherFeedback(feedback.getAsFeedback());
 		}
 	}
 	
@@ -5578,14 +5719,13 @@ public class QuestionBean implements Serializable
 			forceRemoveAnswer=false;
 		}
 		
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
-		boolean checkFeedbacks=checkFeedbacksForDeleteAnswer(operation,answerToRemovePosition);
+		boolean checkFeedbacks=checkFeedbacksForDeleteAnswer(answerToRemovePosition);
 		if (forceRemoveAnswer || checkFeedbacks)
 		{
 			// Remove answer from question
-			Question question=getQuestion(operation);
 			question.removeAnswer(answerToRemovePosition);
 			
 			// If it is needeed change active tab of answers accordion
@@ -5593,18 +5733,21 @@ public class QuestionBean implements Serializable
 			if (answerToRemovePosition>numAnswers)
 			{
 				activeAnswerIndex=numAnswers-1;
-				refreshActiveAnswer(operation,event.getComponent());
+				refreshActiveAnswer(event.getComponent());
 			}
-			activeAnswerName=getActiveAnswer(operation,event.getComponent()).getName();
+			Answer activeAnswer=getActiveAnswer(event.getComponent());
+			activeAnswerName=activeAnswer.getName();
 			
 			// If it is needed update feedbacks
 			if (!checkFeedbacks)
 			{
-				updateFeedbacksForDeleteAnswer(operation,answerToRemovePosition);
+				updateFeedbacksForDeleteAnswer(answerToRemovePosition);
 			}
 			
 			// We need to update answers text fields
-			updateAnswersTextFields(operation,event.getComponent(),numAnswers);
+			updateAnswersTextFields(event.getComponent(),numAnswers);
+			
+			updateAnswerResourceImage(activeAnswer);
 		}
 		else
 		{
@@ -5614,18 +5757,27 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
+	 * Action listener for updating resources information if we cancel the changes within the confirmation dialog 
+	 * for deleting an answer from question 
+	 * @param event Action event
+	 */
+	public void cancelConfirmRemoveAnswer(ActionEvent event)
+	{
+		updateAnswerResourceImage(getActiveAnswer(event.getComponent()));			
+	}
+	
+	/**
 	 * Checks if deleting a draggable item will affect to the answers already defined in a "Drag & Drop"
 	 * question.
-	 * @param operation Operation
 	 * @param group Group of draggable item to delete
 	 * @param deletePosition Position of draggable item to delete
 	 * @return true if deleting a draggable item won't affect to the feedbacks already defined in a 
 	 * "Drag & Drop" question, false otherwise
 	 */
-	private boolean checkAnswersForDeleteDraggableItem(Operation operation,int group,int deletePosition)
+	private boolean checkAnswersForDeleteDraggableItem(int group,int deletePosition)
 	{
 		boolean ok=true;
-		DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion(getCurrentUserOperation(operation));
+		DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion();
 		Answer draggableItem=dragDropQuestion.getDraggableItem(group,deletePosition);
 		if (draggableItem!=null && draggableItem instanceof DragDropAnswer)
 		{
@@ -5647,16 +5799,15 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if deleting a draggable item will affect to the feedbacks already defined in a "Drag & Drop"
 	 * question.
-	 * @param operation Operation
 	 * @param group Group of draggable item to delete
 	 * @param deletePosition Position of draggable item to delete
 	 * @return true if deleting a draggable item won't affect to the feedbacks already defined in a 
 	 * "Drag & Drop" question, false otherwise
 	 */
-	private boolean checkFeedbacksForDeleteDraggableItem(Operation operation,int group,int deletePosition)
+	private boolean checkFeedbacksForDeleteDraggableItem(int group,int deletePosition)
 	{
 		boolean ok=true;
-		for (FeedbackBean feedback:getFeedbacks(getCurrentUserOperation(operation)))
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Check answer conditions for deleting a draggable item in a "Drag & Drop" question
 			ok=checkAnswerConditionsForDeletingDraggableItem(feedback,group,deletePosition);
@@ -5670,16 +5821,19 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Updates feedbacks related to the deleted draggable item in a "Drag & Drop" question if needed.
-	 * @param operation Operation
 	 * @param group Group of deleted draggable item
 	 * @param deletePosition Position of deleted draggable item
 	 */
-	private void updateFeedbacksForDeleteDraggableItem(Operation operation,int group,int deletePosition)
+	private void updateFeedbacksForDeleteDraggableItem(int group,int deletePosition)
 	{
-		for (FeedbackBean feedback:getFeedbacks(getCurrentUserOperation(operation)))
+		Question question=getQuestion();
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Update answer conditions for deleting a draggable item in a "Drag & Drop" question
 			updateAnswerConditionsForDeletingDraggableItem(feedback,group,deletePosition);
+			
+			// Update raw feedback
+			question.getFeedback(feedback.getPosition()).setFromOtherFeedback(feedback.getAsFeedback());
 		}
 	}
 	
@@ -5689,22 +5843,21 @@ public class QuestionBean implements Serializable
 	 */
 	public void removeDraggableItem(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
 		if (question instanceof DragDropQuestion)
 		{
 			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
 			
 			// Get current draggable item
-			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 			
 			// Get current answer
-			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 			
 			// We need to process some input fields
-			processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
+			processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 			
 			// Check that current answer name entered by user is valid (don't display error messages yet)
 			if (checkAnswerName(currentAnswer.getName(),false))
@@ -5719,10 +5872,10 @@ public class QuestionBean implements Serializable
 						((Integer)event.getComponent().getAttributes().get("position")).intValue();
 					forceRemoveDraggableItem=false;
 				}
-				boolean checkAnswers=checkAnswersForDeleteDraggableItem(
-					operation,draggableItemToRemoveGroup,draggableItemToRemovePosition);
+				boolean checkAnswers=
+					checkAnswersForDeleteDraggableItem(draggableItemToRemoveGroup,draggableItemToRemovePosition);
 				boolean checkFeedbacks=checkFeedbacksForDeleteDraggableItem(
-					operation,draggableItemToRemoveGroup,draggableItemToRemovePosition);
+					draggableItemToRemoveGroup,draggableItemToRemovePosition);
 				if (forceRemoveDraggableItem || (checkAnswers && checkFeedbacks))
 				{
 					// Remove draggable item from question
@@ -5734,23 +5887,27 @@ public class QuestionBean implements Serializable
 					if (draggableItemToRemovePosition>numDraggableItems)
 					{
 						activeDraggableItemIndex=numDraggableItems-1;
-						refreshActiveDraggableItem(operation,event.getComponent());
+						refreshActiveDraggableItem(event.getComponent());
 					}
-					activeDraggableItemName=getActiveDraggableItem(operation,event.getComponent()).getName();
+					Answer activeDraggableItem=getActiveDraggableItem(event.getComponent());
+					activeDraggableItemName=activeDraggableItem.getName();
 					
 					// If it is needed update feedbacks
 					if (!checkFeedbacks)
 					{
 						updateFeedbacksForDeleteDraggableItem(
-							operation,draggableItemToRemoveGroup,draggableItemToRemovePosition);
+							draggableItemToRemoveGroup,draggableItemToRemovePosition);
 					}
 					
 					// We need to update draggable items text fields
-					updateDraggableItemsTextFields(operation,event.getComponent(),numDraggableItems);
+					updateDraggableItemsTextFields(event.getComponent(),numDraggableItems);
 					
 					// We need to update answers text fields
-					updateAnswersTextFields(operation,event.getComponent(),
+					updateAnswersTextFields(event.getComponent(),
 						dragDropQuestion.getDroppableAnswers(draggableItemToRemoveGroup).size());
+					
+					Operation operation=updateAnswerResourceImage(activeDraggableItem);
+					updateAnswerResourceImage(operation,currentAnswer);
 				}
 				else
 				{
@@ -5770,7 +5927,7 @@ public class QuestionBean implements Serializable
 					RequestContext rq=RequestContext.getCurrentInstance();
 					rq.execute("confirmDeleteDraggableItemDialog.show()");
 				}
-			}			
+			}
 			else
 			{
 				// Perform checks and display error messages
@@ -5785,25 +5942,35 @@ public class QuestionBean implements Serializable
 				
 				// Scroll page to top position
 				scrollToTop();
+				
+				Operation operation=updateAnswerResourceImage(currentDraggableItem);			
+				updateAnswerResourceImage(operation,currentAnswer);			
 			}
 		}
 	}
 	
 	/**
+	 * Action listener for updating resources information if we cancel the changes within the confirmation dialog 
+	 * for deleting a draggable item from a "Drag & Drop" question 
+	 * @param event Action event
+	 */
+	public void cancelConfirmRemoveDraggableItem(ActionEvent event)
+	{
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,getActiveAnswer(event.getComponent()));
+	}
+	
+	/**
 	 * Checks if deleting an answer will affect to the feedbacks already defined in a "Drag & Drop" question.
-	 * @param operation Operation
 	 * @param group Group of answer to delete
 	 * @param deletePosition Position of answer to delete
 	 * @return true if deleting an answer won't affect to the feedbacks already defined in a "Drag & Drop" 
 	 * question, false otherwise
 	 */
-	private boolean checkFeedbacksForDeleteDroppableAnswer(Operation operation,int group,int deletePosition)
+	private boolean checkFeedbacksForDeleteDroppableAnswer(int group,int deletePosition)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
 		boolean ok=true;
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Check answer conditions for deleting an answer in a "Drag & Drop" question
 			ok=checkAnswerConditionsForDeletingDroppableAnswer(feedback,group,deletePosition);
@@ -5814,7 +5981,7 @@ public class QuestionBean implements Serializable
 			
 			// Check selected right answers condition 
 			// (answer has not been deleted so a maximum value variation needed)
-			ok=checkSelectedRightAnswersCondition(operation,feedback,-1);
+			ok=checkSelectedRightAnswersCondition(feedback,-1);
 			if (!ok)
 			{
 				break;
@@ -5822,7 +5989,7 @@ public class QuestionBean implements Serializable
 			
 			// Check selected wrong answers condition 
 			// (answer has not been deleted so a maximum value variation needed)
-			ok=checkSelectedWrongAnswersCondition(operation,feedback,-1);
+			ok=checkSelectedWrongAnswersCondition(feedback,-1);
 			if (!ok)
 			{
 				break;
@@ -5830,7 +5997,7 @@ public class QuestionBean implements Serializable
 			
 			// Check right distance answers condition 
 			// (answer has not been deleted so right and wrong variations needed)
-			ok=checkRightDistanceCondition(operation,feedback,-1,-1);
+			ok=checkRightDistanceCondition(feedback,-1,-1);
 			if (!ok)
 			{
 				break;
@@ -5841,31 +6008,31 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Updates feedbacks related to the deleted answer in a "Drag & Drop" question.
-	 * @param operation Operation
 	 * @param group Group of deleted answer
 	 * @param deletePosition Position of deleted answer
 	 */
-	private void updateFeedbacksForDeleteDroppableAnswer(Operation operation,int group,int deletePosition)
+	private void updateFeedbacksForDeleteDroppableAnswer(int group,int deletePosition)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		for (FeedbackBean feedback:getFeedbacks(operation))
+		Question question=getQuestion();
+		for (FeedbackBean feedback:getFeedbacks())
 		{
 			// Update answer conditions for deleting an answer in a "Drag & Drop" question
 			updateAnswerConditionsForDeletingDroppableAnswer(feedback,group,deletePosition);
 			
 			// Update selected right answers condition 
 			// (answer has been deleted so no maximum value variation needed)
-			updateSelectedRightAnswersCondition(operation,feedback,0);
+			updateSelectedRightAnswersCondition(feedback,0);
 			
 			// Update selected wrong answers condition 
 			// (answer has been deleted so no maximum value variation needed)
-			updateSelectedWrongAnswersCondition(operation,feedback,0);
+			updateSelectedWrongAnswersCondition(feedback,0);
 			
 			// Update right distance condition 
 			// (answer has been deleted so no right nor wrong variations needed)
-			updateRightDistanceCondition(operation,feedback,0,0);
+			updateRightDistanceCondition(feedback,0,0);
+			
+			//Update raw feedback
+			question.getFeedback(feedback.getPosition()).setFromOtherFeedback(feedback.getAsFeedback());
 		}
 	}
 	
@@ -5875,22 +6042,21 @@ public class QuestionBean implements Serializable
 	 */
 	public void removeDroppableAnswer(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
 		if (question instanceof DragDropQuestion)
 		{
 			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
 			
 			// Get current draggable item
-			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 			
 			// Get current answer
-			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 			
 			// We need to process some input fields
-			processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
+			processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 			
 			// Check that current draggable item name entered by user is valid (also display error messages)
 			if (checkDraggableItemName(currentDraggableItem.getName()))
@@ -5905,7 +6071,7 @@ public class QuestionBean implements Serializable
 					forceRemoveAnswer=false;
 				}
 				boolean checkFeedbacks=
-					checkFeedbacksForDeleteDroppableAnswer(operation,answerToRemoveGroup,answerToRemovePosition);
+					checkFeedbacksForDeleteDroppableAnswer(answerToRemoveGroup,answerToRemovePosition);
 				
 				if (forceRemoveAnswer || checkFeedbacks)
 				{
@@ -5917,18 +6083,22 @@ public class QuestionBean implements Serializable
 					if (answerToRemovePosition>numAnswers)
 					{
 						activeAnswerIndex=numAnswers-1;
-						refreshActiveAnswer(operation,event.getComponent());
+						refreshActiveAnswer(event.getComponent());
 					}
-					activeAnswerName=getActiveAnswer(operation,event.getComponent()).getName();
+					Answer activeAnswer=getActiveDroppableAnswer(event.getComponent());
+					activeAnswerName=activeAnswer.getName();
 					
 					// If it is needed update feedbacks
 					if (!checkFeedbacks)
 					{
-						updateFeedbacksForDeleteDroppableAnswer(operation,answerToRemoveGroup,answerToRemovePosition);
+						updateFeedbacksForDeleteDroppableAnswer(answerToRemoveGroup,answerToRemovePosition);
 					}
 					
 					// We need to update answers text fields
-					updateAnswersTextFields(operation,event.getComponent(),numAnswers);
+					updateAnswersTextFields(event.getComponent(),numAnswers);
+					
+					Operation operation=updateAnswerResourceImage(currentDraggableItem);
+					updateAnswerResourceImage(operation,activeAnswer);
 				}
 				else
 				{
@@ -5949,8 +6119,22 @@ public class QuestionBean implements Serializable
 				
 				// Scroll page to top position
 				scrollToTop();
+				
+				Operation operation=updateAnswerResourceImage(currentDraggableItem);			
+				updateAnswerResourceImage(operation,currentAnswer);
 			}
 		}
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the confirmation dialog 
+	 * for deleting an answer from a "Drag & Drop" question 
+	 * @param event Action event
+	 */
+	public void cancelConfirmRemoveDroppableAnswer(ActionEvent event)
+	{
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 	}
 	
     /**
@@ -5969,16 +6153,7 @@ public class QuestionBean implements Serializable
 	 */
 	public int getResourcesSize()
 	{
-		return getResourcesSize(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Number of additional resources added to this question
-	 */
-	private int getResourcesSize(Operation operation)
-	{
-		return getQuestion(getCurrentUserOperation(operation)).getQuestionResources().size();
+		return getQuestion().getQuestionResources().size();
 	}
 	
 	/**
@@ -5987,17 +6162,7 @@ public class QuestionBean implements Serializable
 	 */
 	public boolean isEnabledReSortResources()
 	{
-		return isEnabledReSortResources(null);
-	}
-	
-	/**
-     * @param operation Operation
-     * @return true if it is allowed to re-sort additional resources added to this question (resources>=2), 
-     * otherwise false
-	 */
-	private boolean isEnabledReSortResources(Operation operation)
-	{
-		return getResourcesSize(getCurrentUserOperation(operation))>1;
+		return getResourcesSize()>1;
 	}
 	
 	/**
@@ -6010,28 +6175,47 @@ public class QuestionBean implements Serializable
 		Operation operation=getCurrentUserOperation(null);
 		
 		// Get current question resource
-		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+		QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
+		
+		String currentQuestionResourceName=activeQuestionResourceName;
 		
 		// We need to process some input fields
 		processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
 		
-		// Check that current question resource name entered by user is valid
-		if (checkResourceName(getQuestion(operation),currentQuestionResource.getName(),
-			currentQuestionResource.getPosition()))
+		// Check that current question resource is valid
+		if (checkQuestionResource(getQuestion(),currentQuestionResource))
 		{
-			activeQuestionResourceName=currentQuestionResource.getName();
+			updateQuestionResourcesImages();
 			
-			setQuestionResourcesSorting(null);
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("resortResourcesDialog.show()");
+			if (isEnabledReSortResources())
+			{
+				//activeQuestionResourceName=currentQuestionResource.getName();
+				setQuestionResourcesSorting(null);
+				RequestContext rq=RequestContext.getCurrentInstance();
+				rq.execute("resortResourcesDialog.show()");
+			}
+			else
+			{
+				refreshActiveQuestionResource(event.getComponent());
+			}
 		}
 		else
 		{
-			// Restore old question resource name
-			currentQuestionResource.setName(activeQuestionResourceName);
-			
 			// Scroll page to top position
 			scrollToTop();
+			
+			updateQuestionResourcesImages(false);
+			updateResourcesTextFields(event.getComponent(),getQuestion().getQuestionResources().size());
+			
+			// Restore old question resource name
+			currentQuestionResource=getActiveQuestionResource(event.getComponent());
+			if (currentQuestionResource!=null)
+			{
+				currentQuestionResource.setName(activeQuestionResourceName);
+				activeQuestionResourceName=currentQuestionResourceName;
+			}
+			
+			refreshActiveQuestionResource(event.getComponent());
 		}
 	}
     
@@ -6042,9 +6226,6 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptReSortResources(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// We change question resources positions
 		for (int questionResourcePos=1;questionResourcePos<=questionResourcesSorting.size();questionResourcePos++)
 		{
@@ -6056,10 +6237,24 @@ public class QuestionBean implements Serializable
 			}
 		}
 		
-		getQuestion(operation).setQuestionResources(questionResourcesSorting);
+		getQuestion().setQuestionResources(questionResourcesSorting);
 		
 		// We need to update answers text fields
-		updateResourcesTextFields(operation,event.getComponent(),questionResourcesSorting.size());
+		updateResourcesTextFields(event.getComponent(),questionResourcesSorting.size());
+		
+		updateQuestionResourcesImages();
+		refreshActiveQuestionResource(event.getComponent());
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * re-sorting additional resources added to this question.
+	 * @param event Action event
+	 */
+	public void cancelReSortResources(ActionEvent event)
+	{
+		updateQuestionResourcesImages();
+		refreshActiveQuestionResource(event.getComponent());
 	}
 	
     /**
@@ -6068,21 +6263,22 @@ public class QuestionBean implements Serializable
      */
 	public void addResource(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get question
-		Question question=getQuestion(operation);
+		Question question=getQuestion();
 		
 		// Get current resource of question
-		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+		QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
+		
+		String currentQuestionResourceName=activeQuestionResourceName;
 		
 		// We need to process some input fields
-		processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
+		processResourcesInputFields(getCurrentUserOperation(null),event.getComponent(),currentQuestionResource);
 		
 		// Check that current resource name entered by user is valid
 		if (currentQuestionResource==null || checkQuestionResource(question,currentQuestionResource))
 		{
+			updateQuestionResourcesImages();
+			
 			// Add a new resorce
 			QuestionResource newQuestionResource=new QuestionResource();
 			newQuestionResource.setResource(getNoResource());
@@ -6094,18 +6290,28 @@ public class QuestionBean implements Serializable
 			// Change active tab of answers accordion to display the new answer
 			activeQuestionResourceIndex=numberQuestionResources-1;
 			activeQuestionResourceName="";
-			refreshActiveQuestionResource(operation,event.getComponent());
+			refreshActiveQuestionResource(event.getComponent());
 			
 			// We need to update resources text fields
-			updateResourcesTextFields(operation,event.getComponent(),numberQuestionResources);
+			updateResourcesTextFields(event.getComponent(),numberQuestionResources);
 		}
 		else
 		{
-			// Restore old resource name
-			currentQuestionResource.setName(activeQuestionResourceName);
-			
 			// Scroll page to top position
 			scrollToTop();
+			
+			updateQuestionResourcesImages(false);
+			updateResourcesTextFields(event.getComponent(),getQuestion().getQuestionResources().size());
+			
+			// Restore old question resource name
+			currentQuestionResource=getActiveQuestionResource(event.getComponent());
+			if (currentQuestionResource!=null)
+			{
+				currentQuestionResource.setName(activeQuestionResourceName);
+				activeQuestionResourceName=currentQuestionResourceName;
+			}
+			
+			refreshActiveQuestionResource(event.getComponent());
 		}
 	}
 	
@@ -6118,11 +6324,10 @@ public class QuestionBean implements Serializable
 		int questionResourceToRemovePosition=
 			((Integer)event.getComponent().getAttributes().get("position")).intValue();
 		
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
 		// Remove resource from question
-		Question question=getQuestion(operation);
 		question.removeQuestionResource(questionResourceToRemovePosition);
 		
 		// If it is needeed change active tab of resources accordion
@@ -6130,12 +6335,63 @@ public class QuestionBean implements Serializable
 		if (questionResourceToRemovePosition>numQuestionResources)
 		{
 			activeQuestionResourceIndex=numQuestionResources-1;
-			refreshActiveQuestionResource(operation,event.getComponent());
 		}
-		activeQuestionResourceName=getActiveQuestionResource(operation,event.getComponent()).getName();
 		
-		// We need to update resources text fields
-		updateResourcesTextFields(operation,event.getComponent(),numQuestionResources);
+		updateQuestionResourcesImages();
+		numQuestionResources=question.getQuestionResources().size();
+		
+		if (numQuestionResources>0)
+		{
+			QuestionResource activeQuestionResource=getActiveQuestionResource(event.getComponent());
+			activeQuestionResourceName=activeQuestionResource==null?"":activeQuestionResource.getName();
+			if (activeQuestionResourceName==null)
+			{
+				activeQuestionResourceName="";
+			}
+			
+			// We need to update resources text fields
+			updateResourcesTextFields(event.getComponent(),numQuestionResources);
+			
+			refreshActiveQuestionResource(event.getComponent());
+		}
+		else
+		{
+			activeQuestionResourceName="";
+		}
+	}
+	
+	private boolean checkSaveQuestion(Operation operation)
+	{
+		boolean ok=false;
+		
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		Question question=getQuestion();
+		if (question.getId()>0L)
+		{
+			ok=false;
+			if (getEditEnabled(operation).booleanValue())
+			{
+				if (question.getCreatedBy().getId()==userSessionService.getCurrentUserId())
+				{
+					ok=true;
+				}
+				else
+				{
+					ok=getEditOtherUsersQuestionsEnabled(operation).booleanValue() && 
+						(!getQuestionAuthorAdmin(operation).booleanValue() || 
+						getEditAdminsQuestionsEnabled(operation).booleanValue()) && 
+						(!getQuestionAuthorSuperadmin(operation).booleanValue() || 
+						getEditSuperadminsQuestionsEnabled(operation).booleanValue());
+				}
+			}
+		}
+		else
+		{
+			ok=getAddEnabled(operation).booleanValue();
+		}
+		return ok;
 	}
 	
 	// Guardamos la pregunta
@@ -6145,224 +6401,279 @@ public class QuestionBean implements Serializable
 	 */
 	public String saveQuestion()
 	{
-		String nextView="questions?faces-redirect=true";
-		Question question=null;
-		User currentUser=null;
+		String nextView=null;
 		
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		// Get question
-		question=getQuestion(operation);
-		
-		if (question.getId()>0L && activeQuestionTabIndex==GENERAL_TABVIEW_TAB)
-		{
-			// Check question name
-	    	if (!checkQuestionName(question.getName()))
-	    	{
-	    		nextView=null;
-	    	}
-	    	
-	    	/*
-	    	// Check question text
-	    	if (question.getQuestionText()==null || question.getQuestionText().equals(""))
-	    	{
-	    		addErrorMessage("QUESTION_TEXT_REQUIRED");
-	            nextView=null;
-            }
-            */
-		}
-		else if (question.getId()>0L && activeQuestionTabIndex==ANSWERS_TABVIEW_TAB)
-		{
-			if (question instanceof MultichoiceQuestion)
-			{
-				UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
-				
-				// Get current answer
-				Answer currentAnswer=getActiveAnswer(operation,viewRoot);
-				
-				// Check that current answer name entered by user is valid
-				if (checkAnswerName(currentAnswer.getName()))
-				{
-					activeAnswerName=currentAnswer.getName();
-				}
-				else
-				{
-					// Restore old answer tab without changing its name
-					updateAnswersTextFields(operation,viewRoot,question.getAnswers().size());
-					currentAnswer.setName(activeAnswerName);
-					
-					nextView=null;
-				}
-			}
-			else if (question instanceof DragDropQuestion)
-			{
-				UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
-				
-				// Get current draggable item
-				Answer currentDraggableItem=
-					getActiveDraggableItem(operation,FacesContext.getCurrentInstance().getViewRoot());
-				
-				// Get current answer
-				Answer currentAnswer=getActiveDroppableAnswer(operation,FacesContext.getCurrentInstance().getViewRoot());
-				
-				// Check that current draggable item and answer names entered by user are valid
-				if (!checkDraggableItemName(currentDraggableItem.getName()))
-				{
-					nextView=null;
-				}
-				if (!checkAnswerName(currentAnswer.getName()))
-				{
-					nextView=null;
-				}
-				if (nextView==null)
-				{
-					DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
-					
-					// Restore old draggable item tab without changing its name
-					//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-					updateDraggableItemsTextFields(operation,viewRoot,dragDropQuestion.getDraggableItems(1).size());
-					currentDraggableItem.setName(activeDraggableItemName);
-					
-					// Restore old answer tab without changing its name
-					//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-					updateAnswersTextFields(operation,viewRoot,dragDropQuestion.getDroppableAnswers(1).size());
-					currentAnswer.setName(activeAnswerName);
-				}
-				else
-				{
-					activeDraggableItemName=currentDraggableItem.getName();
-					activeAnswerName=currentAnswer.getName();
-				}
-			}
-			else if (question instanceof OmXmlQuestion)
-			{
-    			// Check that xml content is a valid xml document
-				if (!checkXmlContent(((OmXmlQuestion)question).getXmlContent()))
-				{
-					nextView=null;
-				}
-			}
-		}
-		else if (question.getId()>0L && activeQuestionTabIndex==resourcesTabviewTab)
-		{
-			UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
-			
-			// Get current resource
-			QuestionResource currentQuestionResource=getActiveQuestionResource(operation,viewRoot);
-			
-			if (currentQuestionResource!=null)
-			{
-				// Check that current resource name entered by user is valid
-				if (checkQuestionResource(question,currentQuestionResource))
-				{
-					activeQuestionResourceName=currentQuestionResource.getName();
-				}
-				else
-				{
-					nextView=null;
-					
-					// Restore old resource tab without changing its name
-					updateResourcesTextFields(operation,viewRoot,question.getQuestionResources().size());
-					currentQuestionResource.setName(activeQuestionResourceName);
-				}
-			}
-		}
-		
-    	// Check question category
+		setFilterGlobalQuestionsEnabled(null);
+		setFilterOtherUsersQuestionsEnabled(null);
     	setGlobalOtherUserCategoryAllowed(null);
-    	resetQuestionAuthorAdmin(operation);
-    	resetQuestionAuthorSuperadmin(operation);
+    	resetQuestionAuthorAdmin();
+    	resetQuestionAuthorSuperadmin();
+    	setAddEnabled(null);
+    	setEditEnabled(null);
+    	setEditOtherUsersQuestionsEnabled(null);
+    	setEditAdminsQuestionsEnabled(null);
+    	setEditSuperadminsQuestionsEnabled(null);
     	setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
     	setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
     	setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-		if (checkCategory(operation))
+    	
+		Question question=getQuestion();
+		long questionId=question.getId();
+		boolean update=questionId>0L;
+		if (update && !questionsService.checkQuestionId(operation,questionId))
 		{
-   			if (!checkAvailableQuestionName(operation))
-   			{
-   				addErrorMessage("QUESTION_NAME_ALREADY_DECLARED");
-   				nextView=null;
-   			}
+			displayErrorPage(
+				"QUESTION_UPDATE_NOT_FOUND_ERROR","The question you are trying to update no longer exists.");
+		}
+		else if (!checkSaveQuestion(operation) || (update && !checkCurrentCategory(operation)))
+		{
+	    	displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
 		}
 		else
 		{
-    		addErrorMessage("QUESTION_CATEGORY_ASSIGN_ERROR");
-    		nextView=null;
-    		
-    		setUseGlobalResources(null);
-    		setUseOtherUsersResources(null);
-    		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-    		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-    		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-    		setQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-    		resetAdmins();
-    		resetSuperadmins();
-    		
-    		// Reload question categories from DB
-	    	setQuestionsCategories(null);
-		}
-		// Right answers validation
-		if (!checkAnswersFields(operation))
-		{
-			nextView=null;
-			question=null;
-		}
-		
-		if (nextView!=null)
-		{
-			// End current user session Hibernate operation
-			userSessionService.endCurrentUserOperation();
+			nextView="questions?faces-redirect=true";
+			User currentUser=null;
+			boolean reloadCategories=true;
+			if (update && activeQuestionTabIndex==GENERAL_TABVIEW_TAB)
+			{
+				// Check question name
+		    	if (!checkQuestionName(question.getName()))
+		    	{
+		    		nextView=null;
+		    	}
+			}
+			else if (update && activeQuestionTabIndex==ANSWERS_TABVIEW_TAB)
+			{
+				if (question instanceof MultichoiceQuestion)
+				{
+					UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+					
+					// Get current answer
+					Answer currentAnswer=getActiveAnswer(viewRoot);
+					
+					// Check that current answer name entered by user is valid
+					if (checkAnswerName(currentAnswer.getName()))
+					{
+						activeAnswerName=currentAnswer.getName();
+					}
+					else
+					{
+						// Restore old answer tab without changing its name
+						updateAnswersTextFields(viewRoot,question.getAnswers().size());
+						currentAnswer.setName(activeAnswerName);
+						
+						nextView=null;
+					}
+				}
+				else if (question instanceof DragDropQuestion)
+				{
+					UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+					
+					// Get current draggable item
+					Answer currentDraggableItem=
+						getActiveDraggableItem(FacesContext.getCurrentInstance().getViewRoot());
+					
+					// Get current answer
+					Answer currentAnswer=getActiveDroppableAnswer(FacesContext.getCurrentInstance().getViewRoot());
+					
+					// Check that current draggable item and answer names entered by user are valid
+					if (!checkDraggableItemName(currentDraggableItem.getName()))
+					{
+						nextView=null;
+					}
+					if (!checkAnswerName(currentAnswer.getName()))
+					{
+						nextView=null;
+					}
+					if (nextView==null)
+					{
+						DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
+						
+						// Restore old draggable item tab without changing its name
+						//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
+						updateDraggableItemsTextFields(viewRoot,dragDropQuestion.getDraggableItems(1).size());
+						currentDraggableItem.setName(activeDraggableItemName);
+						
+						// Restore old answer tab without changing its name
+						//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
+						updateAnswersTextFields(viewRoot,dragDropQuestion.getDroppableAnswers(1).size());
+						currentAnswer.setName(activeAnswerName);
+					}
+					else
+					{
+						activeDraggableItemName=currentDraggableItem.getName();
+						activeAnswerName=currentAnswer.getName();
+					}
+				}
+				else if (question instanceof OmXmlQuestion)
+				{
+	    			// Check that xml content is a valid xml document
+					if (!checkXmlContent(((OmXmlQuestion)question).getXmlContent()))
+					{
+						nextView=null;
+					}
+				}
+			}
+			else if (update && activeQuestionTabIndex==resourcesTabviewTab)
+			{
+				UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+				
+				// Get current resource
+				QuestionResource currentQuestionResource=getActiveQuestionResource(viewRoot);
+				
+				if (currentQuestionResource!=null)
+				{
+					// Check that current resource name entered by user is valid
+					if (checkQuestionResource(question,currentQuestionResource))
+					{
+						activeQuestionResourceName=currentQuestionResource.getName();
+					}
+					else
+					{
+						nextView=null;
+						
+						// Restore old resource tab without changing its name
+						updateResourcesTextFields(viewRoot,question.getQuestionResources().size());
+						currentQuestionResource.setName(activeQuestionResourceName);
+					}
+				}
+			}
 			
-			Operation writeOp=null;
-			try
+	    	// Check question category
+			if (!categoriesService.checkCategoryId(operation,getCategoryId()))
 			{
-				// Start a new Hibernate operation
-				writeOp=HibernateUtil.startOperation();
-				
-				currentUser=userSessionService.getCurrentUser(writeOp);
-				
-				// If we have not selected a resource (image) we set resource to null
-				if (question.getResource()!=null && question.getResource().getId()==-1L)
-				{
-					question.setResource(null);
-				}
-				
-				// We set modification user & datetime
-				Date dateNow=new Date();
-				question.setModifiedBy(currentUser);
-				question.setTimemodified(dateNow);
-				
-				if (question.getId()>0L) //Update question
-				{
-					questionsService.updateQuestion(writeOp,question);
-				}
-				else // New question
-				{
-					// As this a new question we also set creation user & datetime
-					question.setCreatedBy(currentUser);
-					question.setTimecreated(dateNow); 
-					questionsService.addQuestion(writeOp,question);
-				}
-				
-				// Do commit
-				writeOp.commit();
+	    		addErrorMessage(
+	    			question.getId()>0L?"QUESTION_CATEGORY_UPDATE_NOT_FOUND":"QUESTION_CATEGORY_ADD_NOT_FOUND");
+	    		nextView=null;
+	    		
+				// Refresh questions categories from DB
+		    	resetQuestionsCategories(operation);
+		    	
+		    	// We also need to change active tab to display categories combo
+		    	setNewActiveQuestionTab(GENERAL_WIZARD_TAB);
 			}
-			catch (ServiceException se)
+			else if (checkCategory(operation))
 			{
-				// Do rollback
-				writeOp.rollback();
-				
-				throw se;
+	   			if (!checkAvailableQuestionName(operation))
+	   			{
+	   				addErrorMessage("QUESTION_NAME_ALREADY_DECLARED");
+	   				nextView=null;
+	   			}
 			}
-			finally
+			else
 			{
-				// End Hibernate operation
-				HibernateUtil.endOperation(writeOp);
+	    		addErrorMessage("QUESTION_CATEGORY_NOT_GRANTED_ERROR");
+	    		nextView=null;
+	    		
+	    		setCategoryId(operation,0L);
+	    		
+				// Refresh questions categories from DB
+		    	resetQuestionsCategories(operation);
+		    	reloadCategories=false;
+		    	
+		    	// We also need to change active tab to display categories combo
+		    	setNewActiveQuestionTab(GENERAL_WIZARD_TAB);
+			}
+			// Right answers validation
+			if (!checkAnswersFields())
+			{
+				nextView=null;
+				question=null;
+			}
+			
+			if (nextView!=null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				Operation writeOp=null;
+				try
+				{
+					// Start a new Hibernate operation
+					writeOp=HibernateUtil.startOperation();
+					
+					currentUser=userSessionService.getCurrentUser(writeOp);
+					
+					// We need to remove added resources that had been deleted before saving
+					updateResourcesImages(writeOp,true);
+					
+					// We set modification user & datetime
+					Date dateNow=new Date();
+					question.setModifiedBy(currentUser);
+					question.setTimemodified(dateNow);
+					
+					if (question.getId()>0L) //Update question
+					{
+						questionsService.updateQuestion(writeOp,question);
+					}
+					else // New question
+					{
+						// As this a new question we also set creation user & datetime
+						question.setCreatedBy(currentUser);
+						question.setTimecreated(dateNow); 
+						questionsService.addQuestion(writeOp,question);
+					}
+					
+					// Do commit
+					writeOp.commit();
+				}
+				catch (ServiceException se)
+				{
+					// Do rollback
+					writeOp.rollback();
+					
+					throw se;
+				}
+				finally
+				{
+					// End Hibernate operation
+					HibernateUtil.endOperation(writeOp);
+				}
+			}
+			if (nextView==null)
+			{
+				// Reload categories if needed
+				if (reloadCategories)
+				{
+					setQuestionsCategories(null);
+				}
+				
+				// Reset user permissions
+				setFilterGlobalResourcesEnabled(null);
+				setFilterOtherUsersResourcesEnabled(null);
+	    		setUseGlobalResources(null);
+	    		setUseOtherUsersResources(null);
+	    		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+	    		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+	    		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+	    		resetAdmins();
+	    		resetSuperadmins();
 			}
 		}
 		return nextView;
+	}
+	
+	private void setNewActiveQuestionTab(String newActiveQuestionTab)
+	{
+		if (!newActiveQuestionTab.equals(getActiveQuestionTabName()))
+		{
+			UIComponent viewRoot=FacesContext.getCurrentInstance().getViewRoot();
+			if (getQuestion().getId()>0L)
+			{
+    			TabView questionFormTabs=(TabView)viewRoot.findComponent(":questionForm:tabview");
+    			activeQuestionTabIndex=getQuestionTabIndex(newActiveQuestionTab);
+    			questionFormTabs.setActiveIndex(activeQuestionTabIndex);
+			}
+			else
+			{
+	    		Wizard questionFormWizard=(Wizard)viewRoot.findComponent(":questionForm:wizard");
+	    		activeQuestionTabName=newActiveQuestionTab;
+	    		questionFormWizard.setStep(newActiveQuestionTab);
+			}
+		}
 	}
 	
 	/**
@@ -6377,24 +6688,23 @@ public class QuestionBean implements Serializable
 		String property=(String)event.getComponent().getAttributes().get("property");
 		if (property.equals("trueText"))
 		{
-			setTrueText(getCurrentUserOperation(null),null);
+			setTrueText(null);
 		}
 		else if (property.equals("falseText"))
 		{
-			setFalseText(getCurrentUserOperation(null),null);
+			setFalseText(null);
 		}
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Active answer
 	 */
-	private Answer getActiveAnswer(Operation operation,UIComponent component)
+	private Answer getActiveAnswer(UIComponent component)
 	{
 		Answer answer=null;
 		String answersAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			answersAccordionId=":questionForm:answersAccordion";
@@ -6412,14 +6722,13 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Active draggable item of a "Drag & Drop" question (&lt;dragbox&gt;)
 	 */
-	private Answer getActiveDraggableItem(Operation operation,UIComponent component)
+	private Answer getActiveDraggableItem(UIComponent component)
 	{
 		Answer draggableItem=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof DragDropQuestion)
 		{
 			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
@@ -6436,6 +6745,7 @@ public class QuestionBean implements Serializable
 				(AccordionPanel)component.findComponent(draggableItemsAccordionId);
 			if (draggableItemsAccordion!=null)
 			{
+				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 				draggableItem=dragDropQuestion.getDraggableItem(1,activeDraggableItemIndex+1);
 			}
 		}
@@ -6443,14 +6753,13 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Active answer of a "Drag & Drop" question (&lt;dropbox&gt;)
 	 */
-	private Answer getActiveDroppableAnswer(Operation operation,UIComponent component)
+	private Answer getActiveDroppableAnswer(UIComponent component)
 	{
 		Answer answer=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof DragDropQuestion)
 		{
 			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
@@ -6466,6 +6775,7 @@ public class QuestionBean implements Serializable
 			AccordionPanel answersAccordion=(AccordionPanel)component.findComponent(answersAccordionId);
 			if (answersAccordion!=null)
 			{
+				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 				answer=dragDropQuestion.getDroppableAnswer(1,activeAnswerIndex+1);
 			}
 		}
@@ -6473,15 +6783,14 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @return Active resource of question
 	 */
-	private QuestionResource getActiveQuestionResource(Operation operation,UIComponent component)
+	private QuestionResource getActiveQuestionResource(UIComponent component)
 	{
 		QuestionResource questionResource=null;
 		String questionResourcesAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			questionResourcesAccordionId=":questionForm:questionResourcesAccordion";
@@ -6502,13 +6811,12 @@ public class QuestionBean implements Serializable
 	/**
 	 * Refresh answers accordion to display current active tab.<br/><br/>
 	 * Useful to avoid undesired tab changes after updating an accordion.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void refreshActiveAnswer(Operation operation,UIComponent component)
+	private void refreshActiveAnswer(UIComponent component)
 	{
 		String answersAccordionId=null;
-		if (getQuestion(getCurrentUserOperation(operation)).getId()==0L)
+		if (getQuestion().getId()==0L)
 		{
 			answersAccordionId=":questionForm:answersAccordion";
 		}
@@ -6533,13 +6841,12 @@ public class QuestionBean implements Serializable
 	/**
 	 * Refresh draggable items accordion to display current active tab.<br/><br/>
 	 * Useful to avoid undesired tab changes after updating an accordion.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void refreshActiveDraggableItem(Operation operation,UIComponent component)
+	private void refreshActiveDraggableItem(UIComponent component)
 	{
 		String draggableItemsAccordionId=null;
-		if (getQuestion(getCurrentUserOperation(operation)).getId()==0L)
+		if (getQuestion().getId()==0L)
 		{
 			draggableItemsAccordionId=":questionForm:draggableItemsAccordion";
 		}
@@ -6564,13 +6871,12 @@ public class QuestionBean implements Serializable
 	/**
 	 * Refresh resources of question accordion to display current active tab.<br/><br/>
 	 * Useful to avoid undesired tab changes after updating an accordion.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void refreshActiveQuestionResource(Operation operation,UIComponent component)
+	private void refreshActiveQuestionResource(UIComponent component)
 	{
 		String questionResourcesAccordionId=null;
-		if (getQuestion(getCurrentUserOperation(operation)).getId()==0L)
+		if (getQuestion().getId()==0L)
 		{
 			questionResourcesAccordionId=":questionForm:questionResourcesAccordion";
 		}
@@ -6595,10 +6901,9 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Process some input fields (name, category, level, questionText) of the common data tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processCommonDataInputFields(Operation operation,UIComponent component)
+	private void processCommonDataInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String nameInputId=null;
@@ -6606,7 +6911,7 @@ public class QuestionBean implements Serializable
 		String levelInputId=null;
 		String questionTextInputId=null;
 		String displayEquationsInputId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			nameInputId=":questionForm:nameInput";
@@ -6663,78 +6968,67 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer Answer to process or null if we don't want to process answer
 	 */
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer)
+	private void processAnswersInputFields(UIComponent component,Answer answer)
 	{
-		processAnswersInputFields(
-			getCurrentUserOperation(operation),component,answer,null,true,new ArrayList<String>(0));
+		processAnswersInputFields(component,answer,null,true,new ArrayList<String>(0));
 	}
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer Answer to process or null if we don't want to process answer
 	 * @param commonInputs true to process common input fields (not referred to a single answer), 
 	 * false to not process them
 	 */
 	@SuppressWarnings("unused")
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer,boolean commonInputs)
+	private void processAnswersInputFields(UIComponent component,Answer answer,boolean commonInputs)
 	{
-		processAnswersInputFields(
-			getCurrentUserOperation(operation),component,answer,null,commonInputs,new ArrayList<String>(0));
+		processAnswersInputFields(component,answer,null,commonInputs,new ArrayList<String>(0));
 	}
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer Answer to process or null if we don't want to process answer
 	 * @param commonInputs true to process common input fields (not referred to an answer), false to not process them
 	 * @param exceptions List of identifiers of input fields to be excluded from processing 
 	 */
 	@SuppressWarnings("unused")
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer,boolean commonInputs,
+	private void processAnswersInputFields(UIComponent component,Answer answer,boolean commonInputs,
 		List<String> exceptions)
 	{
-		processAnswersInputFields(getCurrentUserOperation(operation),component,answer,null,commonInputs,exceptions);
+		processAnswersInputFields(component,answer,null,commonInputs,exceptions);
 	}
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer1 First answer to process or null if we don't want to process first answer
 	 * @param answer2 Second answer to process or null if we don't want to process second answer
 	 */
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer1,Answer answer2)
+	private void processAnswersInputFields(UIComponent component,Answer answer1,Answer answer2)
 	{
-		processAnswersInputFields(
-			getCurrentUserOperation(operation),component,answer1,answer2,true,new ArrayList<String>(0));
+		processAnswersInputFields(component,answer1,answer2,true,new ArrayList<String>(0));
 	}
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer1 First answer to process or null if we don't want to process first answer
 	 * @param answer2 Second answer to process or null if we don't want to process second answer
 	 * @param commonInputs true to process common input fields (not referred to an answer), 
 	 * false to not process them
 	 */
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer1,Answer answer2,
-		boolean commonInputs)
+	private void processAnswersInputFields(UIComponent component,Answer answer1,Answer answer2,boolean commonInputs)
 	{
-		processAnswersInputFields(
-			getCurrentUserOperation(operation),component,answer1,answer2,commonInputs,new ArrayList<String>(0));
+		processAnswersInputFields(component,answer1,answer2,commonInputs,new ArrayList<String>(0));
 	}
 	
 	/**
 	 * Process some input fields of the answers tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer1 First answer to process or null if we don't want to process first answer
 	 * @param answer2 Second answer to process or null if we don't want to process second answer
@@ -6742,13 +7036,11 @@ public class QuestionBean implements Serializable
 	 * false to not process them
 	 * @param exceptions List of identifiers of input fields to be excluded from processing 
 	 */
-	private void processAnswersInputFields(Operation operation,UIComponent component,Answer answer1,Answer answer2,
+	private void processAnswersInputFields(UIComponent component,Answer answer1,Answer answer2,
 		boolean commonInputs,List<String> exceptions)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		Question question=getQuestion(operation);
+		// Get question
+		Question question=getQuestion();
 		/*
 		if (getQuestion() instanceof TrueFalseQuestion)
 		{
@@ -6762,18 +7054,18 @@ public class QuestionBean implements Serializable
 		if (question instanceof MultichoiceQuestion)
 		{
 			// Multichoice questions only need to process an answer (first answer)
-			processMultichoiceAnswersInputFields(operation,component,answer1,commonInputs,exceptions);
+			processMultichoiceAnswersInputFields(component,answer1,commonInputs,exceptions);
 		}
 		else if (question instanceof DragDropQuestion)
 		{
 			// Drag & Drop questions can process a draggable item (first answer) and a droppable answer 
 			// (second answer)
-			processDragDropAnswersInputFields(operation,component,answer1,answer2,commonInputs,exceptions);
+			processDragDropAnswersInputFields(component,answer1,answer2,commonInputs,exceptions);
 		}
 		else if (question instanceof OmXmlQuestion)
 		{
 			// Xml (Openmark syntax) questions don't need to proccess answer but instead xml content
-			processOmXmlContentInputFields(operation,component);
+			processOmXmlContentInputFields(component);
 		}
 	}
 	
@@ -6791,22 +7083,21 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Process some input fields of the answers tab of a multichoice question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param answer Answer to process or null if we don't want to process answer
 	 * @param commonInputs true to process common input fields (not referred to an answer), 
 	 * false to not process them
 	 * @param exceptions List of identifiers of input fields to be excluded from processing 
 	 */
-	private void processMultichoiceAnswersInputFields(Operation operation,UIComponent component,Answer answer,
-		boolean commonInputs,List<String> exceptions)
+	private void processMultichoiceAnswersInputFields(UIComponent component,Answer answer,boolean commonInputs,
+		List<String> exceptions)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		if (commonInputs)
 		{
 			String singleResponseId=null;
 			String shuffleAnswersId=null;
-			Question question=getQuestion(getCurrentUserOperation(operation));
+			Question question=getQuestion();
 			if (question.getId()==0L)
 			{
 				singleResponseId=":questionForm:singleResponse";
@@ -6943,7 +7234,6 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Process some input fields of the answers tab of a "Drag & Drop" question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param draggableItem Draggable item to process or null if we don't want to process draggable item
 	 * @param answer Answer to process or null if we don't want to process answer
@@ -6951,12 +7241,12 @@ public class QuestionBean implements Serializable
 	 * false to not process them
 	 * @param exceptions List of identifiers of input fields to be excluded from processing 
 	 */
-	private void processDragDropAnswersInputFields(Operation operation,UIComponent component,Answer draggableItem,
+	private void processDragDropAnswersInputFields(UIComponent component,Answer draggableItem,
 		Answer answer,boolean commonInputs,List<String> exceptions)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (commonInputs)
 		{
 			String infiniteId=null;
@@ -7201,14 +7491,13 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Process some input fields of the content tab of a "XML (OpenMark syntax)" question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processOmXmlContentInputFields(Operation operation,UIComponent component)
+	private void processOmXmlContentInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String xmlContentId=null;
-		OmXmlQuestion question=(OmXmlQuestion)getQuestion(getCurrentUserOperation(operation));
+		OmXmlQuestion question=(OmXmlQuestion)getQuestion();
 		if (question.getId()==0L)
 		{
 			xmlContentId=":questionForm:xmlContent";
@@ -7239,7 +7528,7 @@ public class QuestionBean implements Serializable
 		if (questionResource!=null)
 		{
 			String questionResourcesAccordionId=null;
-			if (question.getId()==0L)
+			if (getQuestion().getId()==0L)
 			{
 				questionResourcesAccordionId=":questionForm:questionResourcesAccordion";
 			}
@@ -7288,10 +7577,9 @@ public class QuestionBean implements Serializable
 	/**
 	 * Process some input fields (correct feedback, incorrect feedback, still incorrect feedback, pass feedback
 	 * and final feedback) of the feedback tab of a question.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 */
-	private void processFeedbackInputFields(Operation operation,UIComponent component)
+	private void processFeedbackInputFields(UIComponent component)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String correctFeedbackId=null;
@@ -7299,7 +7587,7 @@ public class QuestionBean implements Serializable
 		String stillFeedbackId=null;
 		String passFeedbackId=null;
 		String answerFeedbackId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			correctFeedbackId=":questionForm:feedbackAccordion:correctFeedback";
@@ -7352,16 +7640,12 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the answers accordion of a question.<br/><br/>
 	 * This is needed after some operations because text field are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateAnswersTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateAnswersTextFields(UIComponent component,int numTabs)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		Question question=getQuestion(operation);
+		Question question=getQuestion();
 		/*
 		if (getQuestion() instanceof TrueFalseQuestion)
 		{
@@ -7371,11 +7655,11 @@ public class QuestionBean implements Serializable
 		*/
 		if (question instanceof MultichoiceQuestion)
 		{
-			updateMultichoiceAnswersTextFields(operation,component,numTabs);
+			updateMultichoiceAnswersTextFields(component,numTabs);
 		}
 		else if (question instanceof DragDropQuestion)
 		{
-			updateDragDropAnswersTextFields(operation,component,numTabs);
+			updateDragDropAnswersTextFields(component,numTabs);
 		}
 	}
 	
@@ -7383,18 +7667,14 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the draggable items accordion of a question.<br/><br/>
 	 * This is needed after some operations because text field are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateDraggableItemsTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateDraggableItemsTextFields(UIComponent component,int numTabs)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		if (getQuestion(operation) instanceof DragDropQuestion)
+		if (getQuestion() instanceof DragDropQuestion)
 		{
-			updateDragDropDraggableItemsTextFields(operation,component,numTabs);
+			updateDragDropDraggableItemsTextFields(component,numTabs);
 		}
 	}
 	
@@ -7402,15 +7682,14 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the answers tab of a "Multichoice" question.<br/><br/>
 	 * This is needed after some operations because text field are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateMultichoiceAnswersTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateMultichoiceAnswersTextFields(UIComponent component,int numTabs)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String answersAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			answersAccordionId=":questionForm:answersAccordion";
@@ -7465,14 +7744,13 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the draggable items accordion of a "Drag & Drop" question.<br/><br/>
 	 * This is needed after some operations because text field are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateDragDropDraggableItemsTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateDragDropDraggableItemsTextFields(UIComponent component,int numTabs)
 	{
 		String draggableItemsAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			draggableItemsAccordionId=":questionForm:draggableItemsAccordion";
@@ -7485,7 +7763,6 @@ public class QuestionBean implements Serializable
         UIComponent tab=draggableItemsAccordion.getChildren().get(0);
 		UIInput draggableItemNameInput=null;
 		UIInput draggableItemTextInput=null;
-		//int numTabs=draggableItemsAccordion.getRowCount();
 		for (UIComponent draggableItemTabChild:tab.getChildren())
 		{
 			for (UIComponent panelGridChild:draggableItemTabChild.getChildren())
@@ -7532,14 +7809,13 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the answers tab of a "Drag & Drop" question.<br/><br/>
 	 * This is needed after some operations because text field are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateDragDropAnswersTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateDragDropAnswersTextFields(UIComponent component,int numTabs)
 	{
 		String answersAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			answersAccordionId=":questionForm:answersAccordion";
@@ -7552,7 +7828,6 @@ public class QuestionBean implements Serializable
         UIComponent tab=answersAccordion.getChildren().get(0);
 		UIInput answerNameInput=null;
 		UIInput answerTextInput=null;
-		//int numTabs=answersAccordion.getRowCount();
 		for (UIComponent answerTabChild:tab.getChildren())
 		{
 			for (UIComponent panelGridChild:answerTabChild.getChildren())
@@ -7566,7 +7841,8 @@ public class QuestionBean implements Serializable
 			        	answerNameInput.pushComponentToEL(FacesContext.getCurrentInstance(),null);
 						//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 			        	answerNameInput.setSubmittedValue(question instanceof DragDropQuestion?
-			        		((DragDropQuestion)question).getDroppableAnswersSortedByPosition(1).get(i).getName():"");
+			        		((DragDropQuestion)question).getDroppableAnswersSortedByPosition(1).get(i).getName():
+			        		"");
 			        	answerNameInput.popComponentFromEL(FacesContext.getCurrentInstance());
 			        }
 			        answersAccordion.setRowIndex(-1);
@@ -7581,7 +7857,8 @@ public class QuestionBean implements Serializable
 			        	answerTextInput.pushComponentToEL(FacesContext.getCurrentInstance(),null);
 						//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
 			        	answerTextInput.setSubmittedValue(question instanceof DragDropQuestion?
-				        	((DragDropQuestion)question).getDroppableAnswersSortedByPosition(1).get(i).getText():"");
+				        	((DragDropQuestion)question).getDroppableAnswersSortedByPosition(1).get(i).getText():
+				        	"");
 			        	answerTextInput.popComponentFromEL(FacesContext.getCurrentInstance());
 			        }
 			        answersAccordion.setRowIndex(-1);
@@ -7599,15 +7876,14 @@ public class QuestionBean implements Serializable
 	 * Update text fields of the resource tab of a question.<br/><br/>
 	 * This is needed after some operations because text fields are not always being updated correctly on 
 	 * page view.
-	 * @param operation Operation
 	 * @param component Component that triggered the listener that called this method
 	 * @param numTabs Number of tabs to update
 	 */
-	private void updateResourcesTextFields(Operation operation,UIComponent component,int numTabs)
+	private void updateResourcesTextFields(UIComponent component,int numTabs)
 	{
 		FacesContext context=FacesContext.getCurrentInstance();
 		String questionResourcesAccordionId=null;
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question.getId()==0L)
 		{
 			questionResourcesAccordionId=":questionForm:questionResourcesAccordion";
@@ -7645,6 +7921,578 @@ public class QuestionBean implements Serializable
 		}
 	}
 	
+	private void updateResourcesImages()
+	{
+		updateResourcesImages(null);
+	}
+	
+	private void updateResourcesImages(Operation operation)
+	{
+		updateResourcesImages(operation,false);
+	}
+	
+	private void updateResourcesImages(Operation operation,boolean updateAllTabs)
+	{
+		if (updateAllTabs)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			Question question=getQuestion();
+			updateCommonDataResourcesImages(operation);
+			if (question instanceof MultichoiceQuestion)
+			{
+				updateMultichoiceAnswersResourcesImages(operation,(MultichoiceQuestion)question);
+			}
+			else if (question instanceof DragDropQuestion)
+			{
+				DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
+				updateDragDropDraggableItemsResourcesImages(operation,dragDropQuestion);
+				updateDragDropAnswersResourcesImages(operation,dragDropQuestion);
+			}
+			updateQuestionResourcesImages(operation);
+			updateFeedbackResourcesImages(operation,true);
+		}
+		else
+		{
+			FacesContext context=FacesContext.getCurrentInstance();
+			String activeQuestionTabName=getActiveQuestionTabName();
+			if (GENERAL_WIZARD_TAB.equals(activeQuestionTabName))
+			{
+				updateCommonDataResourcesImages(operation);
+			}
+			else if (ANSWERS_WIZARD_TAB.equals(activeQuestionTabName))
+			{
+				Question question=getQuestion();
+				if (question instanceof MultichoiceQuestion)
+				{
+					updateAnswerResourceImage(operation,getActiveAnswer(context.getViewRoot()));
+				}
+				else if (question instanceof DragDropQuestion)
+				{
+					operation=updateAnswerResourceImage(operation,getActiveDraggableItem(context.getViewRoot()));
+					updateAnswerResourceImage(operation,getActiveDroppableAnswer(context.getViewRoot()));
+				}
+			}
+			else if (RESOURCES_WIZARD_TAB.equals(activeQuestionTabName))
+			{
+				updateQuestionResourcesImages(operation,false);
+				refreshActiveQuestionResource(context.getViewRoot());
+			}
+			else if (FEEDBACK_WIZARD_TAB.equals(activeQuestionTabName))
+			{
+				updateFeedbackResourcesImages(operation,false);
+			}
+		}
+	}
+	
+	private Operation updateCommonDataResourcesImages(Operation operation)
+	{
+		Question question=getQuestion();
+		if (question.getResource()!=null && question.getResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,question.getResource()))
+			{
+				question.setResource(null);
+				question.setResourceWidth(-1);
+				question.setResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateDragDropDraggableItemsResourcesImages(DragDropQuestion dragDropQuestion)
+	{
+		return updateDragDropDraggableItemsResourcesImages(null,dragDropQuestion);
+	}
+	
+	private Operation updateDragDropDraggableItemsResourcesImages(Operation operation,
+		DragDropQuestion dragDropQuestion)
+	{
+		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
+		for (Answer draggableItem:dragDropQuestion.getDraggableItems(1))
+		{
+			if (draggableItem.getResource()!=null && draggableItem.getResource().getId()!=-1L)
+			{
+				if (operation==null)
+				{
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					// Get current user session Hibernate operation
+					operation=getCurrentUserOperation(null);
+				}
+				if (!updateResourceImage(operation,draggableItem.getResource()))
+				{
+					draggableItem.setResource(null);
+					draggableItem.setResourceWidth(-1);
+					draggableItem.setResourceHeight(-1);
+				}
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateMultichoiceAnswersResourcesImages(MultichoiceQuestion multichoiceQuestion)
+	{
+		return updateMultichoiceAnswersResourcesImages(null,multichoiceQuestion);
+	}
+	
+	private Operation updateMultichoiceAnswersResourcesImages(Operation operation,
+		MultichoiceQuestion multichoiceQuestion)
+	{
+		for (Answer answer:multichoiceQuestion.getAnswers())
+		{
+			if (answer.getResource()!=null && answer.getResource().getId()!=-1L)
+			{
+				if (operation==null)
+				{
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					// Get current user session Hibernate operation
+					operation=getCurrentUserOperation(null);
+				}
+				if (!updateResourceImage(operation,answer.getResource()))
+				{
+					answer.setResource(null);
+					answer.setResourceWidth(-1);
+					answer.setResourceHeight(-1);
+				}
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateDragDropAnswersResourcesImages(DragDropQuestion dragDropQuestion)
+	{
+		return updateDragDropAnswersResourcesImages(null,dragDropQuestion);
+	}
+	
+	private Operation updateDragDropAnswersResourcesImages(Operation operation,DragDropQuestion dragDropQuestion)
+	{
+		//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
+		for (Answer answer:dragDropQuestion.getDroppableAnswers(1))
+		{
+			if (answer.getResource()!=null && answer.getResource().getId()!=-1L)
+			{
+				if (operation==null)
+				{
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					// Get current user session Hibernate operation
+					operation=getCurrentUserOperation(null);
+				}
+				if (!updateResourceImage(operation,answer.getResource()))
+				{
+					answer.setResource(null);
+					answer.setResourceWidth(-1);
+					answer.setResourceHeight(-1);
+				}
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateAnswerResourceImage(Answer answer)
+	{
+		return updateAnswerResourceImage(null,answer);
+	}
+	
+	private Operation updateAnswerResourceImage(Operation operation,Answer answer)
+	{
+		if (answer!=null && answer.getResource()!=null && answer.getResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,answer.getResource()))
+			{
+				answer.setResource(null);
+				answer.setResourceWidth(-1);
+				answer.setResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateQuestionResourcesImages()
+	{
+		return updateQuestionResourcesImages(null,true);
+	}
+	
+	private Operation updateQuestionResourcesImages(Operation operation)
+	{
+		return updateQuestionResourcesImages(operation,true);
+	}
+	
+	private Operation updateQuestionResourcesImages(boolean removeEvenCurrentQuestionResource)
+	{
+		return updateQuestionResourcesImages(null,removeEvenCurrentQuestionResource);
+	}
+	
+	private Operation updateQuestionResourcesImages(Operation operation,boolean removeEvenCurrentQuestionResource)
+	{
+		Question question=getQuestion();
+		if (question instanceof OmXmlQuestion)
+		{
+			FacesContext context=FacesContext.getCurrentInstance();
+			QuestionResource currentQuestionResource=getActiveQuestionResource(context.getViewRoot());			
+			
+			List<QuestionResource> questionResources=question.getQuestionResources();
+			List<QuestionResource> questionResourcesToRemove=new ArrayList<QuestionResource>();
+			for (QuestionResource questionResource:questionResources)
+			{
+				if (questionResource.getResource()!=null && questionResource.getResource().getId()!=-1L)
+				{
+					if (operation==null)
+					{
+						// End current user session Hibernate operation
+						userSessionService.endCurrentUserOperation();
+						
+						// Get current user session Hibernate operation
+						operation=getCurrentUserOperation(null);
+					}
+					if (!updateResourceImage(operation,questionResource.getResource()))
+					{
+						if (removeEvenCurrentQuestionResource || !questionResource.equals(currentQuestionResource))
+						{
+							QuestionResource questionResourceToRemove=new QuestionResource();
+							questionResourceToRemove.setId(questionResource.getId());
+							questionResourceToRemove.setQuestion(question);
+							questionResourceToRemove.setPosition(questionResource.getPosition());
+							questionResourcesToRemove.add(questionResourceToRemove);
+						}
+						else
+						{
+							questionResource.setResource(getNoResource());
+							questionResource.setWidth(-1);
+							questionResource.setHeight(-1);
+						}
+					}
+				}
+			}
+			if (!questionResourcesToRemove.isEmpty())
+			{
+				Collections.sort(questionResourcesToRemove,new Comparator<QuestionResource>()
+				{
+					@Override
+					public int compare(QuestionResource qr1,QuestionResource qr2)
+					{
+						return qr2.getPosition()-qr1.getPosition();
+					}
+				});
+				int newActiveQuestionResourceIndex=activeQuestionResourceIndex;
+				for (QuestionResource questionResourceToRemove:questionResourcesToRemove)
+				{
+					if (questionResourceToRemove.getPosition()<activeQuestionResourceIndex+1)
+					{
+						newActiveQuestionResourceIndex--;
+					}
+					questionResources.remove(questionResourceToRemove);
+				}
+				int questionResourcesSize=questionResources.size();
+				if (newActiveQuestionResourceIndex>=questionResourcesSize)
+				{
+					newActiveQuestionResourceIndex=questionResourcesSize-1;
+				}
+				for (QuestionResource questionResource:questionResources)
+				{
+					int position=questionResource.getPosition();
+					for (int i=0;i<questionResourcesToRemove.size();i++)
+					{
+						if (questionResourcesToRemove.get(i).getPosition()<position)
+						{
+							position-=(questionResourcesToRemove.size()-i);
+							break;
+						}
+					}
+					questionResource.setPosition(position);
+				}
+				activeQuestionResourceIndex=newActiveQuestionResourceIndex;
+				QuestionResource activeQuestionResource=getActiveQuestionResource(context.getViewRoot());
+				activeQuestionResourceName=activeQuestionResource==null?"":activeQuestionResource.getName();
+				if (activeQuestionResourceName==null)
+				{
+					activeQuestionResourceName="";
+				}
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateFeedbackResourcesImages(boolean updateAllTabs)
+	{
+		return updateFeedbackResourcesImages(null,updateAllTabs);
+	}
+	
+	private Operation updateFeedbackResourcesImages(Operation operation,boolean updateAllTabs)
+	{
+		if (updateAllTabs)
+		{
+			operation=updateCorrectFeedbackResourceImage(operation);
+			operation=updateIncorrectFeedbackResourcesImages(operation);
+			operation=updatePassFeedbackResourceImage(operation);
+			operation=updateFinalFeedbackResourceImage(operation);
+		}
+		else
+		{
+			switch (activeFeedbackTabIndex)
+			{
+				case CORRECT_FEEDBACK_TAB:
+					operation=updateCorrectFeedbackResourceImage(operation);
+					break;
+				case INCORRECT_FEEDBACK_TAB:
+					operation=updateIncorrectFeedbackResourcesImages(operation);
+					break;
+				case PASS_FEEDBACK_TAB:
+					operation=updatePassFeedbackResourceImage(operation);
+					break;
+				case FINAL_FEEDBACK_TAB:
+					operation=updateFinalFeedbackResourceImage(operation);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateCorrectFeedbackResourceImage(Operation operation)
+	{
+		Question question=getQuestion();
+		if (question.getCorrectFeedbackResource()!=null && question.getCorrectFeedbackResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,question.getCorrectFeedbackResource()))
+			{
+				question.setCorrectFeedbackResource(null);
+				question.setCorrectFeedbackResourceWidth(-1);
+				question.setCorrectFeedbackResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateIncorrectFeedbackResourcesImages()
+	{
+		return updateIncorrectFeedbackResourcesImages(null);
+	}
+	
+	private Operation updateIncorrectFeedbackResourcesImages(Operation operation)
+	{
+		operation=updateIncorrectFeedbackResourceImage(operation);
+		if (isAdvancedFeedbacksEnabled())
+		{
+			operation=updateAdvancedFeedbacksResourcesImages(operation);
+		}
+		return operation;
+	}
+	
+	private Operation updateIncorrectFeedbackResourceImage(Operation operation)
+	{
+		Question question=getQuestion();
+		if (question.getIncorrectFeedbackResource()!=null && question.getIncorrectFeedbackResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,question.getIncorrectFeedbackResource()))
+			{
+				question.setIncorrectFeedbackResource(null);
+				question.setIncorrectFeedbackResourceWidth(-1);
+				question.setIncorrectFeedbackResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateAdvancedFeedbacksResourcesImages()
+	{
+		return updateAdvancedFeedbacksResourcesImages(null);
+	}
+	
+	private Operation updateAdvancedFeedbacksResourcesImages(Operation operation)
+	{
+		for (Feedback feedback:getQuestion().getFeedbacks())
+		{
+			if (feedback.getResource()!=null && feedback.getResource().getId()!=-1L)
+			{
+				if (operation==null)
+				{
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					// Get current user session Hibernate operation
+					operation=getCurrentUserOperation(null);
+				}
+				if (!updateResourceImage(operation,feedback.getResource()))
+				{
+					feedback.setResource(null);
+					feedback.setResourceWidth(-1);
+					feedback.setResourceHeight(-1);
+				}
+			}
+		}
+		for (FeedbackBean feedback:getFeedbacks())
+		{
+			if (feedback.getResource()!=null && feedback.getResource().getId()!=-1L)
+			{
+				if (operation==null)
+				{
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					// Get current user session Hibernate operation
+					operation=getCurrentUserOperation(null);
+				}
+				if (!updateResourceImage(operation,feedback.getResource()))
+				{
+					feedback.setResource(null);
+					feedback.setResourceWidth(-1);
+					feedback.setResourceHeight(-1);
+				}
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updatePassFeedbackResourceImage(Operation operation)
+	{
+		Question question=getQuestion();
+		if (question.getPassFeedbackResource()!=null && question.getPassFeedbackResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,question.getPassFeedbackResource()))
+			{
+				question.setPassFeedbackResource(null);
+				question.setPassFeedbackResourceWidth(-1);
+				question.setPassFeedbackResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private Operation updateFinalFeedbackResourceImage(Operation operation)
+	{
+		Question question=getQuestion();
+		if (question.getFinalFeedbackResource()!=null && question.getFinalFeedbackResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,question.getFinalFeedbackResource()))
+			{
+				question.setFinalFeedbackResource(null);
+				question.setFinalFeedbackResourceWidth(-1);
+				question.setFinalFeedbackResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private void updateCurrentFeedbackResourceImage()
+	{
+		updateCurrentFeedbackResourceImage(null);
+	}
+	
+	private Operation updateCurrentFeedbackResourceImage(Operation operation)
+	{
+		FeedbackBean currentFeedback=getCurrentFeedback();
+		if (currentFeedback!=null && currentFeedback.getResource()!=null && 
+			currentFeedback.getResource().getId()!=-1L)
+		{
+			if (operation==null)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				// Get current user session Hibernate operation
+				operation=getCurrentUserOperation(null);
+			}
+			if (!updateResourceImage(operation,currentFeedback.getResource()))
+			{
+				currentFeedback.setResource(null);
+				currentFeedback.setResourceWidth(-1);
+				currentFeedback.setResourceHeight(-1);
+			}
+		}
+		return operation;
+	}
+	
+	private boolean checkResourceImage(Operation operation,Resource resource)
+	{
+		return resourcesService.checkResourceId(getCurrentUserOperation(operation),resource.getId());
+	}
+	
+	private boolean updateResourceImage(Operation operation,Resource resource)
+	{
+		boolean ok=true;
+		if (resource!=null && resource.getId()!=-1L)
+		{
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(operation);
+			
+			if (checkResourceImage(operation,resource))
+			{
+				Resource resourceFromDB=resourcesService.getResource(operation,resource.getId());
+				if (resourceFromDB==null)
+				{
+					ok=false;
+				}
+				else
+				{
+					resource.setFromOtherResource(resourceFromDB.getResourceCopy());
+				}
+			}
+			else
+			{
+				ok=false;
+			}
+		}
+		return ok;
+	}
+	
 	/**
 	 * Action listener to show the dialog for selecting an image.<br/><br/>
 	 * Note that can be called from several places depending on if we want to select an image for displaying 
@@ -7654,21 +8502,25 @@ public class QuestionBean implements Serializable
 	public void showSelectImage(ActionEvent event)
 	{
 		boolean ok=true;
+		
+		// Reset last resource
 		lastResource=null;
-		images=null;
+		
+		// Get current user session Hibernate operation
+		Operation operation=getCurrentUserOperation(null);
+		
 		buttonId=event.getComponent().getId();
 		if ("selectNewImageButton".equals(buttonId) || "selectImageButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
+			// Get question
+			Question question=getQuestion();
 			
 			// We need to process some input fields
-			processCommonDataInputFields(operation,event.getComponent());
+			processCommonDataInputFields(event.getComponent());
 			
 			// Initialize some fields of question bean needed for image dialog
-			Question question=getQuestion(operation);
 			currentResource=question.getResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(question.getResourceWidth());
 				setCurrentResourceHeight(question.getResourceHeight());
@@ -7676,17 +8528,16 @@ public class QuestionBean implements Serializable
 		}
 		else if ("selectNewImageAnswerButton".equals(buttonId) || "selectImageAnswerButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
+			// Get question
+			Question question=getQuestion();
 			
-			Question question=getQuestion(operation);
 			if (question instanceof MultichoiceQuestion)
 			{
 				// Get current answer
-				currentAnswer=getActiveAnswer(operation,event.getComponent());
+				currentAnswer=getActiveAnswer(event.getComponent());
 				
 				// We need to process some input fields
-				processAnswersInputFields(operation,event.getComponent(),currentAnswer);
+				processAnswersInputFields(event.getComponent(),currentAnswer);
 				
 				// Check that current answer name entered by user is valid
 				if (checkAnswerName(currentAnswer.getName()))
@@ -7704,13 +8555,13 @@ public class QuestionBean implements Serializable
 			else if (question instanceof DragDropQuestion)
 			{
 				// Get current draggable item
-				Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+				Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 				
 				// Get current answer
-				currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+				currentAnswer=getActiveDroppableAnswer(event.getComponent());
 				
 				// We need to process some input fields
-				processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
+				processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 				
 				// Check that current draggable item and answer names entered by user are valid
 				if (!checkDraggableItemName(currentDraggableItem.getName()))
@@ -7738,7 +8589,7 @@ public class QuestionBean implements Serializable
 			if (ok && currentAnswer!=null)
 			{
 				currentResource=currentAnswer.getResource();
-				if (currentResource!=null)
+				if (getCurrentResource()!=null)
 				{
 					setCurrentResourceWidth(currentAnswer.getResourceWidth());
 					setCurrentResourceHeight(currentAnswer.getResourceHeight());
@@ -7748,19 +8599,16 @@ public class QuestionBean implements Serializable
 		else if ("selectNewImageDraggableItemButton".equals(buttonId) || 
 			"selectImageDraggableItemButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
-			if (getQuestion(operation) instanceof DragDropQuestion)
+			if (getQuestion() instanceof DragDropQuestion)
 			{
 				// Get current draggable item
-				currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+				currentDraggableItem=getActiveDraggableItem(event.getComponent());
 				
 				// Get current answer
-				Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+				Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 				
 				// We need to process some input fields
-				processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer);
+				processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer);
 				
 				// Check that current draggable item and answer names entered by user are valid
 				if (!checkDraggableItemName(currentDraggableItem.getName()))
@@ -7788,7 +8636,7 @@ public class QuestionBean implements Serializable
 			if (ok && currentDraggableItem!=null)
 			{
 				currentResource=currentDraggableItem.getResource();
-				if (currentResource!=null)
+				if (getCurrentResource()!=null)
 				{
 					setCurrentResourceWidth(currentDraggableItem.getResourceWidth());
 					setCurrentResourceHeight(currentDraggableItem.getResourceHeight());
@@ -7798,19 +8646,15 @@ public class QuestionBean implements Serializable
 		else if ("selectNewImageQuestionResourceButton".equals(buttonId) ||
 			"selectImageQuestionResourceButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
-			Question question=getQuestion(operation);
-			
 			// Get current resource of question
-			currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+			currentQuestionResource=getActiveQuestionResource(event.getComponent());
 			
 			// We need to process some input fields
 			processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
 			
 			// Check that current resource name entered by user is valid
-			if (checkResourceName(question,currentQuestionResource.getName(),currentQuestionResource.getPosition()))
+			if (checkResourceName(
+				getQuestion(),currentQuestionResource.getName(),currentQuestionResource.getPosition()))
 			{
 				activeQuestionResourceName=currentQuestionResource.getName();
 			}
@@ -7825,7 +8669,7 @@ public class QuestionBean implements Serializable
 			if (ok && currentQuestionResource!=null)
 			{
 				currentResource=currentQuestionResource.getResource();
-				if (currentResource!=null)
+				if (getCurrentResource()!=null)
 				{
 					setCurrentResourceWidth(currentQuestionResource.getWidth());
 					setCurrentResourceHeight(currentQuestionResource.getHeight());
@@ -7836,7 +8680,7 @@ public class QuestionBean implements Serializable
 			"selectImageFeedbackButton".equals(buttonId)))
 		{
 			currentResource=getCurrentFeedback().getResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(getCurrentFeedback().getResourceWidth());
 				setCurrentResourceHeight(getCurrentFeedback().getResourceHeight());
@@ -7845,16 +8689,13 @@ public class QuestionBean implements Serializable
 		else if ("selectNewCorrectFeedbackImageButton".equals(buttonId) || 
 			"selectCorrectFeedbackImageButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			// We need to process some input fields
-			processFeedbackInputFields(operation,event.getComponent());
+			processFeedbackInputFields(event.getComponent());
 			
 			// Initialize some fields of question bean needed for image dialog
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			currentResource=question.getCorrectFeedbackResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(question.getCorrectFeedbackResourceWidth());
 				setCurrentResourceHeight(question.getCorrectFeedbackResourceHeight());
@@ -7863,16 +8704,13 @@ public class QuestionBean implements Serializable
 		else if ("selectNewIncorrectFeedbackImageButton".equals(buttonId) || 
 			"selectIncorrectFeedbackImageButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			// We need to process some input fields
-			processFeedbackInputFields(operation,event.getComponent());
+			processFeedbackInputFields(event.getComponent());
 			
 			// Initialize some fields of question bean needed for image dialog
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			currentResource=question.getIncorrectFeedbackResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(question.getIncorrectFeedbackResourceWidth());
 				setCurrentResourceHeight(question.getIncorrectFeedbackResourceHeight());
@@ -7881,16 +8719,13 @@ public class QuestionBean implements Serializable
 		else if ("selectNewPassFeedbackImageButton".equals(buttonId) || 
 			"selectPassFeedbackImageButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			// We need to process some input fields
-			processFeedbackInputFields(operation,event.getComponent());
+			processFeedbackInputFields(event.getComponent());
 			
 			// Initialize some fields of question bean needed for image dialog
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			currentResource=question.getPassFeedbackResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(question.getPassFeedbackResourceWidth());
 				setCurrentResourceHeight(question.getPassFeedbackResourceHeight());
@@ -7899,24 +8734,74 @@ public class QuestionBean implements Serializable
 		else if ("selectNewFinalFeedbackImageButton".equals(buttonId) || 
 			"selectFinalFeedbackImageButton".equals(buttonId))
 		{
-			// We get current user session Hibernate operation
-			Operation operation=getCurrentUserOperation(null);
-			
 			// We need to process some input fields
-			processFeedbackInputFields(operation,event.getComponent());
+			processFeedbackInputFields(event.getComponent());
 			
 			// Initialize some fields of question bean needed for image dialog
-			Question question=getQuestion(operation);
+			Question question=getQuestion();
 			currentResource=question.getFinalFeedbackResource();
-			if (currentResource!=null)
+			if (getCurrentResource()!=null)
 			{
 				setCurrentResourceWidth(question.getFinalFeedbackResourceWidth());
 				setCurrentResourceHeight(question.getFinalFeedbackResourceHeight());
 			}
 		}
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+		setUseGlobalResources(null);
+		setUseOtherUsersResources(null);
+		setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+		setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+		setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+		resetAdmins();
+		resetSuperadmins();
+		
+		Category filterCategory=null;
+		long filterCategoryId=getFilterCategoryId(operation);
+		if (filterCategoryId>0L)
+		{
+			if (categoriesService.checkCategoryId(operation,filterCategoryId))
+			{
+				filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+			}
+		}
+		else
+		{
+			filterCategory=new Category();
+			filterCategory.setId(filterCategoryId);
+		}
+		if (filterCategory==null || !checkImagesFilterPermission(operation,filterCategory))
+		{
+			setFilterCategoryId(Long.MIN_VALUE);
+		}
+		
+		// Reload images and images categories
+		images=null;
+		specialCategoriesFilters=null;
+		setImagesCategories(null);
+		
+		getImages();
+		
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(null);
+		
+		getImagesCategories(operation);
+		getFilterCategoryId(operation);
+		
 		if (ok)
 		{
-			if (currentResource==null)
+			if (getCurrentResource()!=null && getCurrentResource().getId()!=-1L)
+			{
+				// End current user session Hibernate operation
+				userSessionService.endCurrentUserOperation();
+				
+				if (!checkResourceImage(getCurrentUserOperation(null),getCurrentResource()))
+				{
+					currentResource=null;
+				}
+			}
+			if (getCurrentResource()==null)
 			{
 				setCurrentResourceAspectRatio(0.0);
 				setCurrentResourceKeepAspectRatio(false);
@@ -7947,8 +8832,8 @@ public class QuestionBean implements Serializable
 						else
 						{
 							setCurrentResourceWidth(DEFAULT_MAX_RESOURCE_WIDTH);
-							setCurrentResourceHeight(
-								currentResourceDimensions[1]*DEFAULT_MAX_RESOURCE_WIDTH/currentResourceDimensions[0]);
+							setCurrentResourceHeight(currentResourceDimensions[1]*DEFAULT_MAX_RESOURCE_WIDTH/
+								currentResourceDimensions[0]);
 						}
 						setCurrentResourceKeepAspectRatio(true);
 					}
@@ -7974,107 +8859,6 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * @param operation Operation
-	 * @param imageCategory Image category
-	 * @return true if user has permissions to display resources with the indicated category (non a filter), 
-	 * false otherwise
-	 */
-	private boolean checkImageCategoryFilterPermission(Operation operation,Category imageCategory)
-	{
-		boolean ok=true;
-		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		if (imageCategory.getVisibility().isGlobal())
-		{
-			// This is a global category, so we check that question's author has permissions to use
-			// resources from global categories in their questions
-			if (getUseGlobalResources(operation).booleanValue())
-			{
-				// Moreover we need to check that the category is owned by question's author or 
-				// that question's author has permission to filter by categories of other users
-				Question question=getQuestion(operation);
-				User questionAuthor=
-					question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
-				User categoryUser=imageCategory.getUser();
-				ok=questionAuthor.equals(categoryUser) || getUseOtherUsersResources(operation).booleanValue();
-			}
-			else
-			{
-				ok=false;
-			}
-		}
-		else
-		{
-			// First we have to see if the category is owned by question's author,
-			// if that is not the case we will need to perform aditional checks  
-			User currentUser=userSessionService.getCurrentUser(operation);
-			Question question=getQuestion(operation);
-			User questionAuthor=question.getId()>0L?question.getCreatedBy():currentUser;
-			User categoryUser=imageCategory.getUser();
-			if (!questionAuthor.equals(categoryUser))
-			{
-				// We need to check that question author has permission to assign resources 
-				// from categories of other users to his/her questions
-				if (getUseOtherUsersResources(operation).booleanValue())
-				{
-					// We have to see if this a public or a private category
-					// Public categories doesn't need more checks
-					// But private categories need aditional permissions
-					Visibility privateVisibility=
-						visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-					if (imageCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
-					{
-						// Next we need to check that question's author has permission to view 
-						// resources from private categories of other users, and aditionally we need 
-						// to check that question's author has permission to wiew resources 
-						// from private categories of administrators if the owner of the category 
-						// is an administrator and to check that question's author has permission 
-						// to view resources from private categories of users with permission 
-						// to improve permissions over its owned ones if the owner of the category 
-						// has that permission (superadmin)
-						ok=getQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).
-							booleanValue() && ((!isAdmin(operation,categoryUser) || 
-							getQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) 
-							&& (!isSuperadmin(operation,categoryUser) || 
-							getQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).
-							booleanValue()));
-					}
-				}
-				else
-				{
-					ok=false;
-				}
-			}
-			if (ok && !currentUser.equals(questionAuthor) && !currentUser.equals(categoryUser))
-			{
-				// We have to see if this a public or a private category
-				// Public categories doesn't need more checks
-				// But private categories need aditional permissions
-				Visibility privateVisibility=
-					visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
-				if (imageCategory.getVisibility().getLevel()>=privateVisibility.getLevel())
-				{
-					// Finally we need to check that current user has permission to view resources 
-					// from privates categories of other users, and aditionally we need to check 
-					// that current user has permission to view resources from private categories 
-					// of administrators if the owner of the category is an administrator 
-					// and to check that current user has permission to view resources from 
-					// private categories of users with permission to improve permissions 
-					// over its owned ones if the owner of the category has that permission (superadmin)
-					ok=getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-						((!isAdmin(operation,categoryUser) || 
-						getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-						(!isSuperadmin(operation,categoryUser) || 
-						getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue()));
-				}
-			}
-		}
-		return ok;
-	}
-	
-	/**
-	 * @param operation Operation
 	 * @param filterCategory Filter category can be optionally passed as argument
 	 * @return true if user has permissions to display resources with the current selected filter, false otherwise
 	 */
@@ -8085,19 +8869,31 @@ public class QuestionBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	long filterCategoryId=getFilterCategoryId(operation);
+		Question question=getQuestion();
+    	long filterCategoryId=filterCategory==null?getFilterCategoryId(operation):filterCategory.getId();
 		if (specialCategoryFiltersMap.containsKey(Long.valueOf(filterCategoryId)))
 		{
 			// Check permissions needed for selected special category filter
-			Question question=getQuestion(operation);
-			User questionAuthor=question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
 			SpecialCategoryFilter filter=specialCategoryFiltersMap.get(Long.valueOf(filterCategoryId));
 			for (String requiredPermission:filter.requiredPermissions)
 			{
-				if (permissionsService.isDenied(operation,questionAuthor,requiredPermission))
+				if (userSessionService.isDenied(operation,requiredPermission))
 				{
 					ok=false;
 					break;
+				}
+			}
+			if (ok)
+			{
+				User questionAuthor=
+					question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+				for (String requiredAuthorPermission:filter.requiredAuthorPermissions)
+				{
+					if (permissionsService.isDenied(operation,questionAuthor,requiredAuthorPermission))
+					{
+						ok=false;
+						break;
+					}
 				}
 			}
 		}
@@ -8109,8 +8905,70 @@ public class QuestionBean implements Serializable
 				filterCategory=categoriesService.getCategory(operation,filterCategoryId);	
 			}
 			
-			// Check permissions needed for selected image category
-			ok=checkImageCategoryFilterPermission(operation,filterCategory);
+			Visibility filterCategoryVisibility=
+				visibilitiesService.getVisibilityFromCategoryId(operation,filterCategoryId);
+			if (filterCategoryVisibility.isGlobal())
+			{
+				// This is a global category, so we check that current user has permission to filter
+				// resources by global categories and that the question's author has permission to assign
+				// resources of global categories to his/her questions
+				ok=getFilterGlobalResourcesEnabled(operation).booleanValue() && 
+					getUseGlobalResources(operation).booleanValue();
+			}
+			else
+			{
+				// First we have to see if the category is owned by current user, 
+				// if that is not the case we will need to perform aditional checks
+				long currentUserId=userSessionService.getCurrentUserId();
+				User questionAuthor=
+					question.getId()>0L?question.getCreatedBy():userSessionService.getCurrentUser(operation);
+				User categoryUser=filterCategory.getUser();
+				if (categoryUser.getId()!=currentUserId)
+				{
+					// We need to check that current user has permission to filter resources by categories 
+					// of other users and that the category is owned question's author or he/she has
+					// permission to assign resources from categories of other users to his/her questions
+					if (getFilterOtherUsersResourcesEnabled(operation).booleanValue() && 
+						(questionAuthor.equals(categoryUser) || 
+						getUseOtherUsersResources(operation).booleanValue()))
+					{
+						// We have to see if this a public or a private category
+						// Public categories doesn't need more checks
+						// But private categories need aditional permissions
+						Visibility privateVisibility=
+							visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE");
+						if (filterCategoryVisibility.getLevel()>=privateVisibility.getLevel())
+						{
+							// Finally we need to check that current user has permission to view resources 
+							// from private categories of other users, and aditionally we need to check 
+							// that current user has permission to view resources from private categories 
+							// of administrators if the owner of the category is an administrator and 
+							// to check that current user has permission to view resources from private categories 
+							// of users with permission to improve permissions over its owned ones if the owner 
+							// of the category has that permission (superadmin)
+							boolean isAdmin=isAdmin(operation,categoryUser);
+							boolean isSuperadmin=isSuperadmin(operation,categoryUser);
+							ok=getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() && 
+								(!isAdmin || 
+								getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
+								(!isSuperadmin || 
+								getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+						}
+					}
+					else
+					{
+						ok=false;
+					}
+				}
+				else
+				{
+					// We already know that category is owned by current user but we also need to check that 
+					// question's author is also the current user or he/she has permission to assign resources 
+					// of global categories to his/her tests
+					ok=questionAuthor.getId()==currentUserId || 
+						getUseOtherUsersResources(operation).booleanValue();
+				}
+			}
 		}
 		return ok;
 	}
@@ -8121,54 +8979,87 @@ public class QuestionBean implements Serializable
      */
     public void applyImagesFilter(ActionEvent event)
     {
+    	boolean filterCategoryNotFound=false;
+    	boolean filterCategoryInvalid=false;
+    	
 		// Get current user session Hibernate operation
 		Operation operation=getCurrentUserOperation(null);
     	
+   		setFilterGlobalResourcesEnabled(null);
+   		setFilterOtherUsersResourcesEnabled(null);
    		setUseGlobalResources(null);
    		setUseOtherUsersResources(null);
+       	setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+       	setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+       	setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
        	Category filterCategory=null;
        	long filterCategoryId=getFilterCategoryId(operation);
        	if (filterCategoryId>0L)
        	{
-       		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
-       		resetAdminFromCategoryAllowed(filterCategory);
-       		resetSuperadminFromCategoryAllowed(filterCategory);
-       	}
-       	setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-       	setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-       	setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-       	setQuestionAuthorViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-       	setQuestionAuthorViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-       	setQuestionAuthorViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-       	
-       	Category category=getCurrentResource()==null?null:getCurrentResource().getCategory();
-       	if ((filterCategory!=null && filterCategory.equals(category)) ||
-       		checkImagesFilterPermission(operation,filterCategory))
-       	{
-       		// Reload images from DB
-           	images=null;
+       		if (categoriesService.checkCategoryId(operation,filterCategoryId))
+       		{
+           		filterCategory=categoriesService.getCategory(operation,filterCategoryId);
+           		resetAdminFromCategoryAllowed(filterCategory);
+           		resetSuperadminFromCategoryAllowed(filterCategory);
+       		}
+       		else
+       		{
+       			filterCategoryNotFound=true;
+       		}
        	}
        	else
        	{
-       		addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-       		setGlobalOtherUserCategoryAllowed(null);
-       		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
-       		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
-       		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
-       		
-       		// Reload questions categories from DB
-       		questionsCategories=null;
-       		
-       		// Reload images categories from DB
-       		specialCategoriesFilters=null;
-       		imagesCategories=null;
-       		
-   			if (!getImagesCategories(operation).contains(filterCategory))
-   			{
-   				// Reload images from DB
-   				images=null;
-   			}
+       		filterCategory=new Category();
+       		filterCategory.setId(filterCategoryId);
        	}
+       	if (!filterCategoryNotFound)
+       	{
+       		Resource resource=getCurrentResource();
+       		Category resourceCategory=
+       			resource==null?null:categoriesService.getCategoryFromResourceId(operation,resource.getId());
+       		filterCategoryInvalid=
+       			!filterCategory.equals(resourceCategory) && !checkImagesFilterPermission(operation,filterCategory);
+       	}
+       	
+       	if (filterCategoryNotFound)
+       	{
+       		addErrorMessage("IMAGES_FILTER_CATEGORY_NOT_FOUND_ERROR");
+       		setFilterCategoryId(Long.MIN_VALUE);
+       	}
+       	else if (filterCategoryInvalid)
+       	{
+       		addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
+       		setFilterCategoryId(Long.MIN_VALUE);
+       	}
+       	
+   		// Reload images from DB
+       	images=null;
+       	
+       	setAddEnabled(null);
+       	setEditEnabled(null);
+       	setEditOtherUsersQuestionsEnabled(null);
+       	setEditAdminsQuestionsEnabled(null);
+       	setEditSuperadminsQuestionsEnabled(null);
+   		setFilterGlobalQuestionsEnabled(null);
+   		setFilterOtherUsersQuestionsEnabled(null);
+   		setGlobalOtherUserCategoryAllowed(null);
+   		setViewQuestionsFromOtherUsersPrivateCategoriesEnabled(null);
+   		setViewQuestionsFromAdminsPrivateCategoriesEnabled(null);
+   		setViewQuestionsFromSuperadminsPrivateCategoriesEnabled(null);
+       	resetAdmins();
+       	resetSuperadmins();
+       	
+   		// Always reload images categories from DB
+       	specialCategoriesFilters=null;
+   		setImagesCategories(null);
+  		
+   		getImages();
+   			
+        // Get current user session Hibernate operation
+   		operation=getCurrentUserOperation(null);
+   		
+   		getImagesCategories(operation);
+   		getFilterCategoryId(operation);
     }
 	
 	/**
@@ -8178,7 +9069,6 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeImage(AjaxBehaviorEvent event)
 	{
-		//currentResource=(Resource)((SelectOneMenu)event.getComponent()).getValue();
 		if (currentResource==null) 
 		{
 			currentResource=getNoImage();
@@ -8299,18 +9189,28 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptSelectImage(ActionEvent event)
 	{
+		Operation operation=null;
 		Resource newResource=null;
 		int newWidth=-1;
 		int newHeight=-1;
 		if (getCurrentResource()!=null && getCurrentResource().getId()!=-1L)
 		{
-			newResource=getCurrentResource();
-			newWidth=getCurrentResourceWidth();
-			newHeight=getCurrentResourceHeight();
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+			
+			// Get current user session Hibernate operation
+			operation=getCurrentUserOperation(null);
+			
+			if (checkResourceImage(operation,getCurrentResource()))
+			{
+				newResource=getCurrentResource();
+				newWidth=getCurrentResourceWidth();
+				newHeight=getCurrentResourceHeight();
+			}
 		}
 		if ("selectNewImageButton".equals(buttonId) || "selectImageButton".equals(buttonId))
 		{
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			question.setResource(newResource);
 			question.setResourceWidth(newWidth);
 			question.setResourceHeight(newHeight);
@@ -8340,17 +9240,24 @@ public class QuestionBean implements Serializable
 			currentQuestionResource.setWidth(newWidth);
 			currentQuestionResource.setHeight(newHeight);
 		}
-		else if (getCurrentFeedback()!=null && ("selectNewImageFeedbackButton".equals(buttonId) || 
-			"selectImageFeedbackButton".equals(buttonId)))
+		else if ("selectNewImageFeedbackButton".equals(buttonId) || "selectImageFeedbackButton".equals(buttonId))
 		{
-			getCurrentFeedback().setResource(newResource);
-			getCurrentFeedback().setResourceWidth(newWidth);
-			getCurrentFeedback().setResourceHeight(newHeight);
+			FeedbackBean currentFeedback=getCurrentFeedback();
+			if (currentFeedback!=null)
+			{
+				currentFeedback.setResource(newResource);
+				currentFeedback.setResourceWidth(newWidth);
+				currentFeedback.setResourceHeight(newHeight);
+				if (newResource!=null)
+				{
+					operation=updateCurrentFeedbackResourceImage(operation);			
+				}
+			}
 		}
 		else if ("selectNewCorrectFeedbackImageButton".equals(buttonId) || 
 			"selectCorrectFeedbackImageButton".equals(buttonId))
 		{
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			question.setCorrectFeedbackResource(newResource);
 			question.setCorrectFeedbackResourceWidth(newWidth);
 			question.setCorrectFeedbackResourceHeight(newHeight);
@@ -8358,14 +9265,15 @@ public class QuestionBean implements Serializable
 		else if ("selectNewIncorrectFeedbackImageButton".equals(buttonId) || 
 			"selectIncorrectFeedbackImageButton".equals(buttonId))
 		{
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			question.setIncorrectFeedbackResource(newResource);
 			question.setIncorrectFeedbackResourceWidth(newWidth);
 			question.setIncorrectFeedbackResourceHeight(newHeight);
 		}
-		else if ("selectNewPassFeedbackImageButton".equals(buttonId) || "selectPassFeedbackImageButton".equals(buttonId))
+		else if ("selectNewPassFeedbackImageButton".equals(buttonId) || 
+			"selectPassFeedbackImageButton".equals(buttonId))
 		{
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			question.setPassFeedbackResource(newResource);
 			question.setPassFeedbackResourceWidth(newWidth);
 			question.setPassFeedbackResourceHeight(newHeight);
@@ -8373,11 +9281,22 @@ public class QuestionBean implements Serializable
 		else if ("selectNewFinalFeedbackImageButton".equals(buttonId) || 
 			"selectFinalFeedbackImageButton".equals(buttonId))
 		{
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			question.setFinalFeedbackResource(newResource);
 			question.setFinalFeedbackResourceWidth(newWidth);
 			question.setFinalFeedbackResourceHeight(newHeight);
 		}
+		updateResourcesImages(operation);
+	}
+	
+	/**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * selecting an image. 
+	 * @param event Action event
+	 */
+	public void cancelSelectImage(ActionEvent event)
+	{
+		updateResourcesImages();
 	}
 	
 	/**
@@ -8400,14 +9319,13 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeActiveAnswer(TabChangeEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
 		if (question instanceof MultichoiceQuestion)
 		{
 			// Get current answer
-			Answer currentAnswer=getActiveAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveAnswer(event.getComponent());
 			
 			// Check that current answer name entered by user is valid
 			if (checkAnswerName(currentAnswer.getName()))
@@ -8415,7 +9333,7 @@ public class QuestionBean implements Serializable
 				try
 				{
 					activeAnswerIndex=Integer.parseInt(((AccordionPanel)event.getComponent()).getActiveIndex());
-					activeAnswerName=getActiveAnswer(operation,event.getComponent()).getName();
+					activeAnswerName=getActiveAnswer(event.getComponent()).getName();
 					if (activeAnswerName==null)
 					{
 						activeAnswerName="";
@@ -8430,24 +9348,28 @@ public class QuestionBean implements Serializable
 			else
 			{
 				// Restore old answer tab without changing its name
-				updateAnswersTextFields(operation,event.getComponent(),question.getAnswers().size());
+				updateAnswersTextFields(event.getComponent(),question.getAnswers().size());
 				currentAnswer.setName(activeAnswerName);
-				refreshActiveAnswer(operation,event.getComponent());
+				refreshActiveAnswer(event.getComponent());
 				
 				// Scroll page to top position
 				scrollToTop();
 			}
+			
+			updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 		}
 		else if (question instanceof DragDropQuestion)
 		{
+			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
+			
 			// Get current draggable item
-			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 			
 			// Get current answer
-			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 			
 			// We need to process some input fields
-			processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer,false);
+			processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer,false);
 			
 			// Check that current draggable item and answer names entered by user are valid
 			boolean ok=true;
@@ -8464,7 +9386,7 @@ public class QuestionBean implements Serializable
 				try
 				{
 					activeAnswerIndex=Integer.parseInt(((AccordionPanel)event.getComponent()).getActiveIndex());
-					activeAnswerName=getActiveDroppableAnswer(operation,event.getComponent()).getName();
+					activeAnswerName=getActiveDroppableAnswer(event.getComponent()).getName();
 					if (activeAnswerName==null)
 					{
 						activeAnswerName="";
@@ -8478,22 +9400,22 @@ public class QuestionBean implements Serializable
 			}
 			else
 			{
-				DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
-				
 				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-				updateDraggableItemsTextFields(
-					operation,event.getComponent(),dragDropQuestion.getDraggableItems(1).size());
+				updateDraggableItemsTextFields(event.getComponent(),dragDropQuestion.getDraggableItems(1).size());
 				currentDraggableItem.setName(activeDraggableItemName);
 				
 				// Restore old answer tab without changing its name
 				//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-				updateAnswersTextFields(operation,event.getComponent(),dragDropQuestion.getDroppableAnswers(1).size());
+				updateAnswersTextFields(event.getComponent(),dragDropQuestion.getDroppableAnswers(1).size());
 				currentAnswer.setName(activeAnswerName);
-				refreshActiveAnswer(operation,event.getComponent());
+				refreshActiveAnswer(event.getComponent());
 				
 				// Scroll page to top position
 				scrollToTop();
 			}
+			
+			Operation operation=updateAnswerResourceImage(currentDraggableItem);
+			updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 		}
 	}
 	
@@ -8517,17 +9439,14 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeActiveDraggableItem(TabChangeEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// Get current draggable item
-		Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+		Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 		
 		// Get current answer
-		Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+		Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 		
 		// We need to process some input fields
-		processAnswersInputFields(operation,event.getComponent(),currentDraggableItem,currentAnswer,false);
+		processAnswersInputFields(event.getComponent(),currentDraggableItem,currentAnswer,false);
 		
 		// Check that current draggable item and answer names entered by user are valid
 		boolean ok=true;
@@ -8544,7 +9463,7 @@ public class QuestionBean implements Serializable
 			try
 			{
 				activeDraggableItemIndex=Integer.parseInt(((AccordionPanel)event.getComponent()).getActiveIndex());
-				activeDraggableItemName=getActiveDraggableItem(operation,event.getComponent()).getName();
+				activeDraggableItemName=getActiveDraggableItem(event.getComponent()).getName();
 				if (activeDraggableItemName==null)
 				{
 					activeDraggableItemName="";
@@ -8558,21 +9477,25 @@ public class QuestionBean implements Serializable
 		}
 		else
 		{
-			DragDropQuestion dragDropQuestion=(DragDropQuestion)getQuestion(operation);
+			// Get question
+			DragDropQuestion question=(DragDropQuestion)getQuestion();
 			
 			// Restore old draggable item tab without changing its name
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-			updateDraggableItemsTextFields(operation,event.getComponent(),dragDropQuestion.getDraggableItems(1).size());
+			updateDraggableItemsTextFields(event.getComponent(),question.getDraggableItems(1).size());
 			currentDraggableItem.setName(activeDraggableItemName);
-			refreshActiveDraggableItem(operation,event.getComponent());
+			refreshActiveDraggableItem(event.getComponent());
 			
 			//TODO de momento solo tenemos en cuenta el grupo 1, habra que cambiarlo mas adelante
-			updateAnswersTextFields(operation,event.getComponent(),dragDropQuestion.getDroppableAnswers(1).size());
+			updateAnswersTextFields(event.getComponent(),question.getDroppableAnswers(1).size());
 			currentAnswer.setName(activeAnswerName);
 			
 			// Scroll page to top position
 			scrollToTop();
 		}
+		
+		Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+		updateAnswerResourceImage(operation,currentAnswer);
 	}
 	
 	/**
@@ -8595,64 +9518,101 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeActiveQuestionResource(TabChangeEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		Operation operation=null;
+		boolean removeEvenCurrentQuestionResource=false;
 		
-		Question question=getQuestion(operation);
+		// Get question
+		Question question=getQuestion();
 		
 		// Get current resource
-		QuestionResource currentQuestionResource=getActiveQuestionResource(operation,event.getComponent());
+		QuestionResource currentQuestionResource=getActiveQuestionResource(event.getComponent());
 		
 		// We need to process some input fields
-		processResourcesInputFields(operation,event.getComponent(),currentQuestionResource);
+		processResourcesInputFields(getCurrentUserOperation(null),event.getComponent(),currentQuestionResource);
 		
 		// Check that current resource name entered by user is valid
 		if (checkQuestionResource(question,currentQuestionResource))
 		{
 			try
 			{
-				activeQuestionResourceIndex=
+				int newActiveQuestionResourceIndex=
 					Integer.parseInt(((AccordionPanel)event.getComponent()).getActiveIndex());
-				activeQuestionResourceName=getActiveQuestionResource(operation,event.getComponent()).getName();
-				if (activeQuestionResourceName==null)
+				QuestionResource newActiveQuestionResource=
+					question.getQuestionResource(newActiveQuestionResourceIndex+1);
+				if (newActiveQuestionResource!=null)
 				{
-					activeQuestionResourceName="";
+					removeEvenCurrentQuestionResource=activeQuestionResourceIndex!=newActiveQuestionResourceIndex;
+					if (newActiveQuestionResource.getResource()!=null && 
+						newActiveQuestionResource.getResource().getId()!=-1L)
+					{
+						// End current user session Hibernate operation
+						userSessionService.endCurrentUserOperation();
+						
+						// Get current user session Hibernate operation
+						operation=getCurrentUserOperation(null);
+						
+						if (checkResourceImage(operation,newActiveQuestionResource.getResource()))
+						{
+							activeQuestionResourceIndex=newActiveQuestionResourceIndex;
+							activeQuestionResourceName=newActiveQuestionResource.getName();
+							if (activeQuestionResourceName==null)
+							{
+								activeQuestionResourceName="";
+							}
+						}
+						else
+						{
+							activeQuestionResourceName=currentQuestionResource.getName();
+							if (activeQuestionResourceName==null)
+							{
+								activeQuestionResourceName="";
+							}
+						}
+					}
+					else
+					{
+						activeQuestionResourceIndex=newActiveQuestionResourceIndex;
+						activeQuestionResourceName=newActiveQuestionResource.getName();
+						if (activeQuestionResourceName==null)
+						{
+							activeQuestionResourceName="";
+						}
+					}
 				}
 			}
 			catch (NumberFormatException nfe)
 			{
-				activeQuestionResourceIndex=-1;
-				activeQuestionResourceName="";
 			}
 		}
 		else
 		{
 			// Restore old resource tab without changing its name
-			updateResourcesTextFields(operation,event.getComponent(),question.getQuestionResources().size());
-			currentQuestionResource.setName(activeQuestionResourceName);
-			refreshActiveQuestionResource(operation,event.getComponent());
+			updateResourcesTextFields(event.getComponent(),question.getQuestionResources().size());
+			if (currentQuestionResource!=null)
+			{
+				currentQuestionResource.setName(activeQuestionResourceName);
+			}
 			
 			// Scroll page to top position
 			scrollToTop();
 		}
+		updateQuestionResourcesImages(operation,removeEvenCurrentQuestionResource);
+		refreshActiveQuestionResource(event.getComponent());
 	}
 	
 	public void changeDraggableItemName(AjaxBehaviorEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
 		// For now we only need to process this event in Drag & Drop question
-		if (getQuestion(operation) instanceof DragDropQuestion)
+		if (getQuestion() instanceof DragDropQuestion)
 		{
 			// Get current draggable item
-			Answer currentDraggableItem=getActiveDraggableItem(operation,event.getComponent());
+			Answer currentDraggableItem=getActiveDraggableItem(event.getComponent());
 			
 			// Get current answer
-			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 			
 			// We need to process some input fields
-			processAnswersInputFields(operation,event.getComponent(),null,currentAnswer,false);
+			processAnswersInputFields(event.getComponent(),null,currentAnswer,false);
 			
 			boolean ok=true;
 			
@@ -8692,18 +9652,17 @@ public class QuestionBean implements Serializable
 	
 	public void changeInfinite(AjaxBehaviorEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
+		// Get question
+		Question question=getQuestion();
 		
 		// For now we only need to process this event in Drag & Drop question
-		Question question=getQuestion(operation);
 		if (question instanceof DragDropQuestion)
 		{
 			// Get current answer
-			Answer currentAnswer=getActiveDroppableAnswer(operation,event.getComponent());
+			Answer currentAnswer=getActiveDroppableAnswer(event.getComponent());
 			
 			// We need to process some input fields
-			processAnswersInputFields(operation,event.getComponent(),null,currentAnswer,false);
+			processAnswersInputFields(event.getComponent(),null,currentAnswer,false);
 			
 			// Check that current answer name entered by user is valid
 			if (checkAnswerName(currentAnswer.getName()))
@@ -8720,7 +9679,7 @@ public class QuestionBean implements Serializable
 				
 				// As there are already other errors we restore old value if new value is not valid 
 				// for current answers
-				if (!checkAnswersForChangeInfinite(operation))
+				if (!checkAnswersForChangeInfinite())
 				{
 					DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
 					dragDropQuestion.setInfinite(!dragDropQuestion.isInfinite());
@@ -8735,66 +9694,64 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if changing the property 'singleResponse' of a multichoice question will affect to the 
 	 * feedbacks already defined.
-	 * @param operation Operation
 	 * @return true if changing the property 'singleResponse' of a multichoice question won't affect to the 
 	 * feedbacks already defined, false otherwise
 	 */
-	private boolean checkFeedbacksForChangeSingleResponse(Operation operation)
+	private boolean checkFeedbacksForChangeSingleResponse()
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
-		boolean multichoice=getQuestion(operation) instanceof MultichoiceQuestion;
-		if (multichoice)
+		if (question instanceof MultichoiceQuestion)
 		{
-			for (FeedbackBean feedback:getFeedbacks(operation))
+			for (FeedbackBean feedback:getFeedbacks())
 			{
 				// Check selected answers condition
-				ok=checkSelectedAnswersCondition(operation,feedback,0);
+				ok=checkSelectedAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check selected right answers condition
-				ok=checkSelectedRightAnswersCondition(operation,feedback,0);
+				ok=checkSelectedRightAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check selected wrong answers condition
-				ok=checkSelectedWrongAnswersCondition(operation,feedback,0);
+				ok=checkSelectedWrongAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check unselected answers condition
-				ok=checkUnselectedAnswersCondition(operation,feedback,0);
+				ok=checkUnselectedAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check unselected right answers condition
-				ok=checkUnselectedRightAnswersCondition(operation,feedback,0);
+				ok=checkUnselectedRightAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check unselected wrong answers condition
-				ok=checkUnselectedWrongAnswersCondition(operation,feedback,0);
+				ok=checkUnselectedWrongAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check right distance condition
-				ok=checkRightDistanceCondition(operation,feedback,0,0);
+				ok=checkRightDistanceCondition(feedback,0,0);
 				if (!ok)
 				{
 					break;
@@ -8806,92 +9763,89 @@ public class QuestionBean implements Serializable
 
 	/**
 	 * Updates feebacks related to the modification of the property 'singleResponse' of a question if needed.
-	 * @param operation Operation
 	 */
-	private void updateFeedbacksForChangeSingleResponse(Operation operation)
+	private void updateFeedbacksForChangeSingleResponse()
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
-		boolean multichoice=getQuestion(operation) instanceof MultichoiceQuestion;
-		if (multichoice)
+		if (question instanceof MultichoiceQuestion)
 		{
-			for (FeedbackBean feedback:getFeedbacks(operation))
+			for (FeedbackBean feedback:getFeedbacks())
 			{
 				// Update selected answers condition
-				updateSelectedAnswersCondition(operation,feedback,0);
+				updateSelectedAnswersCondition(feedback,0);
 				
 				// Update selected right answers condition
-				updateSelectedRightAnswersCondition(operation,feedback,0);
+				updateSelectedRightAnswersCondition(feedback,0);
 				
 				// Update selected wrong answers condition
-				updateSelectedWrongAnswersCondition(operation,feedback,0);
+				updateSelectedWrongAnswersCondition(feedback,0);
 				
 				// Update unselected answers condition
-				updateUnselectedAnswersCondition(operation,feedback,0);
+				updateUnselectedAnswersCondition(feedback,0);
 				
 				// Update unselected right answers condition
-				updateUnselectedRightAnswersCondition(operation,feedback,0);
+				updateUnselectedRightAnswersCondition(feedback,0);
 				
 				// Update unselected wrong answers condition
-				updateUnselectedWrongAnswersCondition(operation,feedback,0);
+				updateUnselectedWrongAnswersCondition(feedback,0);
 				
 				// Update right distance condition
-				updateRightDistanceCondition(operation,feedback,0,0);
+				updateRightDistanceCondition(feedback,0,0);
+				
+				//Update raw feedback
+				question.getFeedback(feedback.getPosition()).setFromOtherFeedback(feedback.getAsFeedback());
 			}
 		}
 	}
 	
 	/**
 	 * Checks if changing the property 'correct' of an answer will affect to the feedbacks already defined.
-	 * @param operation Operation
 	 * @return true if changing the property 'correct' of an answer won't affect to the feedbacks 
 	 * already defined, false otherwise
 	 */
-	private boolean checkFeedbacksForChangeCorrect(Operation operation)
+	private boolean checkFeedbacksForChangeCorrect()
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
-		boolean noSingleMultichoice=question instanceof MultichoiceQuestion && 
-			!((MultichoiceQuestion)question).isSingle();
-		if (noSingleMultichoice)
+		if (question instanceof MultichoiceQuestion && !((MultichoiceQuestion)question).isSingle())
 		{
-			for (FeedbackBean feedback:getFeedbacks(operation))
+			for (FeedbackBean feedback:getFeedbacks())
 			{
 				// Check selected right answers condition
-				ok=checkSelectedRightAnswersCondition(operation,feedback,0);
+				ok=checkSelectedRightAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check selected wrong answers condition
-				ok=checkSelectedWrongAnswersCondition(operation,feedback,0);
+				ok=checkSelectedWrongAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check unselected right answers condition
-				ok=checkUnselectedRightAnswersCondition(operation,feedback,0);
+				ok=checkUnselectedRightAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check unselected wrong answers condition
-				ok=checkUnselectedWrongAnswersCondition(operation,feedback,0);
+				ok=checkUnselectedWrongAnswersCondition(feedback,0);
 				if (!ok)
 				{
 					break;
 				}
 				
 				// Check right distance condition
-				ok=checkRightDistanceCondition(operation,feedback,0,0);
+				ok=checkRightDistanceCondition(feedback,0,0);
 				if (!ok)
 				{
 					break;
@@ -8903,34 +9857,33 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Updates feebacks related to the modification of the property 'correct' of an answer if needed.
-	 * @param operation Operation
 	 */
-	private void updateFeedbacksForChangeCorrect(Operation operation)
+	private void updateFeedbacksForChangeCorrect()
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
+		// Get question
+		Question question=getQuestion();
 		
-		Question question=getQuestion(operation);
-		boolean noSingleMultichoice=question instanceof MultichoiceQuestion && 
-			!((MultichoiceQuestion)question).isSingle();
-		if (noSingleMultichoice)
+		if (question instanceof MultichoiceQuestion && !((MultichoiceQuestion)question).isSingle())
 		{
-			for (FeedbackBean feedback:getFeedbacks(operation))
+			for (FeedbackBean feedback:getFeedbacks())
 			{
 				// Update selected right answers condition
-				updateSelectedRightAnswersCondition(operation,feedback,0);
+				updateSelectedRightAnswersCondition(feedback,0);
 				
 				// Update selected wrong answers condition
-				updateSelectedWrongAnswersCondition(operation,feedback,0);
+				updateSelectedWrongAnswersCondition(feedback,0);
 				
 				// Update unselected right answers condition
-				updateUnselectedRightAnswersCondition(operation,feedback,0);
+				updateUnselectedRightAnswersCondition(feedback,0);
 				
 				// Update unselected wrong answers condition
-				updateUnselectedWrongAnswersCondition(operation,feedback,0);
+				updateUnselectedWrongAnswersCondition(feedback,0);
 				
 				// Update right distance condition
-				updateRightDistanceCondition(operation,feedback,0,0);
+				updateRightDistanceCondition(feedback,0,0);
+				
+				//Update raw feedback
+				question.getFeedback(feedback.getPosition()).setFromOtherFeedback(feedback.getAsFeedback());
 			}
 		}
 	}
@@ -8938,37 +9891,34 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if changing the property 'infinite' of a "Drag & Drop" question will affect to the answers 
 	 * already defined.
-	 * @param operation Operation
 	 * @return true if changing the property 'infinite' of a "Drag & Drop" question won't affect to the 
 	 * answers already defined, false otherwise
 	 */
-	private boolean checkAnswersForChangeInfinite(Operation operation)	
+	private boolean checkAnswersForChangeInfinite()	
 	{
-		return checkOrUpdateAnswersForChangeInfinite(getCurrentUserOperation(operation),false);
+		return checkOrUpdateAnswersForChangeInfinite(false);
 	}
 	
 	/**
 	 * Update answers of a "Drag & Drop" question after changing "infinite" property if needed.
-	 * @param operation
 	 */
-	private void updateAnswersForChangeInfinite(Operation operation)
+	private void updateAnswersForChangeInfinite()
 	{
-		checkOrUpdateAnswersForChangeInfinite(getCurrentUserOperation(operation),true);
+		checkOrUpdateAnswersForChangeInfinite(true);
 	}
 	
 	/**
 	 * Check or update answers of a "Drag & Drop" question after changing "infinite" property.
-	 * @param operation Operation
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if changing the property 'infinite' of a "Drag & Drop" question 
 	 * will affect to the answers already defined, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateAnswersForChangeInfinite(Operation operation,boolean update)
+	private boolean checkOrUpdateAnswersForChangeInfinite(boolean update)
 	{
 		boolean ok=true;
 		// Note that if "infinite" property of a "Drag & Drop" question has been set to "true" 
 		// checking and/or updating is not needed
-		Question question=getQuestion(getCurrentUserOperation(operation));
+		Question question=getQuestion();
 		if (question instanceof DragDropQuestion && !((DragDropQuestion)question).isInfinite())
 		{
 			DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
@@ -9022,20 +9972,20 @@ public class QuestionBean implements Serializable
 	{
 		boolean needConfirm=false;
 		propertyChecked=(String)event.getComponent().getAttributes().get("property");
-		if (propertyChecked.equals("singleResponse"))
+		if ("singleResponse".equals(propertyChecked))
 		{
-			needConfirm=!checkFeedbacksForChangeSingleResponse(getCurrentUserOperation(null));
+			needConfirm=!checkFeedbacksForChangeSingleResponse();
 			setConfirmChangePropertyMessage("CONFIRM_CHANGE_PROPERTY_FOR_FEEDBACKS");
 		}
-		else if (propertyChecked.equals("correct"))
+		else if ("correct".equals(propertyChecked))
 		{
 			answerChecked=(Answer)event.getComponent().getAttributes().get("answer");
-			needConfirm=!checkFeedbacksForChangeCorrect(getCurrentUserOperation(null));
+			needConfirm=!checkFeedbacksForChangeCorrect();
 			setConfirmChangePropertyMessage("CONFIRM_CHANGE_PROPERTY_FOR_FEEDBACKS");
 		}
-		else if (propertyChecked.equals("infinite"))
+		else if ("infinite".equals(propertyChecked))
 		{
-			needConfirm=!checkAnswersForChangeInfinite(getCurrentUserOperation(null));
+			needConfirm=!checkAnswersForChangeInfinite();
 			setConfirmChangePropertyMessage("CONFIRM_CHANGE_PROPERTY_FOR_ANSWERS");
 		}
 		if (needConfirm)
@@ -9055,15 +10005,22 @@ public class QuestionBean implements Serializable
 		{
 			if (propertyChecked.equals("singleResponse"))
 			{
-				updateFeedbacksForChangeSingleResponse(getCurrentUserOperation(null));
+				updateFeedbacksForChangeSingleResponse();
+				
+				updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 			}
 			else if (propertyChecked.equals("correct"))
 			{
-				updateFeedbacksForChangeCorrect(getCurrentUserOperation(null));
+				updateFeedbacksForChangeCorrect();
+				
+				updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 			}
 			else if (propertyChecked.equals("infinite"))
 			{
-				updateAnswersForChangeInfinite(getCurrentUserOperation(null));
+				updateAnswersForChangeInfinite();
+				
+				Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+				updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 			}
 		}
 	}
@@ -9078,12 +10035,10 @@ public class QuestionBean implements Serializable
 		{
 			if (propertyChecked.equals("singleResponse"))
 			{
-				Question question=getQuestion(getCurrentUserOperation(null));
-				if (question instanceof MultichoiceQuestion)
-				{
-					MultichoiceQuestion multichoiceQuestion=(MultichoiceQuestion)question;
-					multichoiceQuestion.setSingle(!multichoiceQuestion.isSingle());
-				}
+				MultichoiceQuestion multichoiceQuestion=(MultichoiceQuestion)getQuestion();
+				multichoiceQuestion.setSingle(!multichoiceQuestion.isSingle());
+				
+				updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 			}
 			else if (propertyChecked.equals("correct"))
 			{
@@ -9091,15 +10046,16 @@ public class QuestionBean implements Serializable
 				{
 					answerChecked.setCorrect(!answerChecked.getCorrect());
 				}
+				
+				updateAnswerResourceImage(getActiveAnswer(event.getComponent()));
 			}
 			else if (propertyChecked.equals("infinite"))
 			{
-				Question question=getQuestion(getCurrentUserOperation(null));
-				if (question instanceof DragDropQuestion)
-				{
-					DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
-					dragDropQuestion.setInfinite(!dragDropQuestion.isInfinite());
-				}
+				DragDropQuestion dragDropQuestion=(DragDropQuestion)question;
+				dragDropQuestion.setInfinite(!dragDropQuestion.isInfinite());
+				
+				Operation operation=updateAnswerResourceImage(getActiveDraggableItem(event.getComponent()));
+				updateAnswerResourceImage(operation,getActiveDroppableAnswer(event.getComponent()));
 			}
 		}
 	}
@@ -9123,8 +10079,13 @@ public class QuestionBean implements Serializable
 	 */
 	public void showEditFeedback(ActionEvent event)
 	{
-		setCurrentFeedback(new FeedbackBean((FeedbackBean)event.getComponent().getAttributes().get("feedback")));
-		if (getCurrentFeedback().getConditionsSize()==0)
+		FeedbackBean currentFeedback=
+			new FeedbackBean((FeedbackBean)event.getComponent().getAttributes().get("feedback"));
+		setCurrentFeedback(currentFeedback);
+		
+		updateCurrentFeedbackResourceImage();
+		
+		if (currentFeedback.getConditionsSize()==0)
 		{
 			activeConditionIndex=-1;
 		}
@@ -9234,16 +10195,15 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedAnswersBetweenMax()
 	{
 		boolean ok=true;
 		SelectedAnswersConditionBean selectedAnswersCondition=getCurrentFeedback().getSelectedAnswersCondition();
 		int selectedAnswersBetweenMin=selectedAnswersCondition.getSelectedAnswersBetweenMin();
 		int selectedAnswersBetweenMax=selectedAnswersCondition.getSelectedAnswersBetweenMax();
-		int maxValue=selectedAnswersCondition.getMaxSelectedAnswersValue(getCurrentUserOperation(operation));
+		int maxValue=selectedAnswersCondition.getMaxSelectedAnswersValue();
 		if (selectedAnswersBetweenMax<selectedAnswersBetweenMin)
 		{
 			selectedAnswersCondition.setSelectedAnswersBetweenMin(selectedAnswersBetweenMin);
@@ -9259,16 +10219,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedAnswersCmp()
 	{
 		boolean ok=true;
-		SelectedAnswersConditionBean selectedAnswersCondition=getCurrentFeedback().getSelectedAnswersCondition();
+		SelectedAnswersConditionBean selectedAnswersCondition=
+			getCurrentFeedback().getSelectedAnswersCondition();
 		int selectedAnswersCmp=selectedAnswersCondition.getSelectedAnswersCmp();
 		int minValue=selectedAnswersCondition.getMinValueSelectedAnswersCmp();
-		int maxValue=selectedAnswersCondition.getMaxValueSelectedAnswersCmp(getCurrentUserOperation(operation));
+		int maxValue=selectedAnswersCondition.getMaxValueSelectedAnswersCmp();
 		if (selectedAnswersCmp<minValue)
 		{
 			selectedAnswersCondition.setSelectedAnswersCmp(minValue);
@@ -9308,17 +10268,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected right answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected right answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedRightAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedRightAnswersBetweenMax()
 	{
 		boolean ok=true;
 		SelectedRightAnswersConditionBean selectedRightAnswersCondition=
 			getCurrentFeedback().getSelectedRightAnswersCondition();
 		int selectedRightAnswersBetweenMin=selectedRightAnswersCondition.getSelectedRightAnswersBetweenMin();
 		int selectedRightAnswersBetweenMax=selectedRightAnswersCondition.getSelectedRightAnswersBetweenMax();
-		int maxValue=selectedRightAnswersCondition.getMaxSelectedRightAnswersValue(getCurrentUserOperation(operation));
+		int maxValue=selectedRightAnswersCondition.getMaxSelectedRightAnswersValue();
 		if (selectedRightAnswersBetweenMax<selectedRightAnswersBetweenMin)
 		{
 			selectedRightAnswersCondition.setSelectedRightAnswersBetweenMin(selectedRightAnswersBetweenMin);
@@ -9334,18 +10293,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected right answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected right answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedRightAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedRightAnswersCmp()
 	{
 		boolean ok=true;
 		SelectedRightAnswersConditionBean selectedRightAnswersCondition=
 			getCurrentFeedback().getSelectedRightAnswersCondition();
 		int selectedRightAnswersCmp=selectedRightAnswersCondition.getSelectedRightAnswersCmp();
 		int minValue=selectedRightAnswersCondition.getMinValueSelectedRightAnswersCmp();
-		int maxValue=
-			selectedRightAnswersCondition.getMaxValueSelectedRightAnswersCmp(getCurrentUserOperation(operation));
+		int maxValue=selectedRightAnswersCondition.getMaxValueSelectedRightAnswersCmp();
 		if (selectedRightAnswersCmp<minValue)
 		{
 			selectedRightAnswersCondition.setSelectedRightAnswersCmp(minValue);
@@ -9385,17 +10342,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected wrong answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected wrong answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedWrongAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedWrongAnswersBetweenMax()
 	{
 		boolean ok=true;
 		SelectedWrongAnswersConditionBean selectedWrongAnswersCondition=
 			getCurrentFeedback().getSelectedWrongAnswersCondition();
 		int selectedWrongAnswersBetweenMin=selectedWrongAnswersCondition.getSelectedWrongAnswersBetweenMin();
 		int selectedWrongAnswersBetweenMax=selectedWrongAnswersCondition.getSelectedWrongAnswersBetweenMax();
-		int maxValue=selectedWrongAnswersCondition.getMaxSelectedWrongAnswersValue(getCurrentUserOperation(operation));
+		int maxValue=selectedWrongAnswersCondition.getMaxSelectedWrongAnswersValue();
 		if (selectedWrongAnswersBetweenMax<selectedWrongAnswersBetweenMin)
 		{
 			selectedWrongAnswersCondition.setSelectedWrongAnswersBetweenMin(selectedWrongAnswersBetweenMin);
@@ -9411,10 +10367,9 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check selected wrong answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if selected wrong answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackSelectedWrongAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackSelectedWrongAnswersCmp()
 	{
 		boolean ok=true;
 		SelectedWrongAnswersConditionBean selectedWrongAnswersCondition=
@@ -9422,7 +10377,7 @@ public class QuestionBean implements Serializable
 		int selectedWrongAnswersCmp=selectedWrongAnswersCondition.getSelectedWrongAnswersCmp();
 		int minValue=selectedWrongAnswersCondition.getMinValueSelectedWrongAnswersCmp();
 		int maxValue=
-			selectedWrongAnswersCondition.getMaxValueSelectedWrongAnswersCmp(getCurrentUserOperation(operation));
+			selectedWrongAnswersCondition.getMaxValueSelectedWrongAnswersCmp();
 		if (selectedWrongAnswersCmp<minValue)
 		{
 			selectedWrongAnswersCondition.setSelectedWrongAnswersCmp(minValue);
@@ -9443,7 +10398,8 @@ public class QuestionBean implements Serializable
 	private boolean checkAndChangeFeedbackUnselectedAnswersBetweenMin()
 	{
 		boolean ok=true;
-		UnselectedAnswersConditionBean unselectedAnswersCondition=getCurrentFeedback().getUnselectedAnswersCondition();
+		UnselectedAnswersConditionBean unselectedAnswersCondition=
+			getCurrentFeedback().getUnselectedAnswersCondition();
 		int unselectedAnswersBetweenMin=unselectedAnswersCondition.getUnselectedAnswersBetweenMin();
 		int unselectedAnswersBetweenMax=unselectedAnswersCondition.getUnselectedAnswersBetweenMax();
 		if (unselectedAnswersBetweenMin<0)
@@ -9461,16 +10417,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedAnswersBetweenMax()
 	{
 		boolean ok=true;
-		UnselectedAnswersConditionBean unselectedAnswersCondition=getCurrentFeedback().getUnselectedAnswersCondition();
+		UnselectedAnswersConditionBean unselectedAnswersCondition=
+			getCurrentFeedback().getUnselectedAnswersCondition();
 		int unselectedAnswersBetweenMin=unselectedAnswersCondition.getUnselectedAnswersBetweenMin();
 		int unselectedAnswersBetweenMax=unselectedAnswersCondition.getUnselectedAnswersBetweenMax();
-		int maxValue=unselectedAnswersCondition.getMaxUnselectedAnswersValue(getCurrentUserOperation(operation));
+		int maxValue=unselectedAnswersCondition.getMaxUnselectedAnswersValue();
 		if (unselectedAnswersBetweenMax<unselectedAnswersBetweenMin)
 		{
 			unselectedAnswersCondition.setUnselectedAnswersBetweenMax(unselectedAnswersBetweenMin);
@@ -9486,16 +10442,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedAnswersCmp()
 	{
 		boolean ok=true;
-		UnselectedAnswersConditionBean unselectedAnswersCondition=getCurrentFeedback().getUnselectedAnswersCondition();
+		UnselectedAnswersConditionBean unselectedAnswersCondition=
+			getCurrentFeedback().getUnselectedAnswersCondition();
 		int unselectedAnswersCmp=unselectedAnswersCondition.getUnselectedAnswersCmp();
 		int minValue=unselectedAnswersCondition.getMinValueUnselectedAnswersCmp();
-		int maxValue=unselectedAnswersCondition.getMaxValueUnselectedAnswersCmp(getCurrentUserOperation(operation));
+		int maxValue=unselectedAnswersCondition.getMaxValueUnselectedAnswersCmp();
 		if (unselectedAnswersCmp<minValue)
 		{
 			unselectedAnswersCondition.setUnselectedAnswersCmp(minValue);
@@ -9537,10 +10493,9 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected right answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected right answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedRightAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedRightAnswersBetweenMax()
 	{
 		boolean ok=true;
 		UnselectedRightAnswersConditionBean unselectedRightAnswersCondition=
@@ -9549,8 +10504,7 @@ public class QuestionBean implements Serializable
 			unselectedRightAnswersCondition.getUnselectedRightAnswersBetweenMin();
 		int unselectedRightAnswersBetweenMax=
 			unselectedRightAnswersCondition.getUnselectedRightAnswersBetweenMax();
-		int maxValue=
-			unselectedRightAnswersCondition.getMaxUnselectedRightAnswersValue(getCurrentUserOperation(operation));
+		int maxValue=unselectedRightAnswersCondition.getMaxUnselectedRightAnswersValue();
 		if (unselectedRightAnswersBetweenMax<unselectedRightAnswersBetweenMin)
 		{
 			unselectedRightAnswersCondition.setUnselectedRightAnswersBetweenMax(
@@ -9567,18 +10521,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected right answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected right answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedRightAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedRightAnswersCmp()
 	{
 		boolean ok=true;
 		UnselectedRightAnswersConditionBean unselectedRightAnswersCondition=
 			getCurrentFeedback().getUnselectedRightAnswersCondition();
 		int unselectedRightAnswersCmp=unselectedRightAnswersCondition.getUnselectedRightAnswersCmp();
 		int minValue=unselectedRightAnswersCondition.getMinValueUnselectedRightAnswersCmp();
-		int maxValue=
-			unselectedRightAnswersCondition.getMaxValueUnselectedRightAnswersCmp(getCurrentUserOperation(operation));
+		int maxValue=unselectedRightAnswersCondition.getMaxValueUnselectedRightAnswersCmp();
 		if (unselectedRightAnswersCmp<minValue)
 		{
 			unselectedRightAnswersCondition.setUnselectedRightAnswersCmp(minValue);
@@ -9612,8 +10564,7 @@ public class QuestionBean implements Serializable
 		}
 		else if (unselectedWrongAnswersBetweenMin>unselectedWrongAnswersBetweenMax)
 		{
-			unselectedWrongAnswersCondition.setUnselectedWrongAnswersBetweenMin(
-				unselectedWrongAnswersBetweenMax);
+			unselectedWrongAnswersCondition.setUnselectedWrongAnswersBetweenMin(unselectedWrongAnswersBetweenMax);
 			ok=false;
 		}
 		return ok;
@@ -9621,18 +10572,18 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected wrong answers max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected wrong answers max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax()
 	{
 		boolean ok=true;
 		UnselectedWrongAnswersConditionBean unselectedWrongAnswersCondition=
 			getCurrentFeedback().getUnselectedWrongAnswersCondition();
-		int unselectedWrongAnswersBetweenMin=unselectedWrongAnswersCondition.getUnselectedWrongAnswersBetweenMin();
-		int unselectedWrongAnswersBetweenMax=unselectedWrongAnswersCondition.getUnselectedWrongAnswersBetweenMax();
-		int maxValue=
-			unselectedWrongAnswersCondition.getMaxUnselectedWrongAnswersValue(getCurrentUserOperation(operation));
+		int unselectedWrongAnswersBetweenMin=
+			unselectedWrongAnswersCondition.getUnselectedWrongAnswersBetweenMin();
+		int unselectedWrongAnswersBetweenMax=
+			unselectedWrongAnswersCondition.getUnselectedWrongAnswersBetweenMax();
+		int maxValue=unselectedWrongAnswersCondition.getMaxUnselectedWrongAnswersValue();
 		if (unselectedWrongAnswersBetweenMax<unselectedWrongAnswersBetweenMin)
 		{
 			unselectedWrongAnswersCondition.setUnselectedWrongAnswersBetweenMax(unselectedWrongAnswersBetweenMin);
@@ -9648,18 +10599,16 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check unselected wrong answers value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if unselected wrong answers value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackUnselectedWrongAnswersCmp(Operation operation)
+	private boolean checkAndChangeFeedbackUnselectedWrongAnswersCmp()
 	{
 		boolean ok=true;
 		UnselectedWrongAnswersConditionBean unselectedWrongAnswersCondition=
 			getCurrentFeedback().getUnselectedWrongAnswersCondition();
 		int unselectedWrongAnswersCmp=unselectedWrongAnswersCondition.getUnselectedWrongAnswersCmp();
 		int minValue=unselectedWrongAnswersCondition.getMinValueUnselectedWrongAnswersCmp();
-		int maxValue=
-			unselectedWrongAnswersCondition.getMaxValueUnselectedWrongAnswersCmp(getCurrentUserOperation(operation));
+		int maxValue=unselectedWrongAnswersCondition.getMaxValueUnselectedWrongAnswersCmp();
 		if (unselectedWrongAnswersCmp<minValue)
 		{
 			unselectedWrongAnswersCondition.setUnselectedWrongAnswersCmp(minValue);
@@ -9698,16 +10647,15 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check right distance max value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if right distance max value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackRightDistanceBetweenMax(Operation operation)
+	private boolean checkAndChangeFeedbackRightDistanceBetweenMax()
 	{
 		boolean ok=true;
 		RightDistanceConditionBean rightDistanceCondition=getCurrentFeedback().getRightDistanceCondition();
 		int rightDistanceBetweenMin=rightDistanceCondition.getRightDistanceBetweenMin();
 		int rightDistanceBetweenMax=rightDistanceCondition.getRightDistanceBetweenMax();
-		int maxValue=rightDistanceCondition.getMaxRightDistanceValue(getCurrentUserOperation(operation));
+		int maxValue=rightDistanceCondition.getMaxRightDistanceValue();
 		if (rightDistanceBetweenMax<rightDistanceBetweenMin)
 		{
 			rightDistanceCondition.setRightDistanceBetweenMax(rightDistanceBetweenMin);
@@ -9723,16 +10671,15 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check right distance value changing it to a valid value if it is invalid.
-	 * @param operation Operation
 	 * @return true if right distance value is valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackRightDistanceCmp(Operation operation)
+	private boolean checkAndChangeFeedbackRightDistanceCmp()
 	{
 		boolean ok=true;
 		RightDistanceConditionBean rightDistanceCondition=getCurrentFeedback().getRightDistanceCondition();
 		int rightDistanceCmp=rightDistanceCondition.getRightDistanceCmp();
 		int minValue=rightDistanceCondition.getMinValueRightDistanceCmp();
-		int maxValue=rightDistanceCondition.getMaxValueRightDistanceCmp(getCurrentUserOperation(operation));
+		int maxValue=rightDistanceCondition.getMaxValueRightDistanceCmp();
 		if (rightDistanceCmp<minValue)
 		{
 			rightDistanceCondition.setRightDistanceCmp(minValue);
@@ -9748,15 +10695,11 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Check feedback conditions values changing the invalid ones to valid.
-	 * @param operation Operation
 	 * @return true if all feedback conditions values are valid, false otherwise
 	 */
-	private boolean checkAndChangeFeedbackConditionsValues(Operation operation)
+	private boolean checkAndChangeFeedbackConditionsValues()
 	{
 		boolean ok=true;
-		
-		// Get currentt user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
 		
 		AttemptsConditionBean attemptsCondition=getCurrentFeedback().getAttemptsCondition();
 		if (attemptsCondition!=null)
@@ -9786,12 +10729,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackSelectedAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackSelectedAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackSelectedAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackSelectedAnswersCmp())
 			{
 				ok=false;
 				
@@ -9808,12 +10751,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackSelectedRightAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackSelectedRightAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackSelectedRightAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackSelectedRightAnswersCmp())
 			{
 				ok=false;
 			}
@@ -9829,17 +10772,18 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackSelectedWrongAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackSelectedWrongAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackSelectedWrongAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackSelectedWrongAnswersCmp())
 			{
 				ok=false;
 			}
 		}
-		UnselectedAnswersConditionBean unselectedAnswersCondition=getCurrentFeedback().getUnselectedAnswersCondition();
+		UnselectedAnswersConditionBean unselectedAnswersCondition=
+			getCurrentFeedback().getUnselectedAnswersCondition();
 		if (unselectedAnswersCondition!=null)
 		{
 			if (NumberComparator.compareU(unselectedAnswersCondition.getComparator(),NumberComparator.BETWEEN))
@@ -9848,12 +10792,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackUnselectedAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackUnselectedAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackUnselectedAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackUnselectedAnswersCmp())
 			{
 				ok=false;
 			}
@@ -9869,12 +10813,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackUnselectedRightAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackUnselectedRightAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackUnselectedRightAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackUnselectedRightAnswersCmp())
 			{
 				ok=false;
 			}
@@ -9890,12 +10834,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax(operation))
+				if (!checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackUnselectedWrongAnswersCmp(operation))
+			else if (!checkAndChangeFeedbackUnselectedWrongAnswersCmp())
 			{
 				ok=false;
 			}
@@ -9909,12 +10853,12 @@ public class QuestionBean implements Serializable
 				{
 					ok=false;
 				}
-				if (!checkAndChangeFeedbackRightDistanceBetweenMax(operation))
+				if (!checkAndChangeFeedbackRightDistanceBetweenMax())
 				{
 					ok=false;
 				}
 			}
-			else if (!checkAndChangeFeedbackRightDistanceCmp(operation))
+			else if (!checkAndChangeFeedbackRightDistanceCmp())
 			{
 				ok=false;
 			}
@@ -9931,16 +10875,16 @@ public class QuestionBean implements Serializable
 	 */
 	public void acceptAddFeedback(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
-		if (checkAndChangeFeedbackConditionsValues(operation))
+		if (checkAndChangeFeedbackConditionsValues())
 		{
-			Feedback feedback=getCurrentFeedback().getAsFeedback(operation);
-			if (getCurrentFeedback().getPosition()>question.getFeedbacks().size())
+			Question question=getQuestion();
+			List<FeedbackBean> feedbacks=getFeedbacks();
+			FeedbackBean currentFeedback=getCurrentFeedback();
+			Feedback feedback=currentFeedback.getAsFeedback();
+			if (currentFeedback.getPosition()>question.getFeedbacks().size())
 			{
 				question.addFeedback(feedback);
-				feedbacks.add(getCurrentFeedback());
+				feedbacks.add(currentFeedback);
 			}
 			else
 			{
@@ -9956,7 +10900,7 @@ public class QuestionBean implements Serializable
 				FeedbackBean fbBean=null;
 				for (FeedbackBean fBean:feedbacks)
 				{
-					if (fBean.getPosition()==getCurrentFeedback().getPosition())
+					if (fBean.getPosition()==currentFeedback.getPosition())
 					{
 						fbBean=fBean;
 						break;
@@ -9965,12 +10909,22 @@ public class QuestionBean implements Serializable
 				if (fb!=null && fbBean!=null)
 				{
 					fb.setFromOtherFeedback(feedback);
-					fbBean.setFromOtherFeedback(getCurrentFeedback());
+					fbBean.setFromOtherFeedback(currentFeedback);
 				}
 			}
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("addFeedbackDialog.hide();");
+			
+			updateIncorrectFeedbackResourcesImages();
 		}
+	}
+	
+    /**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * adding advanced feedbacks to a question. 
+     * @param event Action event
+     */
+	public void cancelAddFeedback(ActionEvent event)
+	{
+		updateIncorrectFeedbackResourcesImages();
 	}
 	
 	/**
@@ -10020,7 +10974,7 @@ public class QuestionBean implements Serializable
 		}
 		
 		// We need to change feedback condition values to valid ones
-		checkAndChangeFeedbackConditionsValues(getCurrentUserOperation(null));
+		checkAndChangeFeedbackConditionsValues();
 	}
 	
 	/**
@@ -10056,7 +11010,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedAnswersCmp();
 	}
 	
 	/**
@@ -10074,7 +11028,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedAnswersBetweenMax();
 	}
 	
 	/**
@@ -10083,7 +11037,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedRightAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedRightAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedRightAnswersCmp();
 	}
 	
 	/**
@@ -10101,7 +11055,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedRightAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedRightAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedRightAnswersBetweenMax();
 	}
 	
 	/**
@@ -10110,7 +11064,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedWrongAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedWrongAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedWrongAnswersCmp();
 	}
 	
 	/**
@@ -10128,7 +11082,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackUnselectedWrongAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackUnselectedWrongAnswersBetweenMax();
 	}
 	
 	/**
@@ -10137,7 +11091,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackRightDistanceCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackRightDistanceCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackRightDistanceCmp();
 	}
 	
 	/**
@@ -10155,7 +11109,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackRightDistanceBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackRightDistanceBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackRightDistanceBetweenMax();
 	}
 	
 	/**
@@ -10164,7 +11118,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedAnswersCmp();
 	}
 	
 	/**
@@ -10182,7 +11136,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedAnswersBetweenMax();
 	}
 	
 	/**
@@ -10191,7 +11145,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedRightAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedRightAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedRightAnswersCmp();
 	}
 	
 	/**
@@ -10209,7 +11163,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedRightAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedRightAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedRightAnswersBetweenMax();
 	}
 	
 	/**
@@ -10218,7 +11172,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedWrongAnswersCmp(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedWrongAnswersCmp(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedWrongAnswersCmp();
 	}
 	
 	/**
@@ -10236,7 +11190,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void changeFeedbackSelectedWrongAnswersBetweenMax(AjaxBehaviorEvent event)
 	{
-		checkAndChangeFeedbackSelectedWrongAnswersBetweenMax(getCurrentUserOperation(null));
+		checkAndChangeFeedbackSelectedWrongAnswersBetweenMax();
 	}
 	
 	/**
@@ -10244,20 +11198,10 @@ public class QuestionBean implements Serializable
 	 */
 	public String getAddEditFeedbackTitle()
 	{
-		return getAddEditFeedbackTitle(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Title of dialog for adding/updating a feedback
-	 */
-	private String getAddEditFeedbackTitle(Operation operation)
-	{
 		String title="";
 		if (getCurrentFeedback()!=null)
 		{
-			if (getCurrentFeedback().getPosition()>
-				getQuestion(getCurrentUserOperation(operation)).getFeedbacks().size())
+			if (getCurrentFeedback().getPosition()>getQuestion().getFeedbacks().size())
 			{
 				title=localizationService.getLocalizedMessage("ADD_FEEDBACK");
 			}
@@ -10306,7 +11250,8 @@ public class QuestionBean implements Serializable
      */
     private String getLocalizedCategoryLongName(Operation operation,Long categoryId,int maxLength)
     {
-    	return categoriesService.getLocalizedCategoryLongName(getCurrentUserOperation(operation),categoryId,maxLength);
+    	return categoriesService.getLocalizedCategoryLongName(
+    		getCurrentUserOperation(operation),categoryId,maxLength);
     }
     
     /**
@@ -10330,15 +11275,26 @@ public class QuestionBean implements Serializable
     	String localizedCategoryFilterName="";
     	if (specialCategoryFiltersMap.containsKey(categoryId))
     	{
-    		localizedCategoryFilterName=
-    			localizationService.getLocalizedMessage(specialCategoryFiltersMap.get(categoryId).name);
+    		Category categoryFilter=new Category();
+    		categoryFilter.setId(categoryId);
+    		categoryFilter.setName(specialCategoryFiltersMap.get(categoryId).name);
+    		localizedCategoryFilterName=getSpecialCategoryFilterName(categoryFilter);
     	}
     	else if (categoryId>0L)
     	{
-    		localizedCategoryFilterName=getLocalizedCategoryLongName(operation,categoryId,maxLength);
+    		localizedCategoryFilterName=
+    			getLocalizedCategoryLongName(getCurrentUserOperation(operation),categoryId,maxLength);
     	}
     	return localizedCategoryFilterName;
     }
+    
+    /*
+	 * @param operation Operation
+	 * @param specialCategoryFilter Special category that represents an special category filter
+	 * @return Localized special category filter's name (including question's author nick if needed)
+    /*
+	private String getSpecialCategoryFilterName(Operation operation,Category specialCategoryFilter)
+    */
     
     /**
 	 * @param copyright Copyright
@@ -10360,20 +11316,36 @@ public class QuestionBean implements Serializable
 	}
     
 	/**
+	 * Ajax listener.<br/><br/>
+	 * I have defined a tab change listener for accordion of the feedback tab of the question and that accordion 
+	 * is inside the question's tabview.<br/><br/>
+	 * Curiosly when I change the question's tab, Primefaces fires the listener defined for the accordion but 
+	 * calls it with an AjaxBehaviourEvent argument.<br/><br/>
+	 * As this listener is called unintentionally we have defined it only to avoid an error message and 
+	 * it does nothing.
+	 * @param event Ajax event
+	 */
+	public void changeFeedbackTab(AjaxBehaviorEvent event)
+	{
+	}
+	
+	/**
+	 * Tab change listener for displaying other tab within accordion of the feedback tab of the question.
+	 * @param event Tab change event
+	 */
+	public void changeFeedbackTab(TabChangeEvent event)
+	{
+		activeFeedbackTabIndex=Integer.parseInt(((AccordionPanel)event.getComponent()).getActiveIndex());
+		
+		updateFeedbackResourcesImages(false);
+	}
+	
+	/**
      * @return true if it is allowed to re-sort feedbacks (feedbacks>=2), otherwise false
 	 */
 	public boolean isEnabledReSortFeedbacks()
 	{
-		return isEnabledReSortFeedbacks(null);
-	}
-	
-	/**
-     * @param operation Operation
-     * @return true if it is allowed to re-sort feedbacks (feedbacks>=2), otherwise false
-	 */
-	private boolean isEnabledReSortFeedbacks(Operation operation)
-	{
-		return getQuestion(getCurrentUserOperation(operation)).getFeedbacks().size()>1;
+		return getQuestion().getFeedbacks().size()>1;
 	}
 	
 	/**
@@ -10382,7 +11354,9 @@ public class QuestionBean implements Serializable
 	 */
 	public void showReSortFeedbacks(ActionEvent event)
 	{
-		feedbacksSorting=null;
+		updateAdvancedFeedbacksResourcesImages();
+		
+		setFeedbacksSorting(null);
 		RequestContext rq=RequestContext.getCurrentInstance();
 		rq.execute("resortFeedbacksDialog.show()");
 	}
@@ -10399,6 +11373,18 @@ public class QuestionBean implements Serializable
 			feedback.setPosition(feedbackPos);
 		}
 		setFeedbacks(feedbacksSorting);
+		
+		updateIncorrectFeedbackResourcesImages();
+	}
+	
+    /**
+	 * Action listener for updating resources information if we cancel the changes within the dialog for 
+	 * re-sorting feedbacks. 
+     * @param event Action event
+     */
+	public void cancelReSortFeedbacks(ActionEvent event)
+	{
+		updateIncorrectFeedbackResourcesImages();
 	}
 	
 	private int findNewConditionIndex(String type)
@@ -10476,10 +11462,7 @@ public class QuestionBean implements Serializable
 	 */
 	public void addCondition(ActionEvent event)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=getCurrentUserOperation(null);
-		
-		String conditionType=getConditionType(operation);
+		String conditionType=getConditionType();
 		if (TestConditionBean.TYPE.equals(conditionType))
 		{
 			TestConditionBean testCondition=new TestConditionBean();
@@ -10491,7 +11474,7 @@ public class QuestionBean implements Serializable
 		{
 			AnswerConditionBean answerCondition=new AnswerConditionBean();
 			SingleAnswerConditionBean singleAnswerCondition=null;
-			Question question=getQuestion(getCurrentUserOperation(null));
+			Question question=getQuestion();
 			if (question instanceof MultichoiceQuestion)
 			{
 				singleAnswerCondition=new SingleAnswerConditionBean(question,1);
@@ -10569,7 +11552,7 @@ public class QuestionBean implements Serializable
 			getCurrentFeedback().getConditions().add(selectedRightAnswersCondition);
 			setConditionType(null);
 			activeConditionIndex=findNewConditionIndex(SelectedRightAnswersConditionBean.TYPE);
-			if (getNumberOfSelectableRightAnswers(operation)==0)
+			if (getNumberOfSelectableRightAnswers()==0)
 			{
 				selectedRightAnswersCondition.setSelectedRightAnswersCmp(0);
 			}
@@ -10594,7 +11577,7 @@ public class QuestionBean implements Serializable
 			getCurrentFeedback().getConditions().add(selectedWrongAnswersCondition);
 			setConditionType(null);
 			activeConditionIndex=findNewConditionIndex(SelectedWrongAnswersConditionBean.TYPE);
-			if (getNumberOfSelectableWrongAnswers(operation)==0)
+			if (getNumberOfSelectableWrongAnswers()==0)
 			{
 				selectedWrongAnswersCondition.setSelectedWrongAnswersCmp(0);
 			}
@@ -10640,7 +11623,7 @@ public class QuestionBean implements Serializable
 			getCurrentFeedback().getConditions().add(unselectedRightAnswersCondition);
 			setConditionType(null);
 			activeConditionIndex=findNewConditionIndex(UnselectedRightAnswersConditionBean.TYPE);
-			if (getNumberOfSelectableRightAnswers(operation)==0)
+			if (getNumberOfSelectableRightAnswers()==0)
 			{
 				unselectedRightAnswersCondition.setUnselectedRightAnswersCmp(0);
 			}
@@ -10665,7 +11648,7 @@ public class QuestionBean implements Serializable
 			getCurrentFeedback().getConditions().add(unselectedWrongAnswersCondition);
 			setConditionType(null);
 			activeConditionIndex=findNewConditionIndex(UnselectedWrongAnswersConditionBean.TYPE);
-			if (getNumberOfSelectableRightAnswers(operation)==0)
+			if (getNumberOfSelectableRightAnswers()==0)
 			{
 				unselectedWrongAnswersCondition.setUnselectedWrongAnswersCmp(0);
 			}
@@ -10735,7 +11718,7 @@ public class QuestionBean implements Serializable
 		AnswerConditionBean answerCondition=
 			(AnswerConditionBean)event.getComponent().getAttributes().get("condition");
 		SingleAnswerConditionBean singleAnswerCondition=null;
-		Question question=getQuestion(getCurrentUserOperation(null));
+		Question question=getQuestion();
 		if (question instanceof MultichoiceQuestion)
 		{
 			singleAnswerCondition=new SingleAnswerConditionBean(question,1);
@@ -11067,52 +12050,45 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Checks if a predicted change on an answer will affect to the selected answers condition of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected answers after changes
 	 * @return true if performing the change on the answer won't affect to the selected answers condition of the 
 	 * feedback, false otherwise
 	 */
-	private boolean checkSelectedAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private boolean checkSelectedAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateSelectedAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateSelectedAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates selected answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected answers
 	 */
-	private void updateSelectedAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateSelectedAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateSelectedAnswersCondition(getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateSelectedAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates selected answers condition of a feedback if needed to performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the selected 
 	 * answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateSelectedAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation,boolean update)
+	private boolean checkOrUpdateSelectedAnswersCondition(FeedbackBean feedback,int maxValueVariation,
+		boolean update)
 	{
 		boolean ok=true;
 		SelectedAnswersConditionBean selectedAnswersCondition=feedback.getSelectedAnswersCondition();
 		if (selectedAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(selectedAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
 				int selectedAnswersBetweenMax=selectedAnswersCondition.getSelectedAnswersBetweenMax();
-				int maxValue=selectedAnswersCondition.getMaxSelectedAnswersValue(operation)+maxValueVariation;
+				int maxValue=selectedAnswersCondition.getMaxSelectedAnswersValue()+maxValueVariation;
 				if (selectedAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11133,7 +12109,7 @@ public class QuestionBean implements Serializable
 			else
 			{
 				int selectedAnswersCmp=selectedAnswersCondition.getSelectedAnswersCmp();
-				int maxValue=selectedAnswersCondition.getMaxValueSelectedAnswersCmp(operation)+maxValueVariation;
+				int maxValue=selectedAnswersCondition.getMaxValueSelectedAnswersCmp()+maxValueVariation;
 				if (selectedAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11145,6 +12121,16 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && selectedAnswersCmp==0 && maxValue==0 && 
+					NumberComparator.compareU(selectedAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(localizationService.getLocalizedMessage("CONDITION_TYPE_SELECTED_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					selectedAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11153,53 +12139,48 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if a predicted change on an answer will affect to the selected right answers condition 
 	 * of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected right answers after changes
 	 * @return true if performing the change on the answer won't affect to the selected right answers condition 
 	 * of the feedback, false otherwise
 	 */
-	private boolean checkSelectedRightAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private boolean checkSelectedRightAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateSelectedRightAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateSelectedRightAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates selected right answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected right answers
 	 */
-	private void updateSelectedRightAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateSelectedRightAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateSelectedRightAnswersCondition(getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateSelectedRightAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates selected right answers condition of a feedback if needed to perform a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected right answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the selected 
 	 * right answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateSelectedRightAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation,boolean update)
+	private boolean checkOrUpdateSelectedRightAnswersCondition(FeedbackBean feedback,int maxValueVariation,
+		boolean update)
 	{
 		boolean ok=true;
-		SelectedRightAnswersConditionBean selectedRightAnswersCondition=feedback.getSelectedRightAnswersCondition();
+		SelectedRightAnswersConditionBean selectedRightAnswersCondition=
+			feedback.getSelectedRightAnswersCondition();
 		if (selectedRightAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(
 				selectedRightAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
-				int selectedRightAnswersBetweenMax=selectedRightAnswersCondition.getSelectedRightAnswersBetweenMax();
-				int maxValue=selectedRightAnswersCondition.getMaxSelectedRightAnswersValue(operation)+maxValueVariation;
+				int selectedRightAnswersBetweenMax=
+					selectedRightAnswersCondition.getSelectedRightAnswersBetweenMax();
+				int maxValue=selectedRightAnswersCondition.getMaxSelectedRightAnswersValue()+maxValueVariation;
 				if (selectedRightAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11221,8 +12202,7 @@ public class QuestionBean implements Serializable
 			else
 			{
 				int selectedRightAnswersCmp=selectedRightAnswersCondition.getSelectedRightAnswersCmp();
-				int maxValue=
-					selectedRightAnswersCondition.getMaxValueSelectedRightAnswersCmp(operation)+maxValueVariation;
+				int maxValue=selectedRightAnswersCondition.getMaxValueSelectedRightAnswersCmp()+maxValueVariation;
 				if (selectedRightAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11234,6 +12214,17 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && selectedRightAnswersCmp==0 && maxValue==0 && NumberComparator.compareU(
+					selectedRightAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(
+						localizationService.getLocalizedMessage("CONDITION_TYPE_SELECTED_RIGHT_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					selectedRightAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11241,53 +12232,47 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Checks if a predicted change on an answer will affect to the selected wrong answers condition of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected wrong answers after changes
 	 * @return true if performing the change on the answer won't affect to the selected wrong answers condition 
 	 * of the feedback, false otherwise
 	 */
-	private boolean checkSelectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private boolean checkSelectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateSelectedWrongAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateSelectedWrongAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates selected wrong answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected wrong answers
 	 */
-	private void updateSelectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateSelectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateSelectedWrongAnswersCondition(getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateSelectedWrongAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates selected wrong answers condition of a feedback if needed to perform a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for selected wrong answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the selected 
 	 * wrong answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateSelectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation,boolean update)
+	private boolean checkOrUpdateSelectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation,
+		boolean update)
 	{
 		boolean ok=true;
 		SelectedWrongAnswersConditionBean selectedWrongAnswersCondition=
 			feedback.getSelectedWrongAnswersCondition();
 		if (selectedWrongAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(selectedWrongAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
-				int selectedWrongAnswersBetweenMax=selectedWrongAnswersCondition.getSelectedWrongAnswersBetweenMax();
-				int maxValue=selectedWrongAnswersCondition.getMaxSelectedWrongAnswersValue(operation)+maxValueVariation;
+				int selectedWrongAnswersBetweenMax=
+					selectedWrongAnswersCondition.getSelectedWrongAnswersBetweenMax();
+				int maxValue=selectedWrongAnswersCondition.getMaxSelectedWrongAnswersValue()+maxValueVariation;
 				if (selectedWrongAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11309,8 +12294,7 @@ public class QuestionBean implements Serializable
 			else
 			{
 				int selectedWrongAnswersCmp=selectedWrongAnswersCondition.getSelectedWrongAnswersCmp();
-				int maxValue=
-					selectedWrongAnswersCondition.getMaxValueSelectedWrongAnswersCmp(operation)+maxValueVariation;
+				int maxValue=selectedWrongAnswersCondition.getMaxValueSelectedWrongAnswersCmp()+maxValueVariation;
 				if (selectedWrongAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11322,6 +12306,17 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && selectedWrongAnswersCmp==0 && maxValue==0 && NumberComparator.compareU(
+					selectedWrongAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(
+						localizationService.getLocalizedMessage("CONDITION_TYPE_SELECTED_WRONG_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					selectedWrongAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11329,52 +12324,45 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Checks if a predicted change on an answer will affect to the unselected answers condition of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected answers after changes
 	 * @return true if performing the change on the answer won't affect to the unselected answers condition 
 	 * of the feedback, false otherwise
 	 */
-	private boolean checkUnselectedAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private boolean checkUnselectedAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateUnselectedAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateUnselectedAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates unselected answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected answers
 	 */
-	private void updateUnselectedAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateUnselectedAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateUnselectedAnswersCondition(getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateUnselectedAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates unselected answers condition of a feedback if needed to performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the unselected 
 	 * answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateUnselectedAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation,boolean update)
+	private boolean checkOrUpdateUnselectedAnswersCondition(FeedbackBean feedback,int maxValueVariation,
+		boolean update)
 	{
 		boolean ok=true;
 		UnselectedAnswersConditionBean unselectedAnswersCondition=feedback.getUnselectedAnswersCondition();
 		if (unselectedAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(unselectedAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
 				int unselectedAnswersBetweenMax=unselectedAnswersCondition.getUnselectedAnswersBetweenMax();
-				int maxValue=unselectedAnswersCondition.getMaxUnselectedAnswersValue(operation)+maxValueVariation;
+				int maxValue=unselectedAnswersCondition.getMaxUnselectedAnswersValue()+maxValueVariation;
 				if (unselectedAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11396,7 +12384,7 @@ public class QuestionBean implements Serializable
 			else
 			{
 				int unselectedAnswersCmp=unselectedAnswersCondition.getUnselectedAnswersCmp();
-				int maxValue=unselectedAnswersCondition.getMaxValueUnselectedAnswersCmp(operation)+maxValueVariation;
+				int maxValue=unselectedAnswersCondition.getMaxValueUnselectedAnswersCmp()+maxValueVariation;
 				if (unselectedAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11408,6 +12396,17 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && unselectedAnswersCmp==0 && maxValue==0 && NumberComparator.compareU(
+					unselectedAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(
+						localizationService.getLocalizedMessage("CONDITION_TYPE_UNSELECTED_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					unselectedAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11416,41 +12415,35 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if a predicted change on an answer will affect to the unselected right answers condition 
 	 * of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected right answers after changes
 	 * @return true if performing the change on the answer won't affect to the unselected right answers 
 	 * condition of the feedback, false otherwise
 	 */
-	private boolean checkUnselectedRightAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation)
+	private boolean checkUnselectedRightAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateUnselectedRightAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateUnselectedRightAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates unselected right answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected right answers
 	 */
-	private void updateUnselectedRightAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateUnselectedRightAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateUnselectedRightAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateUnselectedRightAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates unselected right answers condition of a feedback if needed to perform a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected right answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the unselected 
 	 * right answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateUnselectedRightAnswersCondition(Operation operation,FeedbackBean feedback,
+	private boolean checkOrUpdateUnselectedRightAnswersCondition(FeedbackBean feedback,
 		int maxValueVariation,boolean update)
 	{
 		boolean ok=true;
@@ -11458,16 +12451,13 @@ public class QuestionBean implements Serializable
 			feedback.getUnselectedRightAnswersCondition();
 		if (unselectedRightAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(
 				unselectedRightAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
 				int unselectedRightAnswersBetweenMax=
 					unselectedRightAnswersCondition.getUnselectedRightAnswersBetweenMax();
 				int maxValue=
-					unselectedRightAnswersCondition.getMaxUnselectedRightAnswersValue(operation)+maxValueVariation;
+					unselectedRightAnswersCondition.getMaxUnselectedRightAnswersValue()+maxValueVariation;
 				if (unselectedRightAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11490,7 +12480,7 @@ public class QuestionBean implements Serializable
 			{
 				int unselectedRightAnswersCmp=unselectedRightAnswersCondition.getUnselectedRightAnswersCmp();
 				int maxValue=
-					unselectedRightAnswersCondition.getMaxValueUnselectedRightAnswersCmp(operation)+maxValueVariation;
+					unselectedRightAnswersCondition.getMaxValueUnselectedRightAnswersCmp()+maxValueVariation;
 				if (unselectedRightAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11502,6 +12492,17 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && unselectedRightAnswersCmp==0 && maxValue==0 && NumberComparator.compareU(
+					unselectedRightAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(
+						localizationService.getLocalizedMessage("CONDITION_TYPE_UNSELECTED_RIGHT_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					unselectedRightAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11510,58 +12511,49 @@ public class QuestionBean implements Serializable
 	/**
 	 * Checks if a predicted change on an answer will affect to the unselected wrong answers condition 
 	 * of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected wrong answers after changes
 	 * @return true if performing the change on the answer won't affect to the unselected wrong answers 
 	 * condition of the feedback, false otherwise
 	 */
-	private boolean checkUnselectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation)
+	private boolean checkUnselectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		return checkOrUpdateUnselectedWrongAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,false);
+		return checkOrUpdateUnselectedWrongAnswersCondition(feedback,maxValueVariation,false);
 	}
 	
 	/**
 	 * Updates unselected wrong answers condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected wrong answers
 	 */
-	private void updateUnselectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,int maxValueVariation)
+	private void updateUnselectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation)
 	{
-		checkOrUpdateUnselectedWrongAnswersCondition(
-			getCurrentUserOperation(operation),feedback,maxValueVariation,true);
+		checkOrUpdateUnselectedWrongAnswersCondition(feedback,maxValueVariation,true);
 	}
 	
 	/**
 	 * Checks or updates unselected wrong answers condition of a feedback if needed to perform a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param maxValueVariation Expected variation of maximum value for unselected wrong answers
 	 * @param update true for updating, false for checking without updating
 	 * @return when checking returns true if performing the change on the answer won't affect to the unselected 
 	 * wrong answers condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateUnselectedWrongAnswersCondition(Operation operation,FeedbackBean feedback,
-		int maxValueVariation,boolean update)
+	private boolean checkOrUpdateUnselectedWrongAnswersCondition(FeedbackBean feedback,int maxValueVariation,
+		boolean update)
 	{
 		boolean ok=true;
 		UnselectedWrongAnswersConditionBean unselectedWrongAnswersCondition=
 			feedback.getUnselectedWrongAnswersCondition();
 		if (unselectedWrongAnswersCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
 			if (NumberComparator.compareU(
 				unselectedWrongAnswersCondition.getComparator(),NumberComparator.BETWEEN))
 			{
 				int unselectedWrongAnswersBetweenMax=
 					unselectedWrongAnswersCondition.getUnselectedWrongAnswersBetweenMax();
 				int maxValue=
-					unselectedWrongAnswersCondition.getMaxUnselectedWrongAnswersValue(operation)+maxValueVariation;
+					unselectedWrongAnswersCondition.getMaxUnselectedWrongAnswersValue()+maxValueVariation;
 				if (unselectedWrongAnswersBetweenMax>maxValue)
 				{
 					if (update)
@@ -11584,7 +12576,7 @@ public class QuestionBean implements Serializable
 			{
 				int unselectedWrongAnswersCmp=unselectedWrongAnswersCondition.getUnselectedWrongAnswersCmp();
 				int maxValue=
-					unselectedWrongAnswersCondition.getMaxValueUnselectedWrongAnswersCmp(operation)+maxValueVariation;
+					unselectedWrongAnswersCondition.getMaxValueUnselectedWrongAnswersCmp()+maxValueVariation;
 				if (unselectedWrongAnswersCmp>maxValue)
 				{
 					if (update)
@@ -11596,6 +12588,17 @@ public class QuestionBean implements Serializable
 						ok=false;
 					}
 				}
+				else if (update && unselectedWrongAnswersCmp==0 && maxValue==0 && NumberComparator.compareU(
+					unselectedWrongAnswersCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(localizationService.getLocalizedMessage(
+						"CONDITION_TYPE_UNSELECTED_WRONG_ANSWERS_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					unselectedWrongAnswersCondition.setNewComparator(newComparator.toString());
+				}
 			}
 		}
 		return ok;
@@ -11603,37 +12606,30 @@ public class QuestionBean implements Serializable
 	
 	/**
 	 * Checks if a predicted change on an answer will affect to the right distance condition of a feedback.
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param rightVariation Expected variation of value for selectable right answers after changes
 	 * @param wrongVariation Expected variation of value for selectable wrong answers after changes
 	 * @return true if performing the change on the answer won't affect to the right distance condition of the 
 	 * feedback, false otherwise
 	 */
-	private boolean checkRightDistanceCondition(Operation operation,FeedbackBean feedback,int rightVariation,
-		int wrongVariation)
+	private boolean checkRightDistanceCondition(FeedbackBean feedback,int rightVariation,int wrongVariation)
 	{
-		return checkOrUpdateRightDistanceCondition(
-			getCurrentUserOperation(operation),feedback,rightVariation,wrongVariation,false);
+		return checkOrUpdateRightDistanceCondition(feedback,rightVariation,wrongVariation,false);
 	}
 	
 	/**
 	 * Updates right distance condition of a feedback if needed after performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param rightVariation Expected variation of value for selectable right answers
 	 * @param wrongVariation Expected variation of value for selectable wrong answers
 	 */
-	private void updateRightDistanceCondition(Operation operation,FeedbackBean feedback,int rightVariation,
-		int wrongVariation)
+	private void updateRightDistanceCondition(FeedbackBean feedback,int rightVariation,int wrongVariation)
 	{
-		checkOrUpdateRightDistanceCondition(
-			getCurrentUserOperation(operation),feedback,rightVariation,wrongVariation,true);
+		checkOrUpdateRightDistanceCondition(feedback,rightVariation,wrongVariation,true);
 	}
 	
 	/**
 	 * Checks or updates right distance condition of a feedback if needed to performing a change. 
-	 * @param operation Operation
 	 * @param feedback Feedback
 	 * @param rightVariation Expected variation of value for selectable right answers
 	 * @param wrongVariation Expected variation of value for selectable wrong answers
@@ -11642,7 +12638,7 @@ public class QuestionBean implements Serializable
 	 * to the right distance 
 	 * condition of the feedback, false otherwise; when updating always returns true
 	 */
-	private boolean checkOrUpdateRightDistanceCondition(Operation operation,FeedbackBean feedback,int rightVariation,
+	private boolean checkOrUpdateRightDistanceCondition(FeedbackBean feedback,int rightVariation,
 		int wrongVariation,boolean update)
 	{
 		boolean ok=true;
@@ -11650,12 +12646,10 @@ public class QuestionBean implements Serializable
 		RightDistanceConditionBean rightDistanceCondition=feedback.getRightDistanceCondition();
 		if (rightDistanceCondition!=null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			int selectableRightAnswers=getNumberOfSelectableRightAnswers(operation)+rightVariation;
-			int selectableWrongAnswers=getNumberOfSelectableWrongAnswers(operation)+wrongVariation;
-			int maxValue=selectableRightAnswers>=selectableWrongAnswers?selectableRightAnswers:selectableWrongAnswers;
+			int selectableRightAnswers=getNumberOfSelectableRightAnswers()+rightVariation;
+			int selectableWrongAnswers=getNumberOfSelectableWrongAnswers()+wrongVariation;
+			int maxValue=
+				selectableRightAnswers>=selectableWrongAnswers?selectableRightAnswers:selectableWrongAnswers;
 			if (NumberComparator.compareU(rightDistanceCondition.getComparator(),NumberComparator.BETWEEN))
 			{
 				int rightDistanceBetweenMax=rightDistanceCondition.getRightDistanceBetweenMax();
@@ -11697,6 +12691,16 @@ public class QuestionBean implements Serializable
 					{
 						ok=false;
 					}
+				}
+				else if (update && rightDistanceCmp==0 && maxValue==0 && 
+					NumberComparator.compareU(rightDistanceCondition.getComparator(),NumberComparator.GREATER))
+				{
+					StringBuffer newComparator=new StringBuffer(NumberComparator.GREATER_EQUAL);
+					if ("F".equals(localizationService.getLocalizedMessage("CONDITION_TYPE_RIGHT_DISTANCE_GEN")))
+					{
+						newComparator.append("_F");
+					}
+					rightDistanceCondition.setNewComparator(newComparator.toString());
 				}
 			}
 		}
@@ -11763,6 +12767,16 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
+	 * Action listener for updating resources information if we cancel the dialog to cancel the question 
+	 * creation/edition. 
+	 * @param event Action event
+	 */
+	public void abortCancelQuestion(ActionEvent event)
+	{
+		updateResourcesImages();
+	}
+	
+	/**
 	 * Displays an error message.
 	 * @param message Error message (before localization)
 	 */
@@ -11794,54 +12808,38 @@ public class QuestionBean implements Serializable
 	}
 	
 	/**
-	 * Remove global categories from other users (different to the indicated user) and optionally excluding 
-	 * from removing the indicated category.
-	 * @param categories List of categories
-	 * @param user User (his/her global categories will not be removed)
-	 * @param categoryExcludedFromRemoving Category the will not be removed
+	 * Displays the error page with the indicated message.<br/><br/>
+	 * Be careful that this method can only be invoked safely from non ajax actions.
+	 * @param errorCode Error message (before localization)
+	 * @param plainMessage Plain error message (used if it is not possible to localize error message)
 	 */
-	private void removeGlobalOtherUserCategories(List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
+	private void displayErrorPage(String errorCode,String plainMessage)
 	{
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
+		FacesContext context=FacesContext.getCurrentInstance();
+		ExternalContext externalContext=context.getExternalContext();
+		Map<String,Object> requestMap=externalContext.getRequestMap();
+		requestMap.put("errorCode",errorCode);
+		requestMap.put("plainMessage",plainMessage);
+		try
 		{
-			if (!category.equals(categoryExcludedFromRemoving) && category.getVisibility().isGlobal() && 
-				!category.getUser().equals(user))
+			externalContext.dispatch("/pages/error");
+		}
+		catch (IOException ioe)
+		{
+			String errorMessage=null;
+			try
 			{
-				categoriesToRemove.add(category);
+				errorMessage=localizationService.getLocalizedMessage(errorCode);
 			}
-		}
-		for (Category categoryToRemove:categoriesToRemove)
-		{
-			categories.remove(categoryToRemove);
-		}
-	}
-	
-	/**
-	 * Remove private categories from an user and optionally excluding from removing the indicated category.
-	 * @param operation Operation
-	 * @param categories List of categories
-	 * @param user User
-	 * @param categoryExcludedFromRemoving Category the will not be removed
-	 */
-	private void removePrivateCategories(Operation operation,List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
-	{
-		Visibility privateVisibility=
-			visibilitiesService.getVisibility(getCurrentUserOperation(operation),"CATEGORY_VISIBILITY_PRIVATE");
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
-		{
-			if (!category.equals(categoryExcludedFromRemoving) && !category.getVisibility().isGlobal() &&
-				category.getVisibility().getLevel()>=privateVisibility.getLevel())
+			catch (ServiceException se)
 			{
-				categoriesToRemove.add(category);
+				errorMessage=null;
 			}
-		}
-		for (Category categoryToRemove:categoriesToRemove)
-		{
-			categories.remove(categoryToRemove);
+			if (errorMessage==null)
+			{
+				errorMessage=plainMessage;
+			}
+			throw new FacesException(errorMessage,ioe);
 		}
 	}
 	

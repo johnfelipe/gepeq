@@ -86,8 +86,7 @@ public class FeedbackTypesService implements Serializable
 		// We don't want caller accessing directly to a cached feedback type so we return a copy
 		if (feedbackTypeFromCache!=null)
 		{
-			feedbackType=new FeedbackType();
-			feedbackType.setFromOtherFeedbackType(feedbackTypeFromCache);
+			feedbackType=feedbackTypeFromCache.getFeedbackTypeCopy();
 		}
 		return feedbackType;
 	}
@@ -132,8 +131,7 @@ public class FeedbackTypesService implements Serializable
 		// We don't want caller accessing directly to a cached feedback type so we return a copy
 		if (feedbackTypeFromCache!=null)
 		{
-			feedbackType=new FeedbackType();
-			feedbackType.setFromOtherFeedbackType(feedbackTypeFromCache);
+			feedbackType=feedbackTypeFromCache.getFeedbackTypeCopy();
 		}
 		return feedbackType;
 	}

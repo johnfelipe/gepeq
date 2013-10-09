@@ -124,7 +124,7 @@ public class Resource implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_category", nullable = false)
+	@JoinColumn(name = "id_category")
 	public Category getCategory() {
 		return this.category;
 	}
@@ -134,7 +134,7 @@ public class Resource implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_copyright", nullable = false)
+	@JoinColumn(name = "id_copyright")
 	public Copyright getCopyright() {
 		return this.copyright;
 	}
@@ -161,6 +161,16 @@ public class Resource implements java.io.Serializable {
 			setUser(otherResource.getUser());
 			setCopyright(otherResource.getCopyright());
 		}
+	}
+	
+	/**
+	 * @return A copy of this resource.
+	 */
+	@Transient
+	public Resource getResourceCopy()
+	{
+		return new Resource(
+			getId(),getName(),getDescription(),getCategory(),getUser(),getFileName(),getMimeType(),getCopyright());
 	}
 	
 	@Override

@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -82,13 +83,18 @@ public class SectionsService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get section from DB
 			SECTIONS_DAO.setOperation(operation);
-			section=SECTIONS_DAO.getSection(id);
+			Section sectionFromDB=SECTIONS_DAO.getSection(id);
 			
-			if (section!=null)
+			if (sectionFromDB!=null)
 			{
-				// We need to get question references of this section
-				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,section));
+				section=sectionFromDB.getSectionCopy();
+				if (sectionFromDB.getTest()!=null)
+				{
+					section.setTest(sectionFromDB.getTest().getTestCopy());
+				}
+				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,sectionFromDB.getId()));
 			}
 		}
 		catch (DaoException de)
@@ -159,13 +165,19 @@ public class SectionsService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// Get section from DB
 			SECTIONS_DAO.setOperation(operation);
-			section=SECTIONS_DAO.getSection(testId,order);
-			
-			if (section!=null)
+			Section sectionFromDB=SECTIONS_DAO.getSection(testId,order);
+			if (sectionFromDB!=null)
 			{
+				section=sectionFromDB.getSectionCopy();
+				if (sectionFromDB.getTest()!=null)
+				{
+					section.setTest(sectionFromDB.getTest().getTestCopy());
+				}
+				
 				// We need to get question references of this section
-				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,section));
+				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,sectionFromDB.getId()));
 			}
 		}
 		catch (DaoException de)
@@ -203,6 +215,7 @@ public class SectionsService implements Serializable
 	{
 		try
 		{
+			// Add a new section
 			SECTIONS_DAO.setOperation(operation);
 			SECTIONS_DAO.saveSection(section);
 		}
@@ -255,10 +268,7 @@ public class SectionsService implements Serializable
 			{
 				if (questionOrdersFromDB.contains(questionOrder))
 				{
-					QuestionOrder questionOrderFromDB=
-						questionOrdersFromDB.get(questionOrdersFromDB.indexOf(questionOrder));
-					questionOrderFromDB.setFromOtherQuestionOrder(questionOrder);
-					questionOrdersService.updateQuestionOrder(operation,questionOrderFromDB);
+					questionOrdersService.updateQuestionOrder(operation,questionOrder);
 				}
 				else
 				{
@@ -266,14 +276,16 @@ public class SectionsService implements Serializable
 				}
 			}
 			
-			// We get section from DB
+			// Get section from DB
 			SECTIONS_DAO.setOperation(operation);
 			Section sectionFromDB=SECTIONS_DAO.getSection(section.getId());
 			
-			// We update section on DB
+			// Set fields with the updated values
 			sectionFromDB.setFromOtherSection(section);
+			
+			// Update section
 			SECTIONS_DAO.setOperation(operation);
-			SECTIONS_DAO.updateSection(section);
+			SECTIONS_DAO.updateSection(sectionFromDB);
 			
 			if (singleOp)
 			{
@@ -318,14 +330,45 @@ public class SectionsService implements Serializable
 	 */
 	public void deleteSection(Operation operation,Section section) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get section from DB
 			SECTIONS_DAO.setOperation(operation);
-			SECTIONS_DAO.deleteSection(section);
+			Section sectionFromDB=SECTIONS_DAO.getSection(section.getId());
+			
+			// Delete section
+			SECTIONS_DAO.setOperation(operation);
+			SECTIONS_DAO.deleteSection(sectionFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -378,13 +421,25 @@ public class SectionsService implements Serializable
 				operation=HibernateUtil.startOperation();
 			}
 			
+			// We get sections from DB
 			SECTIONS_DAO.setOperation(operation);
-			sections=SECTIONS_DAO.getSections(testId);
+			List<Section> sectionsFromDB=SECTIONS_DAO.getSections(testId);
 			
-			// We need to get question references of sections
-			for (Section section:sections)
+			// We return new referenced sections within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			sections=new ArrayList<Section>(sectionsFromDB.size());
+			for (Section sectionFromDB:sectionsFromDB)
 			{
-				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,section));
+				Section section=sectionFromDB.getSectionCopy();
+				if (sectionFromDB.getTest()!=null)
+				{
+					section.setTest(sectionFromDB.getTest().getTestCopy());
+				}
+				
+				// We need to get question references of each section
+				section.setQuestionOrders(questionOrdersService.getQuestionOrders(operation,sectionFromDB.getId()));
+				
+				sections.add(section);
 			}
 		}
 		catch (DaoException de)

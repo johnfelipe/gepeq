@@ -50,7 +50,7 @@ public class SectionBeanConverter implements Converter
 			// We get TestBean from EL resolver
 			TestBean testBean=(TestBean)resolver.getValue(elContext,null,"testBean");
 			
-			for (SectionBean sb:testBean.getSections(testBean.getCurrentUserOperation(null)))
+			for (SectionBean sb:testBean.getSections())
 			{
 				if (sb.getOrder()==sectionPos)
 				{

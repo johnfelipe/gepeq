@@ -235,7 +235,8 @@ public class UsersDao
 	 * @return User from DB if authentication is successful or null otherwise
 	 * @throws DaoException
 	 */
-	public User getAuthenticatedUser(String userLogin,String userPassword,boolean includeUserType) throws DaoException
+	public User getAuthenticatedUser(String userLogin,String userPassword,boolean includeUserType) 
+		throws DaoException
 	{
 		User user=null;
 		if (userLogin!=null && userPassword!=null)
@@ -244,7 +245,7 @@ public class UsersDao
 			{
 				startOperation();
 				Query query=operation.session.createQuery("from User u where u.login = :userLogin");
-				query.setParameter("userLogin", userLogin, StandardBasicTypes.STRING);
+				query.setParameter("userLogin",userLogin,StandardBasicTypes.STRING);
 				user=(User)query.uniqueResult();
 				if (user!=null)
 				{
@@ -256,8 +257,7 @@ public class UsersDao
 							FacesContext facesContext=FacesContext.getCurrentInstance();
 							if (facesContext==null)
 							{
-								errorMessage=
-									"The user entered is not authorized to execute this application.";
+								errorMessage="The user entered is not authorized to execute this application.";
 							}
 							else
 							{
@@ -265,8 +265,7 @@ public class UsersDao
 								LocalizationService localizationService=
 									(LocalizationService)FacesContext.getCurrentInstance().getApplication().
 									getELResolver().getValue(elContext,null,"localizationService");
-								errorMessage=
-									localizationService.getLocalizedMessage("NON_GEPEQ_USER_LOGIN_ERROR");
+								errorMessage=localizationService.getLocalizedMessage("NON_GEPEQ_USER_LOGIN_ERROR");
 							}
 							throw new DaoException(errorMessage);
 						}
@@ -364,7 +363,6 @@ public class UsersDao
 	/**
 	 * @param includeOmUsers true to get all users (even users that only have access to OpenMark), 
 	 * false to get only users with access to GEPEQ
-	 * @param includeUserType true to include user type information, false otherwise
 	 * @param sortedByLogin Flag to indicate if we want the results sorted by login
 	 * @return List of all users without user type
 	 * @return List of all users without user type filtered optionally by user type and excluding optionally 
@@ -372,8 +370,7 @@ public class UsersDao
 	 * @throws DaoException
 	 */
 	@SuppressWarnings("unchecked")
-	public List<User> getUsersWithoutUserType(boolean includeOmUsers,boolean includeUserType,
-		boolean sortedByLogin)
+	public List<User> getUsersWithoutUserType(boolean includeOmUsers,boolean sortedByLogin)
 	{
 		List<User> users=null;
 		try
@@ -389,13 +386,6 @@ public class UsersDao
 				queryString.append(" order by u.login");
 			}
 			users=operation.session.createQuery(queryString.toString()).list();
-			if (includeUserType)
-			{
-				for (User user:users)
-				{
-					Hibernate.initialize(user.getUserType());
-				}
-			}
 		}
 		catch (HibernateException he)
 		{
@@ -440,7 +430,7 @@ public class UsersDao
 	 * @return true if exists an user with the indicated login, false otherwise
 	 * @throws DaoException
 	 */
-	public boolean checkUser(String login) throws DaoException
+	public boolean checkUserLogin(String login) throws DaoException
 	{
 		boolean userFound=false;
 		try
@@ -448,6 +438,34 @@ public class UsersDao
 			startOperation();
 			Query query=operation.session.createQuery("select count(u) from User u where u.login = :login");
 			query.setParameter("login", login, StandardBasicTypes.STRING);
+			userFound=((Long)query.uniqueResult()).longValue()==1L;
+		}
+		catch (HibernateException he)
+		{
+			handleException(he,!singleOp);
+			throw new DaoException(he);
+		}
+		finally
+		{
+			endOperation();
+		}
+		return userFound;
+	}
+	
+	/**
+	 * Checks if exists an user with the indicated identifier
+	 * @param id Identifier
+	 * @return true if exists an user with the indicated identifier, false otherwise
+	 * @throws DaoException
+	 */
+	public boolean checkUserId(long id) throws DaoException
+	{
+		boolean userFound=false;
+		try
+		{
+			startOperation();
+			Query query=operation.session.createQuery("select count(u) from User u where u.id = :id");
+			query.setParameter("id",Long.valueOf(id),StandardBasicTypes.LONG);
 			userFound=((Long)query.uniqueResult()).longValue()==1L;
 		}
 		catch (HibernateException he)

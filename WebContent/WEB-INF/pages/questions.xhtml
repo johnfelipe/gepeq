@@ -80,16 +80,15 @@
               <f:selectItems value="#{questionTypesService.questionTypes}" var="type" itemLabel="#{msgs[type]}" 
                 itemValue="#{type}" />
               <p:column styleClass="columnIcon">
-                <p:graphicImage value="/resources/images/#{t}.gif" width="16" height="16" />
+                <h:graphicImage value="/resources/images/#{t}.gif" styleClass="graphics" width="16" height="16" />
               </p:column>
               <p:column style="font-size:85% !important;">
                 #{msgs[t]}
               </p:column>
             </p:selectOneMenu>
             <p:commandButton value="#{msgs.APPLY_FILTER}" styleClass="applyFilterButton" 
-              actionListener="#{questionsBean.applyQuestionsFilter}" 
-              process="questionsForm:questionsFilterPanel" 
-              update="questionsForm:messages questionsForm:questionsTable" />
+              actionListener="#{questionsBean.applyQuestionsFilter}" process="questionsForm:questionsFilterPanel" 
+              update="questionsForm:questionsFilterPanel questionsForm:messages questionsForm:questionsTable" />
           </h:panelGrid>
         </p:panel>
         <h:panelGroup layout="block" styleClass="newQuestionPanel">
@@ -100,7 +99,8 @@
             <f:selectItems value="#{questionTypesService.questionTypes}" var="questionType" 
               itemLabel="#{msgs[questionType]}" itemValue="#{questionType}" />
             <p:column styleClass="columnIcon"> 
-              <p:graphicImage value="/resources/images/#{questionTypeName}.gif" width="16" height="16" />
+              <h:graphicImage value="/resources/images/#{questionTypeName}.gif" styleClass="graphics" width="16" 
+                height="16" />
             </p:column>
             <p:column style="font-size:85% !important;">  
               #{msgs[questionTypeName]}
@@ -116,14 +116,15 @@
 	    
         <p:dataTable id="questionsTable" styleClass="questionsTable" rowStyleClass="dataRow" 
           emptyMessage="#{msgs.NO_QUESTIONS}" value="#{questionsBean.questions}" var="question" 
-	      paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
-          paginator="true" rows="25" rowsPerPageTemplate="10,25,50">
+	      paginatorTemplate="#{msgs.DATATABLE_PAGINATOR_TEMPLATE}" paginator="true" rows="25" 
+	      rowsPerPageTemplate="10,25,50">
           
           <p:column styleClass="columnType" sortBy="#{question.type}" 
             sortFunction="#{questionsBean.sortQuestionTypes}">
             
             <f:facet name="header"></f:facet>
-            <h:graphicImage id="questionTypeImage" url="/resources/images/#{question.type}.gif" />
+            <h:graphicImage id="questionTypeImage" styleClass="graphics" 
+              url="/resources/images/#{question.type}.gif" />
             <p:tooltip for="questionTypeImage">
               #{msgs[question.type]}
             </p:tooltip>
@@ -161,48 +162,48 @@
           </p:column>
           <p:column styleClass="columnEdit">  
             <h:commandLink action="#{questionsBean.editQuestion(question)}" 
-              rendered="#{questionsBean.isEditQuestionAllowed(question)}">
+              rendered="#{questionsBean.isEditQuestionAllowed(question)}" onclick="editQuestionTooltip.hide();">
               
               <f:param name="questionId" value="#{question.id}" />
               <h:graphicImage id="editQuestionImage" styleClass="links" 
                 value="#{resource['images:edit16.png']}" />
-              <p:tooltip for="editQuestionImage">
+              <p:tooltip widgetVar="editQuestionTooltip" for="editQuestionImage">
                 #{msgs.EDIT_QUESTION}
               </p:tooltip> 
             </h:commandLink>
           </p:column>
           <p:column styleClass="columnCreateCopy">
             <h:commandLink action="#{questionsBean.addQuestionCopy(question)}" 
-              rendered="#{questionsBean.isCreateCopyQuestionAllowed(question)}">
+              rendered="#{questionsBean.isCreateCopyQuestionAllowed(question)}" 
+              onclick="createCopyQuestionTooltip.hide();">
               
               <f:param name="questionCopyId" value="#{question.id}" />
               <h:graphicImage id="createCopyQuestionImage" styleClass="links" 
                 value="#{resource['images:copyto16.png']}" />
-              <p:tooltip for="createCopyQuestionImage">
+              <p:tooltip widgetVar="createCopyQuestionTooltip" for="createCopyQuestionImage">
                 #{msgs.CREATE_COPY_QUESTION}
               </p:tooltip> 
             </h:commandLink>
           </p:column>
           <p:column styleClass="columnDelete">
-            <p:commandLink update="@form" actionListener="#{questionsBean.confirm}" 
-              rendered="#{questionsBean.isDeleteQuestionAllowed(question)}">
+            <p:commandLink update="@form" actionListener="#{questionsBean.confirmDelete(question)}" 
+              rendered="#{questionsBean.isDeleteQuestionAllowed(question)}" onclick="deleteQuestionTooltip.hide();">
               
-			  <f:setPropertyActionListener value="#{question.id}" target="#{questionsBean.questionId}" />
-              <h:graphicImage id="deleteQuestionImage" styleClass="links" 
-                value="#{resource['images:delete.png']}" />
-              <p:tooltip for="deleteQuestionImage">
+              <h:graphicImage id="deleteQuestionImage" styleClass="links" value="#{resource['images:delete.png']}" />
+              <p:tooltip widgetVar="deleteQuestionTooltip" for="deleteQuestionImage">
                 #{msgs.DELETE_QUESTION}
               </p:tooltip>
-            </p:commandLink> 
+            </p:commandLink>
           </p:column>
           <p:column styleClass="columnOM">
             <p:commandLink process="@form" update="@form" action="#{questionsBean.viewOM(question.id)}" 
-              onstart="buildingDialog.show()" oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" 
+              onstart="viewOMQuestionTooltip.hide();buildingDialog.show()" 
+              oncomplete="buildingDialog.hide();viewQuestion(xhr,status,args)" 
               rendered="#{questionsBean.isViewOMEnabled()}">
               
               <h:graphicImage id="viewOMQuestionImage" styleClass="links" 
                 value="#{resource['images:om16.png']}" />
-              <p:tooltip for="viewOMQuestionImage">
+              <p:tooltip widgetVar="viewOMQuestionTooltip" for="viewOMQuestionImage">
                 #{msgs.OM_PREVIEW}
               </p:tooltip>
             </p:commandLink>
@@ -230,7 +231,9 @@
             <p:commandButton value="#{msgs.YES}" onclick="confirmDialog.hide();" 
               actionListener="#{questionsBean.deleteQuestion}" 
               update="questionsForm:messages questionsForm:newQuestionButton questionsForm:questionsTable" />
-            <p:commandButton value="#{msgs.NO}" onclick="confirmDialog.hide();" type="button" />
+            <p:commandButton value="#{msgs.NO}" actionListener="#{questionsBean.cancelDeleteQuestion}" 
+              oncomplete="confirmDialog.hide();" 
+              update="questionsForm:questionsFilterPanel questionsForm:messages questionsForm:newQuestionButton questionsForm:questionsTable" />
           </h:panelGroup>
         </h:panelGroup>
       </h:form>

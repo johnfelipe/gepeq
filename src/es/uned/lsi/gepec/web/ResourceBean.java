@@ -26,12 +26,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.faces.FacesException;
 import javax.faces.application.FacesMessage;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ManagedProperty;
 import javax.faces.bean.ViewScoped;
 import javax.faces.component.UIComponent;
 import javax.faces.component.UIInput;
+import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.event.ActionEvent;
 
@@ -53,6 +55,7 @@ import es.uned.lsi.gepec.web.services.CopyrightsService;
 import es.uned.lsi.gepec.web.services.LocalizationService;
 import es.uned.lsi.gepec.web.services.PermissionsService;
 import es.uned.lsi.gepec.web.services.ResourcesService;
+import es.uned.lsi.gepec.web.services.ServiceException;
 import es.uned.lsi.gepec.web.services.UserSessionService;
 import es.uned.lsi.gepec.web.services.VisibilitiesService;
 
@@ -151,20 +154,29 @@ public class ResourceBean implements Serializable
     private String confirmCancelResourceDialogMessage;
 	private String cancelResourceTarget;
 	
+	private long initialCategoryId;
+	
 	private List<Category> resourcesCategories;
 	private List<Source> resourceSources;
 	
 	// Copyrights
 	private List<Copyright> copyrights;
 	
+	private Boolean filterGlobalResourcesEnabled;
+	private Boolean filterOtherUsersResourcesEnabled;
 	private Boolean globalOtherUserCategoryAllowed;
+	private Boolean addEnabled;
+	private Boolean editEnabled;
+	private Boolean editOtherUsersResourcesEnabled;
+	private Boolean editAdminsResourcesEnabled;
+	private Boolean editSuperadminsResourcesEnabled;
+	private Boolean viewResourcesFromOtherUsersPrivateCategoriesEnabled;
+	private Boolean viewResourcesFromAdminsPrivateCategoriesEnabled;
+	private Boolean viewResourcesFromSuperadminsPrivateCategoriesEnabled;
 	private Boolean localSourceAllowed;
 	private Boolean networkSourceAllowed;
 	private Boolean resourceUserAdmin;
 	private Boolean resourceUserSuperadmin;
-	private Boolean viewResourcesFromOtherUsersPrivateCategoriesEnabled;
-	private Boolean viewResourcesFromAdminsPrivateCategoriesEnabled;
-	private Boolean viewResourcesFromSuperadminsPrivateCategoriesEnabled;
     private Boolean useBetterUploadSizeLimit;
     private Boolean useBetterMaximumSpaceLimit;
 	
@@ -190,14 +202,21 @@ public class ResourceBean implements Serializable
     	urlContent=null;
     	width=-1;
     	height=-1;
+    	filterGlobalResourcesEnabled=null;
+    	filterOtherUsersResourcesEnabled=null;
     	globalOtherUserCategoryAllowed=null;
+    	addEnabled=null;
+    	editEnabled=null;
+    	editOtherUsersResourcesEnabled=null;
+    	editAdminsResourcesEnabled=null;
+    	editSuperadminsResourcesEnabled=null;
+    	viewResourcesFromOtherUsersPrivateCategoriesEnabled=null;
+    	viewResourcesFromAdminsPrivateCategoriesEnabled=null;
+    	viewResourcesFromSuperadminsPrivateCategoriesEnabled=null;
     	localSourceAllowed=null;
     	networkSourceAllowed=null;
     	resourceUserAdmin=null;
     	resourceUserSuperadmin=null;
-    	viewResourcesFromOtherUsersPrivateCategoriesEnabled=null;
-    	viewResourcesFromAdminsPrivateCategoriesEnabled=null;
-    	viewResourcesFromSuperadminsPrivateCategoriesEnabled=null;
         useBetterUploadSizeLimit=null;
         useBetterMaximumSpaceLimit=null;
     	resourceSizeLimit=null;
@@ -251,8 +270,13 @@ public class ResourceBean implements Serializable
     	this.permissionsService=permissionsService;
     }
     
-    private Operation getCurrentUserOperation(Operation operation)
+    public Operation getCurrentUserOperation(Operation operation)
     {
+    	if (operation!=null && resource==null)
+    	{
+    		getResource();
+    		operation=null;
+    	}
     	return operation==null?userSessionService.getCurrentUserOperation():operation;
     }
     
@@ -278,27 +302,25 @@ public class ResourceBean implements Serializable
 	
     private long getResourceCategoryId(Operation operation)
     {
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-    	Resource resource=getResource(operation);
+		// Get current user session Hibernate operation
+		operation=getCurrentUserOperation(operation);
+		
+    	Resource resource=getResource();
     	if (resource.getCategory()==null)
     	{
-    		List<Category> categories=getResourcesCategories(operation);
-    		if (!categories.isEmpty())
+    		List<Category> resourcesCategories=getResourcesCategories(operation);
+    		if (!resourcesCategories.isEmpty())
     		{
-    			setResourceCategoryId(categories.get(0).getId());
+    			setResourceCategoryId(resourcesCategories.get(0).getId());
     		}
     	}
-		return resource.getCategory().getId();
+		return resource.getCategory()==null?0L:resource.getCategory().getId();
 	}
 	
 	private void setResourceCategoryId(Operation operation,long resourceCategoryId)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		getResource(operation).setCategory(categoriesService.getCategory(operation,resourceCategoryId));
+		getResource().setCategory(resourceCategoryId>0L?
+			categoriesService.getCategory(getCurrentUserOperation(operation),resourceCategoryId):null);
 	}
     
     public String getSource()
@@ -339,22 +361,12 @@ public class ResourceBean implements Serializable
 	
 	public String getResourceMimeType()
 	{
-		return getResourceMimeType(null);
+		return getResource().getMimeType();
 	}
 	
 	public void setResourceMimeType(String resourceMimeType)
 	{
-		setResourceMimeType(null,resourceMimeType);
-	}
-	
-	private String getResourceMimeType(Operation operation)
-	{
-		return getResource(getCurrentUserOperation(operation)).getMimeType();
-	}
-	
-	private void setResourceMimeType(Operation operation,String resourceMimeType)
-	{
-		getResource(getCurrentUserOperation(operation)).setMimeType(resourceMimeType);
+		getResource().setMimeType(resourceMimeType);
 	}
 	
     public long getResourceCopyrightId()
@@ -369,13 +381,10 @@ public class ResourceBean implements Serializable
 	
     private long getResourceCopyrightId(Operation operation)
     {
-    	// Get current user session Hibernate operation
-    	operation=getCurrentUserOperation(operation);
-    	
-    	Resource resource=getResource(operation);
+    	Resource resource=getResource();
     	if (resource.getCopyright()==null)
     	{
-    		List<Copyright> copyrights=getCopyrights(operation);
+    		List<Copyright> copyrights=getCopyrights(getCurrentUserOperation(operation));
     		if (!copyrights.isEmpty())
     		{
     			setResourceCopyrightId(copyrights.get(0).getId());
@@ -386,10 +395,8 @@ public class ResourceBean implements Serializable
 	
 	private void setResourceCopyrightId(Operation operation,long resourceCopyrightId)
 	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		getResource(operation).setCopyright(copyrightsService.getCopyright(operation,resourceCopyrightId));
+		getResource().setCopyright(
+			copyrightsService.getCopyright(getCurrentUserOperation(operation),resourceCopyrightId));
 	}
 	
 	public String getDecodeUTF8()
@@ -430,6 +437,11 @@ public class ResourceBean implements Serializable
 		return getResourcesCategories(null); 
 	}
 	
+	public void setResourcesCategories(List<Category> resourcesCategories)
+	{
+		this.resourcesCategories=resourcesCategories;
+	}
+	
 	/**
 	 * @param operation Operation
 	 * @return List of categories for resources from current user or globals
@@ -439,37 +451,28 @@ public class ResourceBean implements Serializable
 		if (resourcesCategories==null)
 		{
 			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(null);
+			operation=getCurrentUserOperation(operation);
 			
-			User currentUser=userSessionService.getCurrentUser(operation);
-			Resource resource=getResource(operation);
-			User resourceUser=resource.getId()>0L?resource.getUser():currentUser;
+			Resource resource=getResource();
+			User resourceUser=resource.getId()>0L?resource.getUser():userSessionService.getCurrentUser(operation);
 			
 			//TODO el tipo de categoría CATEGORY_TYPE_IMAGES en realidad esta pensado solo para imagenes, cambiarlo por otro más genérico como CATEGORY_TYPE_RESOURCES cuando este implementado
 			resourcesCategories=categoriesService.getCategoriesSortedByHierarchy(operation,resourceUser,
 				categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),true,true,
 				CategoriesService.NOT_VIEW_OTHER_USERS_CATEGORIES);
 			
-			// We need to check if resource's owner is allowed to assign a global category of other user
-			// to his/her owned resources
-			if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue())
+			// Remove from list categories not allowed
+			List<Category> resourcesCategoriesToRemove=new ArrayList<Category>();
+			for (Category resourceCategory:resourcesCategories)
 			{
-				// As resource's owner is not allowed to assign a global category of other user
-				// to his/her owned resources we remove them from results (except current resource category)
-				removeGlobalOtherUserCategories(resourcesCategories,resourceUser,resource.getCategory());
+				if (!checkCategory(operation,resourceCategory))
+				{
+					resourcesCategoriesToRemove.add(resourceCategory);
+				}
 			}
-			
-			// We need to check if current user is allowed to see private categories of resource's owner
-			if (!resourceUser.equals(currentUser) && 
-				(!getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() || 
-				(getResourceUserAdmin(operation).booleanValue() && 
-				!getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) || 
-				(getResourceUserSuperadmin(operation).booleanValue() && 
-				!getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue())))
+			for (Category resourceCategoryToRemove:resourcesCategoriesToRemove)
 			{
-				// As current user is not allowed to see private categories of resource's owner
-				// we remove them from results (except current resource category)
-				removePrivateCategories(operation,resourcesCategories,resourceUser,resource.getCategory());
+				resourcesCategories.remove(resourceCategoryToRemove);
 			}
 		}
 		return resourcesCategories; 
@@ -514,11 +517,10 @@ public class ResourceBean implements Serializable
     {
     	if (resourceSources==null)
     	{
-			resourceSources=new ArrayList<Source>();
-    		
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
+			resourceSources=new ArrayList<Source>();
         	setLocalSourceAllowed(null);
         	resourceSources.add(new Source(RESOURCE_SOURCE_LOCAL,getLocalSourceAllowed(operation).booleanValue()));
         	setNetworkSourceAllowed(null);
@@ -553,33 +555,17 @@ public class ResourceBean implements Serializable
     
     public String getAllSourcesDeniedMessageStyle()
     {
-    	return getAllSourcesDeniedMessageStyle(null);
-    }
-    
-    private String getAllSourcesDeniedMessageStyle(Operation operation)
-    {
-    	return isUpdate(getCurrentUserOperation(operation))?
-    		"ui-messages-warn ui-corner-all":"ui-messages-error ui-corner-all";
+    	return isUpdate()?"ui-messages-warn ui-corner-all":"ui-messages-error ui-corner-all";
     }
     
     public String getAllSourcesDeniedMessageIconStyle()
     {
-    	return getAllSourcesDeniedMessageIconStyle(null);
-    }
-    
-    private String getAllSourcesDeniedMessageIconStyle(Operation operation)
-    {
-    	return isUpdate(getCurrentUserOperation(operation))?"ui-messages-warn-icon":"ui-messages-error-icon";
+    	return isUpdate()?"ui-messages-warn-icon":"ui-messages-error-icon";
     }
     
     public String getAllSourcesDeniedMessageSummaryStyle()
     {
-    	return getAllSourcesDeniedMessageSummaryStyle(null);
-    }
-    
-    private String getAllSourcesDeniedMessageSummaryStyle(Operation operation)
-    {
-    	return isUpdate(getCurrentUserOperation(operation))?"ui-messages-warn-summary":"ui-messages-error-summary";
+    	return isUpdate()?"ui-messages-warn-summary":"ui-messages-error-summary";
     }
     
     public Boolean getUseBetterUploadSizeLimit()
@@ -627,7 +613,8 @@ public class ResourceBean implements Serializable
     	if (useBetterMaximumSpaceLimit==null)
     	{
     		useBetterMaximumSpaceLimit=Boolean.valueOf(userSessionService.isGranted(
-    			getCurrentUserOperation(operation),"PERMISSION_RESOURCE_OTHER_USER_USE_BETTER_MAXIMUM_SPACE_LIMIT"));
+    			getCurrentUserOperation(operation),
+    			"PERMISSION_RESOURCE_OTHER_USER_USE_BETTER_MAXIMUM_SPACE_LIMIT"));
     	}
     	return useBetterMaximumSpaceLimit;
     }
@@ -649,7 +636,7 @@ public class ResourceBean implements Serializable
         	// Get current user session Hibernate operation
         	operation=getCurrentUserOperation(operation);
     		
-        	Resource resource=getResource(operation);
+        	Resource resource=getResource();
         	if (resource.getId()>0L)
         	{
             	resourceSizeLimit=Integer.valueOf(permissionsService.getIntegerPermission(
@@ -695,7 +682,7 @@ public class ResourceBean implements Serializable
         	// Get current user session Hibernate operation
         	operation=getCurrentUserOperation(operation);
     		
-        	Resource resource=getResource(operation);
+        	Resource resource=getResource();
         	if (resource.getId()>0L)
         	{
         		resourcesMaximumAvailableSpace=Integer.valueOf(permissionsService.getIntegerPermission(
@@ -743,7 +730,7 @@ public class ResourceBean implements Serializable
     		
         	int usedSpace=0;
         	List<Resource> resources=null;
-        	Resource resource=getResource(operation);
+        	Resource resource=getResource();
         	if (resource.getId()>0L)
         	{
         		resources=resourcesService.getResources(operation,resource.getUser());
@@ -778,7 +765,7 @@ public class ResourceBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	Resource resource=getResource(operation);
+    	Resource resource=getResource();
         String errorKey=null;
         if (resource.getId()>0L)
         {
@@ -864,7 +851,7 @@ public class ResourceBean implements Serializable
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-       	Resource resource=getResource(operation);
+       	Resource resource=getResource();
     	String errorKey=null;
         if (resource.getId()>0L)
         {
@@ -942,34 +929,32 @@ public class ResourceBean implements Serializable
      */
     public Resource getResource()
     {
-		return getResource(null);
-	}
-	
-    /**
-     * @param operation Operation
-     * @return Searched resource if we are updating, a new resource otherwise 
-     */
-    public Resource getResource(Operation operation)
-    {
     	if (resource==null)
     	{
+			// End current user session Hibernate operation
+			userSessionService.endCurrentUserOperation();
+    		
+    		// Get current user session Hibernate operation
+    		Operation operation=getCurrentUserOperation(null);
+    		
     		FacesContext context=FacesContext.getCurrentInstance();
     		Map<String,String> params=context.getExternalContext().getRequestParameterMap();
     		if (params.containsKey("resourceId"))						// Update resource
     		{
-    			resource=resourcesService.getResource(
-    				getCurrentUserOperation(operation),Long.parseLong(params.get("resourceId")));
+    			resource=resourcesService.getResource(operation,Long.parseLong(params.get("resourceId")));
+    	    	initialCategoryId=resource.getCategory().getId();
     			setConfirmCancelResourceDialogMessage("CONFIRM_CANCEL_RESOURCE_UPDATE");
     		}
     		else														// New resource
     		{
     			resource=new Resource();
+    			initialCategoryId=0L;
     			setConfirmCancelResourceDialogMessage("CONFIRM_CANCEL_RESOURCE");
     		}
     	}
 		return resource;
 	}
-    
+	
     //Indica si ya se ha subido un fichero de recurso
     //return Cierto si hay fichero y falso si no
     /**
@@ -987,16 +972,7 @@ public class ResourceBean implements Serializable
      */
 	public boolean isUpdate()
 	{
-		return isUpdate(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return true if we are updating an existing resource, false if we are creating a new one
-     */
-	private boolean isUpdate(Operation operation)
-	{
-		return getResource(getCurrentUserOperation(operation)).getId()>0L;
+		return getResource().getId()>0L;
 	}
 	
 	public boolean isUploadURLEnabled()
@@ -1006,17 +982,9 @@ public class ResourceBean implements Serializable
 	
 	public boolean isSaveEnabled()
 	{
-		return isSaveEnabled(null);
-	}
-	
-	private boolean isSaveEnabled(Operation operation)
-	{
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
-		
-		Resource resource=getResource(operation);
+		Resource resource=getResource();
 		return resource!=null && resource.getName()!=null && !resource.getName().equals("") && 
-			(isUpdate(operation) || isUploaded());
+			(isUpdate() || isUploaded());
 	}
 	
 	public int getResourcePreviewWidth()
@@ -1074,7 +1042,47 @@ public class ResourceBean implements Serializable
 	}
 	
 	/**
-	 * Process MIME type input fiel of the resource page.
+	 * Process some input fields of the resource page.
+	 * @param component Component that triggered the listener that called this method
+	 */
+	private void processNotWatchedInputFields(UIComponent component)
+	{
+		FacesContext context=FacesContext.getCurrentInstance();
+		UIInput resourceName=(UIInput)component.findComponent(":resourceForm:resourceName");
+		resourceName.processDecodes(context);
+		if (resourceName.getSubmittedValue()!=null)
+		{
+			getResource().setName((String)resourceName.getSubmittedValue());
+		}
+		UIInput resourceDescription=(UIInput)component.findComponent(":resourceForm:resourceDescription");
+		resourceDescription.processDecodes(context);
+		if (resourceDescription.getSubmittedValue()!=null)
+		{
+			getResource().setDescription((String)resourceDescription.getSubmittedValue());
+		}
+		UIInput resourceCopyright=(UIInput)component.findComponent(":resourceForm:resourceCopyright");
+		resourceCopyright.processDecodes(context);
+		if (resourceCopyright.getSubmittedValue()!=null)
+		{
+			if (resourceCopyright.getSubmittedValue() instanceof Long)
+			{
+				setResourceCopyrightId(((Long)resourceCopyright.getSubmittedValue()).longValue());
+			}
+			else if (resourceCopyright.getSubmittedValue() instanceof String)
+			{
+				setResourceCopyrightId(Long.parseLong((String)resourceCopyright.getSubmittedValue()));
+			}
+		}
+		UIInput resourceMimeType=(UIInput)component.findComponent(":resourceForm:resourceMimeType");
+		resourceMimeType.processDecodes(context);
+		if (resourceMimeType.getSubmittedValue()!=null)
+		{
+			setResourceMimeType((String)resourceMimeType.getSubmittedValue());
+		}
+	}
+	
+	/**
+	 * Process MIME type input field of the resource page.
 	 * @param component Component that triggered the listener that called this method
 	 */
 	private void processResourceMimeType(UIComponent component)
@@ -1092,11 +1100,10 @@ public class ResourceBean implements Serializable
 	 * Convert some bean properties to UTF-8.<br/><br/>
 	 * Note that this is needed because form is multipart/form-data and encodes strings with the default system 
 	 * charset.
-	 * @param operation Operation
 	 */
-	private void processUTF8(Operation operation)
+	private void processUTF8()
 	{
-		Resource resource=getResource(getCurrentUserOperation(operation));
+		Resource resource=getResource();
 		if (resource!=null)
 		{
 		    try
@@ -1203,7 +1210,7 @@ public class ResourceBean implements Serializable
 				saveTemporaryFile();
 				
 				// We check that the MIME type of the file is the expected one or the default used by that extension
-				String checkedMimeType=resourcesService.checkMimeType(tmpFile,tmpExt,getResourceMimeType(operation));
+				String checkedMimeType=resourcesService.checkMimeType(tmpFile,tmpExt,getResourceMimeType());
 				if (checkedMimeType==null)
 				{
 					resourcesService.deleteResourceFile(tmpFile);
@@ -1303,7 +1310,7 @@ public class ResourceBean implements Serializable
 							// We check that the MIME type of the file is the expected one 
 							// or the default used by that extension
 							String checkedMimeType=
-								resourcesService.checkMimeType(tmpFile,tmpExt,getResourceMimeType(operation));
+								resourcesService.checkMimeType(tmpFile,tmpExt,getResourceMimeType());
 							if (checkedMimeType==null)
 							{
 								resourcesService.deleteResourceFile(tmpFile);
@@ -1350,90 +1357,80 @@ public class ResourceBean implements Serializable
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @return true if resource name only includes valid characters (letters, digits, whitespaces 
 	 * or any of the following characters  _ ( ) [ ] { } + - * /<br/>
 	 * ), false otherwise
 	 * 
 	 */
-	private boolean checkValidCharactersForResourceName(Operation operation)
+	private boolean checkValidCharactersForResourceName()
 	{
-		return !StringUtils.hasUnexpectedCharacters(getResource(getCurrentUserOperation(operation)).getName(),true,true,
-			true,new char[]{'_','(',')','[',']','{','}','+','-','*','/'});
+		return !StringUtils.hasUnexpectedCharacters(
+			getResource().getName(),true,true,true,new char[]{'_','(',')','[',']','{','}','+','-','*','/'});
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @return true if resource name includes at least one letter, false otherwise
 	 */
-	private boolean checkLetterIncludedForResourceName(Operation operation)
+	private boolean checkLetterIncludedForResourceName()
 	{
-		return StringUtils.hasLetter(getResource(getCurrentUserOperation(operation)).getName());
+		return StringUtils.hasLetter(getResource().getName());
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @return true if first character of resource name is not a digit nor a whitespace, false otherwise
 	 */
-	private boolean checkFirstCharacterNotDigitNotWhitespaceForResourceName(Operation operation)
+	private boolean checkFirstCharacterNotDigitNotWhitespaceForResourceName()
 	{
-		String resourceName=getResource(getCurrentUserOperation(operation)).getName();
+		String resourceName=getResource().getName();
 		return !StringUtils.isFirstCharacterDigit(resourceName) && 
 			!StringUtils.isFirstCharacterWhitespace(resourceName);
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @return true if last character of resource name is not a whitespace, false otherwise
 	 */
-	private boolean checkLastCharacterNotWhitespaceForResourceName(Operation operation)
+	private boolean checkLastCharacterNotWhitespaceForResourceName()
 	{
-		return !StringUtils.isLastCharacterWhitespace(getResource(getCurrentUserOperation(operation)).getName());
+		return !StringUtils.isLastCharacterWhitespace(getResource().getName());
 	}
 	
 	/**
-	 * @param operation Operation
 	 * @return true if resource name does not include consecutive whitespaces, false otherwise
 	 */
-	private boolean checkNonConsecutiveWhitespacesForResourceName(Operation operation)
+	private boolean checkNonConsecutiveWhitespacesForResourceName()
 	{
-		return !StringUtils.hasConsecutiveWhitespaces(getResource(getCurrentUserOperation(operation)).getName());
+		return !StringUtils.hasConsecutiveWhitespaces(getResource().getName());
 	}
 	
-	
 	/**
-	 * Check if resource name is valid, otherwise it display error messages
 	 * @param operation Operation
 	 * @return true if resource name is valid, false otherwise
 	 */
-	private boolean checkResourceName(Operation operation)
+	private boolean checkResourceName()
 	{
 		boolean ok=true;
 		
-		// Get current user session Hibernate operation 
-		operation=getCurrentUserOperation(operation);
-		
-		if (!checkValidCharactersForResourceName(operation))
+		if (!checkValidCharactersForResourceName())
 		{
 			addErrorMessage("RESOURCE_NAME_INVALID_CHARACTERS");
 			ok=false;
 		}
-		if (!checkLetterIncludedForResourceName(operation))
+		if (!checkLetterIncludedForResourceName())
 		{
 			addErrorMessage("RESOURCE_NAME_WITHOUT_LETTER");
 			ok=false;
 		}
-		if (!checkFirstCharacterNotDigitNotWhitespaceForResourceName(operation))
+		if (!checkFirstCharacterNotDigitNotWhitespaceForResourceName())
 		{
 			addErrorMessage("RESOURCE_NAME_FIRST_CHARACTER_INVALID");
 			ok=false;
 		}
-		if (!checkLastCharacterNotWhitespaceForResourceName(operation))
+		if (!checkLastCharacterNotWhitespaceForResourceName())
 		{
 			addErrorMessage("RESOURCE_NAME_LAST_CHARACTER_INVALID");
 			ok=false;
 		}
-		if (!checkNonConsecutiveWhitespacesForResourceName(operation))
+		if (!checkNonConsecutiveWhitespacesForResourceName())
 		{
 			addErrorMessage("RESOURCE_NAME_WITH_CONSECUTIVE_WHITESPACES");
 			ok=false;
@@ -1447,38 +1444,79 @@ public class ResourceBean implements Serializable
 	 */
     private boolean checkCategory(Operation operation)
     {
-    	boolean ok=true;
-    	
+    	return checkCategory(getCurrentUserOperation(operation),getResource().getCategory());
+    }
+	
+	/**
+	 * @param operation Operation
+	 * @param category Category
+	 * @return true if a category is usable by current user, false otherwise
+	 */
+    private boolean checkCategory(Operation operation,Category category)
+    {
     	// Get current user session Hibernate operation
     	operation=getCurrentUserOperation(operation);
     	
-    	Resource resource=getResource(operation);
-    	User currentUser=userSessionService.getCurrentUser(operation);
-    	User resourceUser=resource.getId()>0L?resource.getUser():currentUser;
+    	// Check category type
+    	boolean ok=category!=null && categoryTypesService.isDerivedFrom(operation,
+    		categoryTypesService.getCategoryType(operation,"CATEGORY_TYPE_IMAGES"),
+    		categoryTypesService.getCategoryTypeFromCategoryId(operation,category.getId()));
     	
-    	Category category=resource.getCategory();
-    	
-		if (!getGlobalOtherUserCategoryAllowed(operation).booleanValue() && 
-			!category.getUser().equals(resourceUser) && category.getVisibility().isGlobal())
-		{
-			ok=false;
-		}
-		else if (!resourceUser.equals(currentUser) && category.getUser().equals(resourceUser))
-		{
-			Visibility resourceCategoryVisibility=category.getVisibility();
-			if (!resourceCategoryVisibility.isGlobal() && resourceCategoryVisibility.getLevel()>=
-				visibilitiesService.getVisibility(operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
-			{
-				ok=getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() &&
-					(!getResourceUserAdmin(operation).booleanValue() || 
-					getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) &&
-					(!getResourceUserSuperadmin(operation).booleanValue() || 
-					getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
-			}
-		}
+    	// Check visibility
+    	if (ok)
+    	{
+    		ok=false;
+    		Resource resource=getResource();
+    		User resourceUser=resource.getId()>0L?resource.getUser():userSessionService.getCurrentUser(operation);
+    		Visibility categoryVisibility=
+    			visibilitiesService.getVisibilityFromCategoryId(operation,category.getId());
+    		if (categoryVisibility.isGlobal())	
+    		{
+    			ok=getFilterGlobalResourcesEnabled(operation).booleanValue() && 
+    				((initialCategoryId>0L && category.getId()==initialCategoryId) || 
+    				resourceUser.equals(category.getUser()) || 
+    				getGlobalOtherUserCategoryAllowed(operation).booleanValue());
+    		}
+    		else if (resourceUser.equals(category.getUser()))
+    		{
+    			if (resourceUser.getId()==userSessionService.getCurrentUserId())
+    			{
+    				ok=true;
+    			}
+    			else if (getFilterOtherUsersResourcesEnabled(operation).booleanValue()) 
+    			{
+    				if (categoryVisibility.getLevel()>=visibilitiesService.getVisibility(
+    					operation,"CATEGORY_VISIBILITY_PRIVATE").getLevel())
+    				{
+    					ok=getViewResourcesFromOtherUsersPrivateCategoriesEnabled(operation).booleanValue() && 
+    						(!getResourceUserAdmin(operation).booleanValue() || 
+    						getViewResourcesFromAdminsPrivateCategoriesEnabled(operation).booleanValue()) && 
+    						(!getResourceUserSuperadmin(operation).booleanValue() || 
+    						getViewResourcesFromSuperadminsPrivateCategoriesEnabled(operation).booleanValue());
+    				}
+    				else
+    				{
+    					ok=true;
+    				}
+    			}
+    		}
+    	}
     	return ok;
     }
-	
+    
+	/**
+	 * @param operation Operation
+	 * @return true if current category of the resource we are editing is usable by current user, false otherwise
+	 */
+    private boolean checkCurrentCategory(Operation operation)
+    {
+    	// Get current user session Hibernate operation
+    	operation=getCurrentUserOperation(operation);
+    	
+    	return checkCategory(operation,categoriesService.getCategoryFromResourceId(operation,getResource().getId()));
+    }
+    
+    
     /**
 	 * @param operation Operation
 	 * @return true if resource name entered by user is available, false otherwise 
@@ -1490,7 +1528,7 @@ public class ResourceBean implements Serializable
 		// Get current user session Hibernate operation
 		operation=getCurrentUserOperation(operation);
 		
-		Resource resource=getResource(operation);
+		Resource resource=getResource();
 		String resourceName=resource.getName();
 		long categoryId=resource.getCategory()==null?0L:resource.getCategory().getId();
 		if (resourceName!=null)
@@ -1500,6 +1538,104 @@ public class ResourceBean implements Serializable
 		return ok;
 	}
     
+	/**
+	 * Refresh available categories of the combo box.
+	 * @param event Action event
+	 */
+	public void refreshResourceCategories(ActionEvent event)
+	{
+		// Get current user session operation
+		Operation operation=getCurrentUserOperation(null);
+		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
+	    setGlobalOtherUserCategoryAllowed(null);
+	    setResourceUserAdmin(null);
+	    setResourceUserSuperadmin(null);
+	    setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
+	    setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
+	    setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
+	    long resourceCategoryId=getResource().getCategory().getId();
+	    if (!categoriesService.checkCategoryId(operation,resourceCategoryId) || !checkCategory(operation))
+	    {
+	    	// Refresh categories from DB
+	    	resetResourcesCategories(operation);
+	    }
+	    else
+	    {
+			// Reload categories from DB
+			setResourcesCategories(null);
+	    }
+	}
+	
+	private void resetResourcesCategories(Operation operation)
+	{
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+		// Reload categories from DB
+		setResourcesCategories(null);
+		
+		// Check that initial category already exists and it is valid
+		long resetCategoryId=0L;
+		if (initialCategoryId>0L)
+		{
+			if (!categoriesService.checkCategoryId(operation,initialCategoryId))
+			{
+				initialCategoryId=0L;
+			}
+			else if (checkCategory(operation,categoriesService.getCategory(operation,initialCategoryId)))
+			{
+				resetCategoryId=initialCategoryId;
+			}
+		}
+		
+		// Reset selected category
+		if (resetCategoryId==0L)
+		{
+			List<Category> resourcesCategories=getResourcesCategories(operation);
+			if (!resourcesCategories.isEmpty())
+			{
+				resetCategoryId=resourcesCategories.get(0).getId();
+			}
+		}
+		setResourceCategoryId(operation,resetCategoryId);
+	}
+	
+	private boolean checkSaveResource(Operation operation)
+	{
+		boolean ok=false;
+		
+		// Get current user session operation
+		operation=getCurrentUserOperation(operation);
+		
+   		Resource resource=getResource();
+    	if (resource.getId()>0L)
+    	{
+    		ok=false;
+    		if (getEditEnabled(operation).booleanValue())
+    		{
+    			if (resource.getUser().getId()==userSessionService.getCurrentUserId())
+    			{
+    				ok=true;
+    			}
+    			else
+    			{
+    				ok=getEditOtherUsersResourcesEnabled(operation).booleanValue() && 
+    					(!getResourceUserAdmin(operation).booleanValue() || 
+    					getEditAdminsResourcesEnabled(operation).booleanValue()) && 
+    					(!getResourceUserSuperadmin(operation).booleanValue() || 
+    					getEditSuperadminsResourcesEnabled(operation).booleanValue());
+    			}
+    		}
+    	}
+    	else
+    	{
+    		ok=getAddEnabled(operation).booleanValue();
+   		}
+		return ok;
+	}
+	
 	//Guarda un nuevo recurso o actualiza el existente
 	//return Vista resources si todo es correcto o la vista actual si hay errores
 	/**
@@ -1508,250 +1644,287 @@ public class ResourceBean implements Serializable
 	 */
 	public String saveResource()
 	{
-		String nextView="resources?faces-redirect=true";
-		User currentUser=null;
+		String nextView=null;
 		
 		// Get current user session operation
 		Operation operation=getCurrentUserOperation(null);
 		
-		// We need to convert name and description to UTF-8 charset
-		processUTF8(operation);
-	    
-		File resourceFile=null;
-		if (tmpFile==null)
-		{
-			resourceFile=new File(resourcesService.getCurrentResourceFilePath(operation,this));
-		}
-		else
-		{
-			resourceFile=tmpFile;
-		}
-		Resource resource=getResource(operation);
-		if (resource.getName()==null || resource.getName().equals(""))
-		{
-			addErrorMessage("RESOURCE_NAME_REQUIRED");
-			nextView=null;
-		}
-		else if (!checkResourceName(operation))
-		{
-			nextView=null;
-		}
-		
+		setFilterGlobalResourcesEnabled(null);
+		setFilterOtherUsersResourcesEnabled(null);
 	    setGlobalOtherUserCategoryAllowed(null);
 	    setResourceUserAdmin(null);
 	    setResourceUserSuperadmin(null);
+	    setAddEnabled(null);
+	    setEditEnabled(null);
+	    setEditOtherUsersResourcesEnabled(null);
+	    setEditAdminsResourcesEnabled(null);
+	    setEditSuperadminsResourcesEnabled(null);
 	    setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
 	    setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
 	    setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-		if (checkCategory(operation))
-		{
-			if (!checkAvailableResourceName(operation))
-			{
-				addErrorMessage("RESOURCE_NAME_ALREADY_DECLARED");
-				nextView=null;
-			}
-			boolean invalidUpload=false;
-			if (getFile()!=null)
-			{
-				setLocalSourceAllowed(null);
-				if (!getLocalSourceAllowed(operation).booleanValue())
-				{
-					resourcesService.deleteResourceFile(tmpFile);
-					setFile(null);
-					setUrl(null);
-					setUploadedUrl(null);
-					setUrlContent(null);
-					tmpFile=null;
-					width=-1;
-					height=-1;
-					setLocalSourceAllowed(Boolean.TRUE);
-					addErrorMessage("LOCAL_SOURCE_DENIED");
-					nextView=null;
-					invalidUpload=true;
-				}
-				if (!invalidUpload)
-				{
-					setResourceSizeLimit(null);
-					int resourceSizeLimit=getResourceSizeLimit(operation).intValue();
-					if (resourceSizeLimit>0 && (int)getFile().getSize()>resourceSizeLimit)
-					{
-						resourcesService.deleteResourceFile(tmpFile);
-						setFile(null);
-						setUrl(null);
-						setUploadedUrl(null);
-						setUrlContent(null);
-						tmpFile=null;
-						width=-1;
-						height=-1;
-						setLocalSourceAllowed(Boolean.TRUE);
-						addPlainErrorMessage(getErrorMessageSizeLimit(operation));
-						nextView=null;
-						invalidUpload=true;
-					}
-				}
-				if (!invalidUpload)
-				{
-					setResourcesMaximumAvailableSpace(null);
-					int resourcesMaximumAvailableSpace=getResourcesMaximumAvailableSpace(operation).intValue();
-					if (resourcesMaximumAvailableSpace>0)
-					{
-						setResourcesUsedSpace(null);
-						if (((int)getFile().getSize()+getResourcesUsedSpace(operation).intValue())>
-							resourcesMaximumAvailableSpace)
-						{
-							resourcesService.deleteResourceFile(tmpFile);
-							setFile(null);
-							setUrl(null);
-							setUploadedUrl(null);
-							setUrlContent(null);
-							tmpFile=null;
-							width=-1;
-							height=-1;
-							setLocalSourceAllowed(Boolean.TRUE);
-							addPlainErrorMessage(getErrorMessageResourcesSpaceLimit(operation));
-							nextView=null;
-							invalidUpload=true;
-						}
-					}
-				}
-			}
-			else if (getUrlContent()!=null)
-			{
-			setNetworkSourceAllowed(null);
-				if (!getNetworkSourceAllowed(operation).booleanValue())
-				{
-					resourcesService.deleteResourceFile(tmpFile);
-					setFile(null);
-					setUrl(null);
-					setUploadedUrl(null);
-					setUrlContent(null);
-					tmpFile=null;
-					width=-1;
-					height=-1;
-					setNetworkSourceAllowed(Boolean.TRUE);
-					addErrorMessage("NETWORK_SOURCE_DENIED");
-					nextView=null;
-					invalidUpload=true;
-				}
-				if (!invalidUpload)
-				{
-					setResourceSizeLimit(null);
-					int resourceSizeLimit=getResourceSizeLimit(operation).intValue();
-					if (resourceSizeLimit>0 && getUrlContent().length>resourceSizeLimit)
-					{
-						resourcesService.deleteResourceFile(tmpFile);
-						setFile(null);
-						setUrl(null);
-						setUploadedUrl(null);
-						setUrlContent(null);
-						tmpFile=null;
-						width=-1;
-						height=-1;
-						setLocalSourceAllowed(Boolean.TRUE);
-						addPlainErrorMessage(getErrorMessageSizeLimit(operation));
-						nextView=null;
-						invalidUpload=true;
-					}
-				}
-				if (!invalidUpload)
-				{
-					setResourcesMaximumAvailableSpace(null);
-					int resourcesMaximumAvailableSpace=getResourcesMaximumAvailableSpace(operation).intValue();
-					if (resourcesMaximumAvailableSpace>0)
-					{
-						setResourcesUsedSpace(null);
-						if (getUrlContent().length+getResourcesUsedSpace(operation).intValue()>
-							resourcesMaximumAvailableSpace)
-						{
-							resourcesService.deleteResourceFile(tmpFile);
-							setFile(null);
-							setUrl(null);
-							setUploadedUrl(null);
-							setUrlContent(null);
-							tmpFile=null;
-							width=-1;
-							height=-1;
-							setLocalSourceAllowed(Boolean.TRUE);
-							addPlainErrorMessage(getErrorMessageResourcesSpaceLimit(operation));
-							nextView=null;
-							invalidUpload=true;
-						}
-					}
-				}
-			}
-			if (!invalidUpload && 
-				resourcesService.checkMimeType(resourceFile,null,getResourceMimeType(operation))==null)
-			{
-				addErrorMessage("FILE_UNEXPECTED_TYPE");
-				nextView=null;
-			}
-		}
-		else
-		{
-			addErrorMessage("NON_AUTHORIZED_ACTION_ERROR");
-			nextView=null;
-			
-			// Reload categories from DB
-			resourcesCategories=null;
-		}
-		boolean update=isUpdate(operation);
-		if (nextView!=null && !update && isUploaded())
-		{
-			currentUser=userSessionService.getCurrentUser(operation);
-		}
 		
-		if (nextView!=null)
+		Resource resource=getResource();
+		boolean update=isUpdate();
+		if (update && !resourcesService.checkResourceId(operation,resource.getId()))
 		{
-			if (update)														// Update resource
+			displayErrorPage(
+				"RESOURCE_UPDATE_NOT_FOUND_ERROR","The resource you are trying to update no longer exists.");
+		}
+		else if (!checkSaveResource(operation) || (update && !checkCurrentCategory(operation)))
+	    {
+	    	displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
+	    }
+	    else
+	    {
+			FacesContext context=FacesContext.getCurrentInstance();
+			nextView="resources?faces-redirect=true";
+			User currentUser=null;
+			boolean reloadCategories=true;
+			
+			// Process now not watched input fields (needed because immediate='true')
+			processNotWatchedInputFields(context.getViewRoot());
+			
+			// We need to convert name and description to UTF-8 charset
+			processUTF8();
+		    
+			File resourceFile=null;
+			if (tmpFile==null)
 			{
-				// NOTE: We need to end current user session Hibernate operation before updating resource 
-				//       to avoid an Hibernate deadlock
-				
-				// End current user session Hibernate operation
-				userSessionService.endCurrentUserOperation();
-				
-				resourcesService.updateResource(this,isUploaded());
+				resourceFile=new File(resourcesService.getCurrentResourceFilePath(this));
 			}
-			else if (isUploaded())
+			else
 			{
-				try
-				{
-					// All is correct, so we save resource
-					resource.setUser(currentUser);
-					resourcesService.addResource(this);
-				}
-				finally
-				{
-					// End current user session Hibernate operation
-					userSessionService.endCurrentUserOperation();
-				}
+				resourceFile=tmpFile;
 			}
-			else															// No file uploaded
+			if (resource.getName()==null || resource.getName().equals(""))
 			{
-				addErrorMessage("FILE_UPLOAD_REQUIRED");
+				addErrorMessage("RESOURCE_NAME_REQUIRED");
 				nextView=null;
 			}
+			else if (!checkResourceName())
+			{
+				nextView=null;
+			}
+			
+			if (!categoriesService.checkCategoryId(operation,resource.getCategory().getId()))
+		    {
+				addErrorMessage(update?"RESOURCE_CATEGORY_UPDATE_NOT_FOUND":"RESOURCE_CATEGORY_ADD_NOT_FOUND");
+				nextView=null;
+				
+		    	// Refresh categories from DB
+		    	resetResourcesCategories(operation);
+		    	reloadCategories=false;
+		    }
+		    else if (checkCategory(operation))
+			{
+				if (!checkAvailableResourceName(operation))
+				{
+					addErrorMessage("RESOURCE_NAME_ALREADY_DECLARED");
+					nextView=null;
+				}
+				boolean invalidUpload=false;
+				if (getFile()!=null)
+				{
+					setLocalSourceAllowed(null);
+					if (!getLocalSourceAllowed(operation).booleanValue())
+					{
+						resourcesService.deleteResourceFile(tmpFile);
+						setFile(null);
+						setUrl(null);
+						setUploadedUrl(null);
+						setUrlContent(null);
+						tmpFile=null;
+						width=-1;
+						height=-1;
+						setLocalSourceAllowed(Boolean.TRUE);
+						addErrorMessage("LOCAL_SOURCE_DENIED");
+						nextView=null;
+						invalidUpload=true;
+					}
+					if (!invalidUpload)
+					{
+						setResourceSizeLimit(null);
+						int resourceSizeLimit=getResourceSizeLimit(operation).intValue();
+						if (resourceSizeLimit>0 && (int)getFile().getSize()>resourceSizeLimit)
+						{
+							resourcesService.deleteResourceFile(tmpFile);
+							setFile(null);
+							setUrl(null);
+							setUploadedUrl(null);
+							setUrlContent(null);
+							tmpFile=null;
+							width=-1;
+							height=-1;
+							setLocalSourceAllowed(Boolean.TRUE);
+							addPlainErrorMessage(getErrorMessageSizeLimit(operation));
+							nextView=null;
+							invalidUpload=true;
+						}
+					}
+					if (!invalidUpload)
+					{
+						setResourcesMaximumAvailableSpace(null);
+						int resourcesMaximumAvailableSpace=getResourcesMaximumAvailableSpace(operation).intValue();
+						if (resourcesMaximumAvailableSpace>0)
+						{
+							setResourcesUsedSpace(null);
+							if (((int)getFile().getSize()+getResourcesUsedSpace(operation).intValue())>
+								resourcesMaximumAvailableSpace)
+							{
+								resourcesService.deleteResourceFile(tmpFile);
+								setFile(null);
+								setUrl(null);
+								setUploadedUrl(null);
+								setUrlContent(null);
+								tmpFile=null;
+								width=-1;
+								height=-1;
+								setLocalSourceAllowed(Boolean.TRUE);
+								addPlainErrorMessage(getErrorMessageResourcesSpaceLimit(operation));
+								nextView=null;
+								invalidUpload=true;
+							}
+						}
+					}
+				}
+				else if (getUrlContent()!=null)
+				{
+				setNetworkSourceAllowed(null);
+					if (!getNetworkSourceAllowed(operation).booleanValue())
+					{
+						resourcesService.deleteResourceFile(tmpFile);
+						setFile(null);
+						setUrl(null);
+						setUploadedUrl(null);
+						setUrlContent(null);
+						tmpFile=null;
+						width=-1;
+						height=-1;
+						setNetworkSourceAllowed(Boolean.TRUE);
+						addErrorMessage("NETWORK_SOURCE_DENIED");
+						nextView=null;
+						invalidUpload=true;
+					}
+					if (!invalidUpload)
+					{
+						setResourceSizeLimit(null);
+						int resourceSizeLimit=getResourceSizeLimit(operation).intValue();
+						if (resourceSizeLimit>0 && getUrlContent().length>resourceSizeLimit)
+						{
+							resourcesService.deleteResourceFile(tmpFile);
+							setFile(null);
+							setUrl(null);
+							setUploadedUrl(null);
+							setUrlContent(null);
+							tmpFile=null;
+							width=-1;
+							height=-1;
+							setLocalSourceAllowed(Boolean.TRUE);
+							addPlainErrorMessage(getErrorMessageSizeLimit(operation));
+							nextView=null;
+							invalidUpload=true;
+						}
+					}
+					if (!invalidUpload)
+					{
+						setResourcesMaximumAvailableSpace(null);
+						int resourcesMaximumAvailableSpace=getResourcesMaximumAvailableSpace(operation).intValue();
+						if (resourcesMaximumAvailableSpace>0)
+						{
+							setResourcesUsedSpace(null);
+							if (getUrlContent().length+getResourcesUsedSpace(operation).intValue()>
+								resourcesMaximumAvailableSpace)
+							{
+								resourcesService.deleteResourceFile(tmpFile);
+								setFile(null);
+								setUrl(null);
+								setUploadedUrl(null);
+								setUrlContent(null);
+								tmpFile=null;
+								width=-1;
+								height=-1;
+								setLocalSourceAllowed(Boolean.TRUE);
+								addPlainErrorMessage(getErrorMessageResourcesSpaceLimit(operation));
+								nextView=null;
+								invalidUpload=true;
+							}
+						}
+					}
+				}
+				if (!invalidUpload && 
+					resourcesService.checkMimeType(resourceFile,null,getResourceMimeType())==null)
+				{
+					addErrorMessage("FILE_UNEXPECTED_TYPE");
+					nextView=null;
+				}
+			}
+			else
+			{
+				addErrorMessage("RESOURCE_CATEGORY_NOT_GRANTED_ERROR");
+				nextView=null;
+				
+		    	// Refresh categories from DB
+		    	resetResourcesCategories(operation);
+		    	reloadCategories=false;
+			}
+			if (nextView!=null && !update && isUploaded())
+			{
+				currentUser=userSessionService.getCurrentUser(operation);
+			}
+			
 			if (nextView!=null)
 			{
-				// We delete temporary file if created
-				resourcesService.deleteResourceFile(tmpFile);
+				if (update)														// Update resource
+				{
+					// NOTE: We need to end current user session Hibernate operation before updating resource 
+					//       to avoid an Hibernate deadlock
+					
+					// End current user session Hibernate operation
+					userSessionService.endCurrentUserOperation();
+					
+					resourcesService.updateResource(this,isUploaded());
+				}
+				else if (isUploaded())
+				{
+					try
+					{
+						// All is correct, so we save resource
+						resource.setUser(currentUser);
+						resourcesService.addResource(this);
+					}
+					finally
+					{
+						// End current user session Hibernate operation
+						userSessionService.endCurrentUserOperation();
+					}
+				}
+				else															// No file uploaded
+				{
+					addErrorMessage("FILE_UPLOAD_REQUIRED");
+					nextView=null;
+				}
+				if (nextView!=null)
+				{
+					// We delete temporary file if created
+					resourcesService.deleteResourceFile(tmpFile);
+				}
 			}
-		}
-		if (nextView==null)
-		{
-			// Reset user permissions
-			setGlobalOtherUserCategoryAllowed(null);
-			setLocalSourceAllowed(null);
-			setNetworkSourceAllowed(null);
-			setResourceUserAdmin(null);
-			setResourceUserSuperadmin(null);
-			setViewResourcesFromOtherUsersPrivateCategoriesEnabled(null);
-			setViewResourcesFromAdminsPrivateCategoriesEnabled(null);
-			setViewResourcesFromSuperadminsPrivateCategoriesEnabled(null);
-			setResourceSizeLimit(null);
-			setResourcesMaximumAvailableSpace(null);
-			setResourcesUsedSpace(null);
-		}
+			if (nextView==null)
+			{
+				// Reload categories if needed
+				if (reloadCategories)
+				{
+					setResourcesCategories(null);
+				}
+				
+				// Reset user permissions
+				setLocalSourceAllowed(null);
+				setNetworkSourceAllowed(null);
+				setResourceSizeLimit(null);
+				setResourcesMaximumAvailableSpace(null);
+				setResourcesUsedSpace(null);
+			}
+	    }
 		return nextView;
 	}
 	
@@ -1759,15 +1932,6 @@ public class ResourceBean implements Serializable
 	 * @return Context relative path to resource file or to temporary file with uploaded content for preview.
 	 */
 	public String getResourcePreview()
-	{
-		return getResourcePreview(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Context relative path to resource file or to temporary file with uploaded content for preview.
-	 */
-	private String getResourcePreview(Operation operation)
 	{
 		StringBuffer resourcePreview=null;
 		if (isUploaded())
@@ -1792,7 +1956,7 @@ public class ResourceBean implements Serializable
 				resourcePreview.append(tmpFile.getName());
 			}
 		}
-		else if (isUpdate(getCurrentUserOperation(operation)))
+		else if (isUpdate())
 		{
 			resourcePreview=new StringBuffer();
 			resourcePreview.append(resource.getFileName());
@@ -1805,27 +1969,15 @@ public class ResourceBean implements Serializable
 	 */
 	public String getExtension()
 	{
-		return getExtension(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return Extension of source file if we have uploaded one or extension of resource file otherwise
-	 */
-	private String getExtension(Operation operation)
-	{
 		String ext=null;
-		
-		// Get current user session Hibernate operation
-		operation=getCurrentUserOperation(operation);
 		
 		if (isUploaded())
 		{
 			ext=tmpExt;
 		}
-		else if (isUpdate(operation))
+		else if (isUpdate())
 		{
-			Resource resource=getResource(operation);
+			Resource resource=getResource();
 			if (resource.getFileName()!=null)
 			{
 				int iExt=resource.getFileName().lastIndexOf('.');
@@ -1843,16 +1995,7 @@ public class ResourceBean implements Serializable
 	 */
 	public boolean isImage()
 	{
-		return isImage(null);
-	}
-	
-	/**
-	 * @param operation Operation
-	 * @return true if resource is an image, false otherwise
-	 */
-	public boolean isImage(Operation operation)
-	{
-		String mimeType=getResourceMimeType(getCurrentUserOperation(operation));
+		String mimeType=getResourceMimeType();
 		return mimeType!=null && mimeType.startsWith("image/");
 	}
 	
@@ -1875,7 +2018,7 @@ public class ResourceBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			if (isImage(operation))
+			if (isImage())
 			{
 				getImageDimensions(operation);
 			}
@@ -1902,7 +2045,7 @@ public class ResourceBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			if (isImage(operation))
+			if (isImage())
 			{
 				getImageDimensions(operation);
 			}
@@ -1939,9 +2082,9 @@ public class ResourceBean implements Serializable
 				file=tmpFile;
 			}
 		}
-		else if (isUpdate(operation))
+		else if (isUpdate())
 		{
-			String filePath=resourcesService.getCurrentResourceFilePath(operation,this);
+			String filePath=resourcesService.getCurrentResourceFilePath(this);
 			if (filePath!=null)
 			{
 				file=new File(filePath);
@@ -1949,7 +2092,7 @@ public class ResourceBean implements Serializable
 		}
 		if (file!=null)
 		{
-			int[] imageDimensions=resourcesService.getImageDimensionsByMIME(file,getResourceMimeType(null));
+			int[] imageDimensions=resourcesService.getImageDimensionsByMIME(file,getResourceMimeType());
 			width=imageDimensions[0];
 			height=imageDimensions[1];
 		}
@@ -1975,6 +2118,51 @@ public class ResourceBean implements Serializable
 		this.cancelResourceTarget=cancelResourceTarget;
 	}
 	
+	public Boolean getFilterGlobalResourcesEnabled()
+	{
+		return getFilterGlobalResourcesEnabled(null);
+	}
+	
+	public void setFilterGlobalResourcesEnabled(Boolean filterGlobalResourcesEnabled)
+	{
+		this.filterGlobalResourcesEnabled=filterGlobalResourcesEnabled;
+	}
+	
+	public boolean isFilterGlobalResourcesEnabled()
+	{
+		return getFilterGlobalResourcesEnabled().booleanValue();
+	}
+	
+	private Boolean getFilterGlobalResourcesEnabled(Operation operation)
+	{
+		if (filterGlobalResourcesEnabled==null)
+		{
+			filterGlobalResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_GLOBAL_FILTER_ENABLED"));
+		}
+		return filterGlobalResourcesEnabled;
+	}
+	
+	public Boolean getFilterOtherUsersResourcesEnabled()
+	{
+		return getFilterOtherUsersResourcesEnabled(null);
+	}
+	
+	public void setFilterOtherUsersResourcesEnabled(Boolean filterOtherUsersResourcesEnabled)
+	{
+		this.filterOtherUsersResourcesEnabled=filterOtherUsersResourcesEnabled;
+	}
+	
+	private Boolean getFilterOtherUsersResourcesEnabled(Operation operation)
+	{
+		if (filterOtherUsersResourcesEnabled==null)
+		{
+			filterOtherUsersResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_OTHER_USERS_FILTER_ENABLED"));
+		}
+		return filterOtherUsersResourcesEnabled;
+	}
+	
 	public Boolean getGlobalOtherUserCategoryAllowed()
 	{
 		return getGlobalOtherUserCategoryAllowed(null);
@@ -1997,7 +2185,7 @@ public class ResourceBean implements Serializable
 			// Get current user session Hibernate operation
 			operation=getCurrentUserOperation(operation);
 			
-			Resource resource=getResource(operation);
+			Resource resource=getResource();
 			if (resource.getId()>0L)
 			{
 				globalOtherUserCategoryAllowed=Boolean.valueOf(permissionsService.isGranted(
@@ -2012,128 +2200,129 @@ public class ResourceBean implements Serializable
 		return globalOtherUserCategoryAllowed;
 	}
 	
-	public Boolean getLocalSourceAllowed()
+	public Boolean getAddEnabled()
 	{
-		return getLocalSourceAllowed(null);
+		return getAddEnabled(null);
 	}
 	
-	public void setLocalSourceAllowed(Boolean localSourceAllowed)
+	public void setAddEnabled(Boolean addEnabled)
 	{
-		this.localSourceAllowed=localSourceAllowed;
+		this.addEnabled=addEnabled;
 	}
 	
-	public boolean isLocalSourceAllowed()
+	public boolean isAddEnabled()
 	{
-		return getLocalSourceAllowed().booleanValue();
+		return getAddEnabled().booleanValue();
 	}
 	
-	private Boolean getLocalSourceAllowed(Operation operation)
+	private Boolean getAddEnabled(Operation operation)
 	{
-		if (localSourceAllowed==null)
+		if (addEnabled==null)
 		{
-			localSourceAllowed=Boolean.valueOf(userSessionService.isGranted(
-				getCurrentUserOperation(operation),"PERMISSION_RESOURCE_LOCAL_SOURCE_ALLOWED"));
+			addEnabled=Boolean.valueOf(
+				userSessionService.isGranted(getCurrentUserOperation(operation),"PERMISSION_RESOURCES_ADD_ENABLED"));
 		}
-		return localSourceAllowed;
+		return addEnabled;
 	}
 	
-	public Boolean getNetworkSourceAllowed()
+	public Boolean getEditEnabled()
 	{
-		return getNetworkSourceAllowed(null);
+		return getEditEnabled(null);
 	}
 	
-	public void setNetworkSourceAllowed(Boolean networkSourceAllowed)
+	public void setEditEnabled(Boolean editEnabled)
 	{
-		this.networkSourceAllowed=networkSourceAllowed;
+		this.editEnabled=editEnabled;
 	}
 	
-	public boolean isNetworkSourceAllowed()
+	public boolean isEditEnabled()
 	{
-		return getNetworkSourceAllowed().booleanValue();
+		return getEditEnabled().booleanValue();
 	}
 	
-	private Boolean getNetworkSourceAllowed(Operation operation)
+	private Boolean getEditEnabled(Operation operation)
 	{
-		if (networkSourceAllowed==null)
+		if (editEnabled==null)
 		{
-			networkSourceAllowed=Boolean.valueOf(userSessionService.isGranted(
-				getCurrentUserOperation(operation),"PERMISSION_RESOURCE_NETWORK_SOURCE_ALLOWED"));
+			editEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_ENABLED"));
 		}
-		return networkSourceAllowed;
+		return editEnabled;
 	}
 	
-	public Boolean getResourceUserAdmin()
+	public Boolean getEditOtherUsersResourcesEnabled()
 	{
-		return getResourceUserAdmin(null);
+		return getEditOtherUsersResourcesEnabled(null);
 	}
 	
-	public void setResourceUserAdmin(Boolean resourceUserAdmin)
+	public void setEditOtherUsersResourcesEnabled(Boolean editOtherUsersResourcesEnabled)
 	{
-		this.resourceUserAdmin=resourceUserAdmin;
+		this.editOtherUsersResourcesEnabled=editOtherUsersResourcesEnabled;
 	}
 	
-	public boolean isResourceUserAdmin()
+	public boolean isEditOtherUsersResourcesEnabled()
 	{
-		return getResourceUserAdmin().booleanValue();
+		return getEditOtherUsersResourcesEnabled().booleanValue();
 	}
 	
-	private Boolean getResourceUserAdmin(Operation operation)
+	private Boolean getEditOtherUsersResourcesEnabled(Operation operation)
 	{
-		if (resourceUserAdmin==null)
+		if (editOtherUsersResourcesEnabled==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			Resource resource=getResource(operation);
-			if (resource.getId()>0L)
-			{
-				resourceUserAdmin=Boolean.valueOf(
-					permissionsService.isGranted(operation,resource.getUser(),"PERMISSION_NAVIGATION_ADMINISTRATION"));
-			}
-			else
-			{
-				resourceUserAdmin=
-					Boolean.valueOf(userSessionService.isGranted(operation,"PERMISSION_NAVIGATION_ADMINISTRATION"));
-			}
+			editOtherUsersResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_OTHER_USERS_RESOURCES_ENABLED"));
 		}
-		return resourceUserAdmin;
+		return editOtherUsersResourcesEnabled;
 	}
 	
-	public Boolean getResourceUserSuperadmin()
+	public Boolean getEditAdminsResourcesEnabled()
 	{
-		return getResourceUserSuperadmin(null);
+		return getEditAdminsResourcesEnabled(null);
 	}
 	
-	public void setResourceUserSuperadmin(Boolean resourceUserSuperadmin)
+	public void setEditAdminsResourcesEnabled(Boolean editAdminsResourcesEnabled)
 	{
-		this.resourceUserSuperadmin=resourceUserSuperadmin;
+		this.editAdminsResourcesEnabled=editAdminsResourcesEnabled;
 	}
 	
-	public boolean isResourceUserSuperadmin()
+	public boolean isEditAdminsResourcesEnabled()
 	{
-		return getResourceUserSuperadmin().booleanValue();
+		return getEditAdminsResourcesEnabled().booleanValue();
 	}
-
-	private Boolean getResourceUserSuperadmin(Operation operation)
+	
+	private Boolean getEditAdminsResourcesEnabled(Operation operation)
 	{
-		if (resourceUserSuperadmin==null)
+		if (editAdminsResourcesEnabled==null)
 		{
-			// Get current user session Hibernate operation
-			operation=getCurrentUserOperation(operation);
-			
-			Resource resource=getResource(operation);
-			if (resource.getId()>0L)
-			{
-				resourceUserSuperadmin=Boolean.valueOf(permissionsService.isGranted(
-					operation,resource.getUser(),"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED"));
-			}
-			else
-			{
-				resourceUserSuperadmin=Boolean.valueOf(userSessionService.isGranted(
-					operation,"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED"));
-			}
+			editAdminsResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_ADMINS_RESOURCES_ENABLED"));
 		}
-		return resourceUserSuperadmin;
+		return editAdminsResourcesEnabled;
+	}
+	
+	public Boolean getEditSuperadminsResourcesEnabled()
+	{
+		return getEditSuperadminsResourcesEnabled(null);
+	}
+	
+	public void setEditSuperadminsResourcesEnabled(Boolean editSuperadminsResourcesEnabled)
+	{
+		this.editSuperadminsResourcesEnabled=editSuperadminsResourcesEnabled;
+	}
+	
+	public boolean isEditSuperadminsResourcesEnabled()
+	{
+		return getEditSuperadminsResourcesEnabled().booleanValue();
+	}
+	
+	private Boolean getEditSuperadminsResourcesEnabled(Operation operation)
+	{
+		if (editSuperadminsResourcesEnabled==null)
+		{
+			editSuperadminsResourcesEnabled=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCES_EDIT_SUPERADMINS_RESOURCES_ENABLED"));
+		}
+		return editSuperadminsResourcesEnabled;
 	}
 	
 	public Boolean getViewResourcesFromOtherUsersPrivateCategoriesEnabled()
@@ -2219,6 +2408,124 @@ public class ResourceBean implements Serializable
 		return viewResourcesFromSuperadminsPrivateCategoriesEnabled;
 	}
 	
+	public Boolean getLocalSourceAllowed()
+	{
+		return getLocalSourceAllowed(null);
+	}
+	
+	public void setLocalSourceAllowed(Boolean localSourceAllowed)
+	{
+		this.localSourceAllowed=localSourceAllowed;
+	}
+	
+	public boolean isLocalSourceAllowed()
+	{
+		return getLocalSourceAllowed().booleanValue();
+	}
+	
+	private Boolean getLocalSourceAllowed(Operation operation)
+	{
+		if (localSourceAllowed==null)
+		{
+			localSourceAllowed=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCE_LOCAL_SOURCE_ALLOWED"));
+		}
+		return localSourceAllowed;
+	}
+	
+	public Boolean getNetworkSourceAllowed()
+	{
+		return getNetworkSourceAllowed(null);
+	}
+	
+	public void setNetworkSourceAllowed(Boolean networkSourceAllowed)
+	{
+		this.networkSourceAllowed=networkSourceAllowed;
+	}
+	
+	public boolean isNetworkSourceAllowed()
+	{
+		return getNetworkSourceAllowed().booleanValue();
+	}
+	
+	private Boolean getNetworkSourceAllowed(Operation operation)
+	{
+		if (networkSourceAllowed==null)
+		{
+			networkSourceAllowed=Boolean.valueOf(userSessionService.isGranted(
+				getCurrentUserOperation(operation),"PERMISSION_RESOURCE_NETWORK_SOURCE_ALLOWED"));
+		}
+		return networkSourceAllowed;
+	}
+	
+	public Boolean getResourceUserAdmin()
+	{
+		return getResourceUserAdmin(null);
+	}
+	
+	public void setResourceUserAdmin(Boolean resourceUserAdmin)
+	{
+		this.resourceUserAdmin=resourceUserAdmin;
+	}
+	
+	public boolean isResourceUserAdmin()
+	{
+		return getResourceUserAdmin().booleanValue();
+	}
+	
+	private Boolean getResourceUserAdmin(Operation operation)
+	{
+		if (resourceUserAdmin==null)
+		{
+			Resource resource=getResource();
+			if (resource.getId()>0L)
+			{
+				resourceUserAdmin=Boolean.valueOf(permissionsService.isGranted(
+					getCurrentUserOperation(operation),resource.getUser(),"PERMISSION_NAVIGATION_ADMINISTRATION"));
+			}
+			else
+			{
+				resourceUserAdmin=Boolean.valueOf(userSessionService.isGranted(
+					getCurrentUserOperation(operation),"PERMISSION_NAVIGATION_ADMINISTRATION"));
+			}
+		}
+		return resourceUserAdmin;
+	}
+	
+	public Boolean getResourceUserSuperadmin()
+	{
+		return getResourceUserSuperadmin(null);
+	}
+	
+	public void setResourceUserSuperadmin(Boolean resourceUserSuperadmin)
+	{
+		this.resourceUserSuperadmin=resourceUserSuperadmin;
+	}
+	
+	public boolean isResourceUserSuperadmin()
+	{
+		return getResourceUserSuperadmin().booleanValue();
+	}
+
+	private Boolean getResourceUserSuperadmin(Operation operation)
+	{
+		if (resourceUserSuperadmin==null)
+		{
+			Resource resource=getResource();
+			if (resource.getId()>0L)
+			{
+				resourceUserSuperadmin=Boolean.valueOf(permissionsService.isGranted(getCurrentUserOperation(operation),
+					resource.getUser(),"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED"));
+			}
+			else
+			{
+				resourceUserSuperadmin=Boolean.valueOf(userSessionService.isGranted(getCurrentUserOperation(operation),
+					"PERMISSION_ADMINISTRATION_RAISE_PERMISSIONS_OVER_OWNED_ALLOWED"));
+			}
+		}
+		return resourceUserSuperadmin;
+	}
+	
     /**
      * @param category Category
      * @return Localized category long name
@@ -2275,7 +2582,8 @@ public class ResourceBean implements Serializable
      */
     private String getLocalizedCategoryLongName(Operation operation,Long categoryId,int maxLength)
     {
-    	return categoriesService.getLocalizedCategoryLongName(getCurrentUserOperation(operation),categoryId,maxLength);
+    	return categoriesService.getLocalizedCategoryLongName(
+    		getCurrentUserOperation(operation),categoryId,maxLength);
     }
     
 	/**
@@ -2381,54 +2689,39 @@ public class ResourceBean implements Serializable
 	}
 	
 	/**
-	 * Remove global categories from other users (different to the indicated user) and optionally excluding 
-	 * from removing the indicated category.
-	 * @param categories List of categories
-	 * @param user User (his/her global categories will not be removed)
-	 * @param categoryExcludedFromRemoving Category the will not be removed
+	 * Displays the error page with the indicated message.<br/><br/>
+	 * Be careful that this method can only be invoked safely from non ajax actions.
+	 * @param errorCode Error message (before localization)
+	 * @param plainMessage Plain error message (used if it is not possible to localize error message)
 	 */
-	private void removeGlobalOtherUserCategories(List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
+	private void displayErrorPage(String errorCode,String plainMessage)
 	{
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
+		FacesContext context=FacesContext.getCurrentInstance();
+		ExternalContext externalContext=context.getExternalContext();
+		Map<String,Object> requestMap=externalContext.getRequestMap();
+		requestMap.put("errorCode",errorCode);
+		requestMap.put("plainMessage",plainMessage);
+		try
 		{
-			if (!category.equals(categoryExcludedFromRemoving) && category.getVisibility().isGlobal() && 
-				!category.getUser().equals(user))
-			{
-				categoriesToRemove.add(category);
-			}
+			externalContext.dispatch("/pages/error");
 		}
-		for (Category categoryToRemove:categoriesToRemove)
+		catch (IOException ioe)
 		{
-			categories.remove(categoryToRemove);
+			String errorMessage=null;
+			try
+			{
+				errorMessage=localizationService.getLocalizedMessage(errorCode);
+			}
+			catch (ServiceException se)
+			{
+				errorMessage=null;
+			}
+			if (errorMessage==null)
+			{
+				errorMessage=plainMessage;
+			}
+			throw new FacesException(errorMessage,ioe);
 		}
 	}
 	
-	/**
-	 * Remove private categories from an user and optionally excluding from removing the indicated category.
-	 * @param operation Operation
-	 * @param categories List of categories
-	 * @param user User
-	 * @param categoryExcludedFromRemoving Category the will not be removed
-	 */
-	private void removePrivateCategories(Operation operation,List<Category> categories,User user,
-		Category categoryExcludedFromRemoving)
-	{
-		Visibility privateVisibility=
-			visibilitiesService.getVisibility(getCurrentUserOperation(operation),"CATEGORY_VISIBILITY_PRIVATE");
-		List<Category> categoriesToRemove=new ArrayList<Category>();
-		for (Category category:categories)
-		{
-			if (!category.equals(categoryExcludedFromRemoving) && !category.getVisibility().isGlobal() &&
-				category.getVisibility().getLevel()>=privateVisibility.getLevel())
-			{
-				categoriesToRemove.add(category);
-			}
-		}
-		for (Category categoryToRemove:categoriesToRemove)
-		{
-			categories.remove(categoryToRemove);
-		}
-	}
 }

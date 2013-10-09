@@ -26,7 +26,6 @@ import javax.faces.event.AjaxBehaviorEvent;
 import org.primefaces.component.selectonemenu.SelectOneMenu;
 
 import es.uned.lsi.gepec.model.entities.ScoreType;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.TestBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 
@@ -113,6 +112,12 @@ public class TestFeedbackConditionBean implements Serializable
 		this.comparator=comparator;
 	}
 	
+	public void setNewComparator(String newComparator)
+	{
+		this.oldComparator=newComparator;
+		this.comparator=newComparator;
+	}
+	
 	public int getConditionalCmp()
 	{
 		return conditionalCmp;
@@ -147,25 +152,25 @@ public class TestFeedbackConditionBean implements Serializable
 	public int getMinValue()
 	{
 		int minValue=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			minValue=conditionalCmp;
+			minValue=getConditionalCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.NOT_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.NOT_EQUAL))
 		{
-			minValue=-conditionalCmp-1;
+			minValue=-getConditionalCmp()-1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
-			minValue=conditionalCmp+1;
+			minValue=getConditionalCmp()+1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.GREATER_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER_EQUAL))
 		{
-			minValue=conditionalCmp;
+			minValue=getConditionalCmp();
 		}
-		else if (NumberComparator.compareU(comparator, NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			minValue=conditionalBetweenMin;
+			minValue=getConditionalBetweenMin();
 		}
 		return minValue;
 	}
@@ -173,53 +178,45 @@ public class TestFeedbackConditionBean implements Serializable
 	public int getMaxValue()
 	{
 		int maxValue=Integer.MAX_VALUE;
-		if (NumberComparator.compareU(comparator,NumberComparator.EQUAL))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.EQUAL))
 		{
-			maxValue=conditionalCmp;
+			maxValue=getConditionalCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.NOT_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.NOT_EQUAL))
 		{
-			maxValue=-conditionalCmp-1;
+			maxValue=-getConditionalCmp()-1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
-			maxValue=conditionalCmp-1;
+			maxValue=getConditionalCmp()-1;
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.LESS_EQUAL))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
 		{
-			maxValue=conditionalCmp;
+			maxValue=getConditionalCmp();
 		}
-		else if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			maxValue=conditionalBetweenMax;
+			maxValue=getConditionalBetweenMax();
 		}
 		return maxValue;
 	}
 	
 	public boolean isBetween()
 	{
-		return NumberComparator.compareU(comparator,NumberComparator.BETWEEN);
+		return NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN);
 	}
 	
 	public int getMaxConditionalValue()
 	{
-		return getMaxConditionalValue(null);
-	}
-	
-	public int getMaxConditionalValue(Operation operation)
-	{
 		int maxConditionalValue=0;
-		if (unit.equals(MARKS_UNIT))
+		if (MARKS_UNIT.equals(getUnit()))
 		{
-			if (section==null)
+			if (getSection()==null)
 			{
-				// Get current user session Hibernate operation
-				operation=test.getCurrentUserOperation(operation);
-				
-				ScoreType scoreType=test.getScoreType(operation);
+				ScoreType scoreType=test.getScoreType();
 				if ("SCORE_TYPE_QUESTIONS".equals(scoreType.getType()))
 				{
-					for (SectionBean s:test.getSections(operation))
+					for (SectionBean s:test.getSections())
 					{
 						if (s.isShuffle() && s.isRandom())
 						{
@@ -237,7 +234,7 @@ public class TestFeedbackConditionBean implements Serializable
 				else if ("SCORE_TYPE_SECTIONS".equals(scoreType.getType()))
 				{
 					int maxBaseSectionScore=0;
-					List<SectionBean> sections=test.getSections(operation);
+					List<SectionBean> sections=test.getSections();
 					for (SectionBean s:sections)
 					{
 						int maxSectionScore=0;
@@ -265,20 +262,20 @@ public class TestFeedbackConditionBean implements Serializable
 			}
 			else
 			{
-				if (section.isShuffle() && section.isRandom())
+				if (getSection().isShuffle() && getSection().isRandom())
 				{
-					maxConditionalValue=section.getRandomQuantity()*BASE_MARKS_PER_QUESTION;
+					maxConditionalValue=getSection().getRandomQuantity()*BASE_MARKS_PER_QUESTION;
 				}
 				else
 				{
-					for (QuestionOrderBean qob:section.getQuestionOrders())
+					for (QuestionOrderBean qob:getSection().getQuestionOrders())
 					{
 						maxConditionalValue+=qob.getWeight()*BASE_MARKS_PER_QUESTION;
 					}
 				}
 			}
 		}
-		else if (unit.equals(PERCENTAGE_UNIT))
+		else if (PERCENTAGE_UNIT.equals(getUnit()))
 		{
 			maxConditionalValue=MAX_PERCENTAGE;
 		}
@@ -288,7 +285,7 @@ public class TestFeedbackConditionBean implements Serializable
 	public int getMinValueConditionalCmp()
 	{
 		int minValue=0;
-		if (NumberComparator.compareU(comparator,NumberComparator.LESS))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.LESS))
 		{
 			minValue=1;
 		}
@@ -297,17 +294,20 @@ public class TestFeedbackConditionBean implements Serializable
 	
 	public int getMaxValueConditionalCmp()
 	{
-		return getMaxValueConditionalCmp(null);
-	}
-	
-	public int getMaxValueConditionalCmp(Operation operation)
-	{
-		int maxValue=getMaxConditionalValue(test.getCurrentUserOperation(operation));
-		if (NumberComparator.compareU(comparator,NumberComparator.GREATER))
+		int maxValue=getMaxConditionalValue();
+		if (NumberComparator.compareU(getComparator(),NumberComparator.GREATER))
 		{
 			if (maxValue>0)
 			{
 				maxValue--;
+			}
+		}
+		else if (NumberComparator.compareU(getComparator(),NumberComparator.LESS) || 
+				NumberComparator.compareU(getComparator(),NumberComparator.LESS_EQUAL))
+		{
+			if (!PERCENTAGE_UNIT.equals(getUnit()) || maxValue<MAX_PERCENTAGE)
+			{
+				maxValue++;
 			}
 		}
 		return maxValue;
@@ -315,106 +315,126 @@ public class TestFeedbackConditionBean implements Serializable
 	
 	public void changeSection(AjaxBehaviorEvent event)
 	{
-		section=(SectionBean)((SelectOneMenu)event.getComponent()).getValue();
-		if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		setSection((SectionBean)((SelectOneMenu)event.getComponent()).getValue());
+		if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			int maxConditionalValue=getMaxConditionalValue(test.getCurrentUserOperation(null));
-			if (conditionalBetweenMax>maxConditionalValue)
+			int maxValue=getMaxConditionalValue();
+			if (getConditionalBetweenMax()>maxValue)
 			{
-				conditionalBetweenMax=maxConditionalValue;
+				setConditionalBetweenMax(maxValue);
 			}
-			if (conditionalBetweenMin>conditionalBetweenMax)
+			if (getConditionalBetweenMin()>getConditionalBetweenMax())
 			{
-				conditionalBetweenMin=conditionalBetweenMax;
+				setConditionalBetweenMin(getConditionalBetweenMax());
 			}
 		}
 		else
 		{
-			int maxValueConditionalCmp=getMaxValueConditionalCmp(test.getCurrentUserOperation(null));
-			if (conditionalCmp>maxValueConditionalCmp)
+			int maxValueCmp=getMaxValueConditionalCmp();
+			if (getConditionalCmp()>maxValueCmp)
 			{
-				conditionalCmp=maxValueConditionalCmp;
+				setConditionalCmp(maxValueCmp);
 			}
 		}
+		test.resetOldFeedbackValues();
 	}
 	
 	public void changeComparator(AjaxBehaviorEvent event)
 	{
 		comparator=(String)((SelectOneMenu)event.getComponent()).getValue();
-		if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-            conditionalBetweenMin=conditionalCmp>0?conditionalCmp:0;
-			if (conditionalBetweenMax<conditionalBetweenMin)
+			int maxValue=getMaxConditionalValue();
+			if (getConditionalCmp()<0)
 			{
-				conditionalBetweenMax=conditionalBetweenMin;
+				setConditionalBetweenMin(0);
+				if (getConditionalBetweenMax()>maxValue)
+				{
+					setConditionalBetweenMax(maxValue);
+				}
 			}
 			else
 			{
-				int maxConditionalValue=getMaxConditionalValue(test.getCurrentUserOperation(null));
-				if (conditionalBetweenMax>maxConditionalValue)
+				if (getConditionalCmp()>maxValue)
 				{
-					conditionalBetweenMax=maxConditionalValue;
+					setConditionalBetweenMin(maxValue);
 				}
+				else
+				{
+					setConditionalBetweenMin(getConditionalCmp());
+				}
+			}
+			if (getConditionalBetweenMax()<getConditionalBetweenMin())
+			{
+				setConditionalBetweenMax(getConditionalBetweenMin());
+			}
+			else if (getConditionalBetweenMax()>maxValue)
+			{
+				setConditionalBetweenMax(maxValue);
 			}
 		}
 		else if (NumberComparator.compareU(oldComparator,NumberComparator.BETWEEN))
 		{
-			if (conditionalBetweenMin<getMinValueConditionalCmp())
+			int minValueCmp=getMinValueConditionalCmp();
+			if (getConditionalBetweenMin()<minValueCmp)
 			{
-				conditionalCmp=getMinValueConditionalCmp();
+				setConditionalCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueConditionalCmp=getMaxValueConditionalCmp(test.getCurrentUserOperation(null));
-				if (conditionalBetweenMin>maxValueConditionalCmp)
+				int maxValueCmp=getMaxValueConditionalCmp();
+				if (getConditionalBetweenMin()>maxValueCmp)
 				{
-					conditionalCmp=maxValueConditionalCmp;
+					setConditionalCmp(maxValueCmp);
 				}
 				else
 				{
-					conditionalCmp=conditionalBetweenMin;
+					setConditionalCmp(getConditionalBetweenMin());
 				}
 			}
 		}
 		else
 		{
-			if (conditionalCmp<getMinValueConditionalCmp())
+			int minValueCmp=getMinValueConditionalCmp();
+			if (getConditionalCmp()<minValueCmp)
 			{
-				conditionalCmp=getMinValueConditionalCmp();
+				setConditionalCmp(minValueCmp);
 			}
 			else
 			{
-				int maxValueConditionalCmp=getMaxValueConditionalCmp(test.getCurrentUserOperation(null));
-				if (conditionalCmp>maxValueConditionalCmp)
+				int maxValueCmp=getMaxValueConditionalCmp();
+				if (getConditionalCmp()>maxValueCmp)
 				{
-					conditionalCmp=maxValueConditionalCmp;
+					setConditionalCmp(maxValueCmp);
 				}
 			}
 		}
+		test.resetOldFeedbackValues();
 	}
 	
 	public void changeUnit(AjaxBehaviorEvent event)
 	{
-		unit=(String)((SelectOneMenu)event.getComponent()).getValue();
-		if (NumberComparator.compareU(comparator,NumberComparator.BETWEEN))
+		setUnit((String)((SelectOneMenu)event.getComponent()).getValue());
+		if (NumberComparator.compareU(getComparator(),NumberComparator.BETWEEN))
 		{
-			int maxConditionalValue=getMaxConditionalValue(test.getCurrentUserOperation(null));
-			if (conditionalBetweenMax>maxConditionalValue)
+			int maxValue=getMaxConditionalValue();
+			if (getConditionalBetweenMax()>maxValue)
 			{
-				conditionalBetweenMax=maxConditionalValue;
+				setConditionalBetweenMax(maxValue);
 			}
-			if (conditionalBetweenMin>conditionalBetweenMax)
+			if (getConditionalBetweenMin()>getConditionalBetweenMax())
 			{
-				conditionalBetweenMin=conditionalBetweenMax;
+				setConditionalBetweenMin(getConditionalBetweenMax());
 			}
 		}
 		else
 		{
-			int maxValueConditionalCmp=getMaxConditionalValue(test.getCurrentUserOperation(null));
-			if (conditionalCmp>maxValueConditionalCmp)
+			int maxValueCmp=getMaxValueConditionalCmp();
+			if (getConditionalCmp()>maxValueCmp)
 			{
-				conditionalCmp=maxValueConditionalCmp;
+				setConditionalCmp(maxValueCmp);
 			}
 		}
+		test.resetOldFeedbackValues();
 	}
 }

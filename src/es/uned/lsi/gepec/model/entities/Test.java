@@ -130,7 +130,7 @@ public class Test implements java.io.Serializable {
 	}
 	
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_category", nullable = false)
+	@JoinColumn(name = "id_category")
 	public Category getCategory() {
 		return this.category;
 	}
@@ -196,7 +196,7 @@ public class Test implements java.io.Serializable {
 	}
 	
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_createdby", nullable = false)
+	@JoinColumn(name = "id_createdby")
 	public User getCreatedBy() {
 		return this.createdBy;
 	}
@@ -206,7 +206,7 @@ public class Test implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_modifiedby", nullable = false)
+	@JoinColumn(name = "id_modifiedby")
 	public User getModifiedBy() {
 		return this.modifiedBy;
 	}
@@ -664,6 +664,56 @@ public class Test implements java.io.Serializable {
 			setUserGroups(otherTest.getUserGroups());
 			setAdminGroups(otherTest.getAdminGroups());
 		}
+	}
+	
+	/**
+	 * @return A copy of this test.
+	 */
+	@Transient
+	public Test getTestCopy()
+	{
+		Test testCopy=new Test(getId(),getName(),getCategory(),getCreatedBy(),getTimeCreated());
+		testCopy.setDescription(getDescription());
+		testCopy.setTitle(getTitle());
+		testCopy.setAssessement(getAssessement());
+		testCopy.setScoreType(getScoreType());
+		testCopy.setAllUsersAllowed(isAllUsersAllowed());
+		testCopy.setAllowAdminReports(isAllowAdminReports());
+		testCopy.setModifiedBy(getModifiedBy());
+		testCopy.setTimeModified(getTimeModified());
+		testCopy.setTimeTestDeploy(getTimeTestDeploy());
+		testCopy.setTimeDeployDeploy(getTimeDeployDeploy());
+		testCopy.setStartDate(getStartDate());
+		testCopy.setCloseDate(getCloseDate());
+		testCopy.setWarningDate(getWarningDate());
+		testCopy.setFeedbackDate(getFeedbackDate());
+		testCopy.setFreeSummary(isFreeSummary());
+		testCopy.setFreeStop(isFreeStop());
+		testCopy.setSummaryQuestions(isSummaryQuestions());
+		testCopy.setSummaryScores(isSummaryScores());
+		testCopy.setSummaryAttempts(isSummaryAttempts());
+		testCopy.setNavigation(isNavigation());
+		testCopy.setNavLocation(getNavLocation());
+		testCopy.setRedoQuestion(getRedoQuestion());
+		testCopy.setRedoTest(isRedoTest());
+		testCopy.setPresentationTitle(getPresentationTitle());
+		testCopy.setPresentation(getPresentation());
+		testCopy.setPreliminarySummaryTitle(getPreliminarySummaryTitle());
+		testCopy.setPreliminarySummaryButton(getPreliminarySummaryButton());
+		testCopy.setPreliminarySummary(getPreliminarySummary());
+		testCopy.setFeedbackDisplaySummary(isFeedbackDisplaySummary());
+		testCopy.setFeedbackDisplaySummaryMarks(isFeedbackDisplaySummaryMarks());
+		testCopy.setFeedbackDisplaySummaryAttempts(isFeedbackDisplaySummaryAttempts());
+		testCopy.setFeedbackSummaryPrevious(getFeedbackSummaryPrevious());
+		testCopy.setFeedbackDisplayScores(isFeedbackDisplayScores());
+		testCopy.setFeedbackDisplayScoresMarks(isFeedbackDisplayScoresMarks());
+		testCopy.setFeedbackDisplayScoresPercentages(isFeedbackDisplayScoresPercentages());
+		testCopy.setFeedbackScoresPrevious(getFeedbackScoresPrevious());
+		testCopy.setFeedbackAdvancedPrevious(getFeedbackAdvancedPrevious());
+		testCopy.setFeedbackAdvancedNext(getFeedbackAdvancedNext());
+		testCopy.setUserGroups(getUserGroups());
+		testCopy.setAdminGroups(getAdminGroups());
+		return testCopy;
 	}
 	
 	@Override

@@ -29,7 +29,6 @@ import es.uned.lsi.gepec.model.entities.Feedback;
 import es.uned.lsi.gepec.model.entities.Question;
 import es.uned.lsi.gepec.model.entities.Resource;
 import es.uned.lsi.gepec.om.OmHelper;
-import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 import es.uned.lsi.gepec.web.QuestionBean;
 import es.uned.lsi.gepec.web.helper.NumberComparator;
 import es.uned.lsi.gepec.web.services.LocalizationService;
@@ -64,7 +63,7 @@ public class FeedbackBean implements Serializable
 	
 	public FeedbackBean(QuestionBean question)
 	{
-		this(question,question.getFeedbacks(question.getCurrentUserOperation(null)).size()+1);
+		this(question,question.getFeedbacks().size()+1);
 	}
 	
 	public FeedbackBean(QuestionBean question,int position)
@@ -92,9 +91,6 @@ public class FeedbackBean implements Serializable
 	
 	private void setFromFeedback(Feedback feedback)
 	{
-		// Get current user session Hibernate operation
-		Operation operation=question.getCurrentUserOperation(null);
-		
 		id=feedback.getId();
 		resource=feedback.getResource();
 		text=feedback.getText();
@@ -111,7 +107,7 @@ public class FeedbackBean implements Serializable
 		if (answer!=null && !answer.equals(""))
 		{
 			List<String> orAnswers=OmHelper.getOrAnswers(answer);
-			Question q=question.getQuestion(operation);
+			Question q=question.getQuestion();
 			if (q instanceof DragDropQuestion)
 			{
 				for (String orAnswer:orAnswers)
@@ -178,7 +174,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(attemptsCondition);
 		}
 		if (feedback.getSelectedanswersmin()>0 || 
-			feedback.getSelectedanswersmax()<question.getNumberOfSelectableAnswers(operation))
+			feedback.getSelectedanswersmax()<question.getNumberOfSelectableAnswers())
 		{
 			SelectedAnswersConditionBean selectedAnswersCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -202,7 +198,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(selectedAnswersCondition);
 		}
 		if (feedback.getSelectedrightanswersmin()>0 || 
-			feedback.getSelectedrightanswersmax()<question.getNumberOfSelectableRightAnswers(operation))
+			feedback.getSelectedrightanswersmax()<question.getNumberOfSelectableRightAnswers())
 		{
 			SelectedRightAnswersConditionBean selectedRightAnswersCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -226,7 +222,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(selectedRightAnswersCondition);
 		}
 		if (feedback.getSelectedwronganswersmin()>0 || 
-				feedback.getSelectedwronganswersmax()<question.getNumberOfSelectableWrongAnswers(operation))
+				feedback.getSelectedwronganswersmax()<question.getNumberOfSelectableWrongAnswers())
 		{
 			SelectedWrongAnswersConditionBean selectedWrongAnswersCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -250,7 +246,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(selectedWrongAnswersCondition);
 		}
 		if (feedback.getUnselectedanswersmin()>0 || 
-				feedback.getUnselectedanswersmax()<question.getNumberOfSelectableAnswers(operation))
+				feedback.getUnselectedanswersmax()<question.getNumberOfSelectableAnswers())
 		{
 			UnselectedAnswersConditionBean unselectedAnswersCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -274,7 +270,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(unselectedAnswersCondition);
 		}
 		if (feedback.getUnselectedrightanswersmin()>0 || 
-			feedback.getUnselectedrightanswersmax()<question.getNumberOfSelectableRightAnswers(operation))
+			feedback.getUnselectedrightanswersmax()<question.getNumberOfSelectableRightAnswers())
 		{
 			UnselectedRightAnswersConditionBean unselectedRightAnswersCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -298,7 +294,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(unselectedRightAnswersCondition);
 		}
 		if (feedback.getUnselectedwronganswersmin()>0 || 
-				feedback.getUnselectedwronganswersmax()<question.getNumberOfSelectableWrongAnswers(operation))
+				feedback.getUnselectedwronganswersmax()<question.getNumberOfSelectableWrongAnswers())
 		{
 			UnselectedWrongAnswersConditionBean unselectedWrongAnswerCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -322,7 +318,7 @@ public class FeedbackBean implements Serializable
 			conditions.add(unselectedWrongAnswerCondition);
 		}
 		if (feedback.getRightdistancemin()>0 || 
-			feedback.getRightdistancemax()<new RightDistanceConditionBean(question).getMaxRightDistanceValue(operation))
+			feedback.getRightdistancemax()<new RightDistanceConditionBean(question).getMaxRightDistanceValue())
 		{
 			RightDistanceConditionBean rightDistanceCondition=null;
 			localizationService=getLocalizationService(localizationService);
@@ -349,21 +345,13 @@ public class FeedbackBean implements Serializable
 	
 	public Feedback getAsFeedback()
 	{
-		return getAsFeedback(null);
-	}
-	
-	public Feedback getAsFeedback(Operation operation)
-	{
-		// Get current user session Hibernate operation
-		operation=question.getCurrentUserOperation(operation);
-		
-		return new Feedback(id,question.getQuestion(operation),resource,question.getFeedbackType(operation,type),text,
-			getTest(),getAnswer(),getAttemptsMin(),getAttemptsMax(),getSelectedanswersmin(),
-			getSelectedanswersmax(operation),getSelectedrightanswersmin(),getSelectedrightanswersmax(operation),
-			getSelectedwronganswersmin(),getSelectedwronganswersmax(operation),getUnselectedanswersmin(),
-			getUnselectedanswersmax(operation),getUnselectedrightanswersmin(),getUnselectedrightanswersmax(operation),
-			getUnselectedwronganswersmin(),getUnselectedwronganswersmax(operation),getRightdistancemin(),
-			getRightdistancemax(operation),position,resourceWidth,resourceHeight);
+		return new Feedback(id,question.getQuestion(),resource,question.getFeedbackType(type),text,getTest(),
+			getAnswer(),getAttemptsMin(),getAttemptsMax(),getSelectedanswersmin(),getSelectedanswersmax(),
+			getSelectedrightanswersmin(),getSelectedrightanswersmax(),getSelectedwronganswersmin(),
+			getSelectedwronganswersmax(),getUnselectedanswersmin(),getUnselectedanswersmax(),
+			getUnselectedrightanswersmin(),getUnselectedrightanswersmax(),getUnselectedwronganswersmin(),
+			getUnselectedwronganswersmax(),getRightdistancemin(),getRightdistancemax(),position,resourceWidth,
+			resourceHeight);
 	}
 	
 	public long getId()
@@ -434,11 +422,6 @@ public class FeedbackBean implements Serializable
 	
 	public String getConditionString()
 	{
-		return getConditionString(null);
-	}
-	
-	private String getConditionString(Operation operation)
-	{
 		StringBuffer conditionString=new StringBuffer();
         ELContext elContext=FacesContext.getCurrentInstance().getELContext();
         LocalizationService localizationService=(LocalizationService)FacesContext.getCurrentInstance().
@@ -458,9 +441,6 @@ public class FeedbackBean implements Serializable
 		// Next we add answer conditions
 		if (getAnswerConditions().size()>0)
 		{
-			// Get current user session Hibernate operation
-			operation=question.getCurrentUserOperation(operation);
-			
 			if (appendSeparator)
 			{
 				conditionString.append(",\n");
@@ -510,8 +490,8 @@ public class FeedbackBean implements Serializable
 					{
 						SingleDragDropAnswerConditionBean singleDragDropAnswerCondition=
 							(SingleDragDropAnswerConditionBean)singleAnswerCondition;
-						conditionString.append(question.getNumberedDroppableAnswerName(
-							operation,singleDragDropAnswerCondition.getAnswer()));
+						conditionString.append(
+							question.getNumberedDroppableAnswerName(singleDragDropAnswerCondition.getAnswer()));
 						conditionString.append(' ');
 						if (singleAnswerCondition.isFlagNot())
 						{
@@ -531,7 +511,7 @@ public class FeedbackBean implements Serializable
 						else
 						{
 							conditionString.append(question.getNumberedDraggableItemName(
-								operation,singleDragDropAnswerCondition.getRightAnswer()));
+								singleDragDropAnswerCondition.getRightAnswer()));
 						}
 					}
 					else
@@ -541,8 +521,7 @@ public class FeedbackBean implements Serializable
 							conditionString.append(localizationService.getLocalizedMessage("NOT"));
 							conditionString.append(' ');
 						}
-						conditionString.append(
-							question.getNumberedAnswerName(operation,singleAnswerCondition.getAnswer()));
+						conditionString.append(question.getNumberedAnswerName(singleAnswerCondition.getAnswer()));
 					}
 				}
 				if (severalAnswerConditions && severalSingleAnswerConditions)
@@ -745,14 +724,8 @@ public class FeedbackBean implements Serializable
 	
 	public int getSelectedanswersmax()
 	{
-		return getSelectedanswersmax(null);
-	}
-	
-	private int getSelectedanswersmax(Operation operation)
-	{
 		SelectedAnswersConditionBean selectedAnswersCondition=getSelectedAnswersCondition();
-		return selectedAnswersCondition==null?Integer.MAX_VALUE:
-			selectedAnswersCondition.getSelectedAnswersMax(question.getCurrentUserOperation(operation));
+		return selectedAnswersCondition==null?Integer.MAX_VALUE:selectedAnswersCondition.getSelectedAnswersMax();
 	}
 	
 	public int getSelectedrightanswersmin()
@@ -763,14 +736,9 @@ public class FeedbackBean implements Serializable
 	
 	public int getSelectedrightanswersmax()
 	{
-		return getSelectedrightanswersmax(null);
-	}
-	
-	private int getSelectedrightanswersmax(Operation operation)
-	{
 		SelectedRightAnswersConditionBean selectedRightAnswersCondition=getSelectedRightAnswersCondition();
-		return selectedRightAnswersCondition==null?Integer.MAX_VALUE:
-			selectedRightAnswersCondition.getSelectedRightAnswersMax(question.getCurrentUserOperation(operation));
+		return selectedRightAnswersCondition==null?
+			Integer.MAX_VALUE:selectedRightAnswersCondition.getSelectedRightAnswersMax();
 	}
 	
 	public int getSelectedwronganswersmin()
@@ -781,14 +749,9 @@ public class FeedbackBean implements Serializable
 	
 	public int getSelectedwronganswersmax()
 	{
-		return getSelectedwronganswersmax(null);
-	}
-	
-	private int getSelectedwronganswersmax(Operation operation)
-	{
 		SelectedWrongAnswersConditionBean selectedWrongAnswersCondition=getSelectedWrongAnswersCondition();
-		return selectedWrongAnswersCondition==null?Integer.MAX_VALUE:
-			selectedWrongAnswersCondition.getSelectedWrongAnswersMax(question.getCurrentUserOperation(operation));
+		return selectedWrongAnswersCondition==null?
+			Integer.MAX_VALUE:selectedWrongAnswersCondition.getSelectedWrongAnswersMax();
 	}
 	
 	public int getUnselectedanswersmin()
@@ -799,14 +762,9 @@ public class FeedbackBean implements Serializable
 	
 	public int getUnselectedanswersmax()
 	{
-		return getUnselectedanswersmax(null);
-	}
-	
-	private int getUnselectedanswersmax(Operation operation)
-	{
 		UnselectedAnswersConditionBean unselectedAnswersCondition=getUnselectedAnswersCondition();
-		return unselectedAnswersCondition==null?Integer.MAX_VALUE:
-			unselectedAnswersCondition.getUnselectedAnswersMax(question.getCurrentUserOperation(operation));
+		return unselectedAnswersCondition==null?
+			Integer.MAX_VALUE:unselectedAnswersCondition.getUnselectedAnswersMax();
 	}
 	
 	public int getUnselectedrightanswersmin()
@@ -818,14 +776,9 @@ public class FeedbackBean implements Serializable
 	
 	public int getUnselectedrightanswersmax()
 	{
-		return getUnselectedrightanswersmax(null);
-	}
-	
-	private int getUnselectedrightanswersmax(Operation operation)
-	{
 		UnselectedRightAnswersConditionBean unselectedRightAnswersCondition=getUnselectedRightAnswersCondition();
-		return unselectedRightAnswersCondition==null?Integer.MAX_VALUE:
-			unselectedRightAnswersCondition.getUnselectedRightAnswersMax(question.getCurrentUserOperation(operation));
+		return unselectedRightAnswersCondition==null?
+			Integer.MAX_VALUE:unselectedRightAnswersCondition.getUnselectedRightAnswersMax();
 	}
 	
 	public int getUnselectedwronganswersmin()
@@ -837,14 +790,9 @@ public class FeedbackBean implements Serializable
 	
 	public int getUnselectedwronganswersmax()
 	{
-		return getUnselectedwronganswersmax(null);
-	}
-	
-	private int getUnselectedwronganswersmax(Operation operation)
-	{
 		UnselectedWrongAnswersConditionBean unselectedWrongAnswersCondition=getUnselectedWrongAnswersCondition();
-		return unselectedWrongAnswersCondition==null?Integer.MAX_VALUE:
-			unselectedWrongAnswersCondition.getUnselectedWrongAnswersMax(question.getCurrentUserOperation(operation));
+		return unselectedWrongAnswersCondition==null?
+			Integer.MAX_VALUE:unselectedWrongAnswersCondition.getUnselectedWrongAnswersMax();
 	}
 	
 	public int getRightdistancemin()
@@ -855,14 +803,8 @@ public class FeedbackBean implements Serializable
 	
 	public int getRightdistancemax()
 	{
-		return getRightdistancemax(null);
-	}
-	
-	private int getRightdistancemax(Operation operation)
-	{
 		RightDistanceConditionBean rightDistanceCondition=getRightDistanceCondition();
-		return rightDistanceCondition==null?
-			Integer.MAX_VALUE:rightDistanceCondition.getRightDistanceMax(question.getCurrentUserOperation(operation));
+		return rightDistanceCondition==null?Integer.MAX_VALUE:rightDistanceCondition.getRightDistanceMax();
 	}
 	
 	public int getPosition()

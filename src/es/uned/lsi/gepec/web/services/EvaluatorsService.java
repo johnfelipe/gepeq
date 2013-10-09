@@ -18,6 +18,7 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
@@ -27,6 +28,7 @@ import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.EvaluatorsDao;
 import es.uned.lsi.gepec.model.entities.Evaluator;
 import es.uned.lsi.gepec.model.entities.Test;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -60,8 +62,21 @@ public class EvaluatorsService implements Serializable
 		Evaluator evaluator=null;
 		try
 		{
+			// Get evaluator from DB
 			EVALUATORS_DAO.setOperation(operation);
-			evaluator=EVALUATORS_DAO.getEvaluator(id);
+			Evaluator evaluatorFromDB=EVALUATORS_DAO.getEvaluator(id);
+			if (evaluatorFromDB!=null)
+			{
+				evaluator=evaluatorFromDB.getEvaluatorCopy();
+				if (evaluatorFromDB.getTest()!=null)
+				{
+					evaluator.setTest(evaluatorFromDB.getTest().getTestCopy());
+				}
+				if (evaluatorFromDB.getAddressType()!=null)
+				{
+					evaluator.setAddressType(evaluatorFromDB.getAddressType().getAddressTypeCopy());
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -88,14 +103,48 @@ public class EvaluatorsService implements Serializable
 	 */
 	public void updateEvaluator(Operation operation,Evaluator evaluator) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get evaluator from DB
 			EVALUATORS_DAO.setOperation(operation);
-			EVALUATORS_DAO.updateEvaluator(evaluator);
+			Evaluator evaluatorFromDB=EVALUATORS_DAO.getEvaluator(evaluator.getId(),false);
+			
+			// Set fields with the updated values
+			evaluatorFromDB.setFromOtherEvaluator(evaluator);
+			
+			// Update evaluator
+			EVALUATORS_DAO.setOperation(operation);
+			EVALUATORS_DAO.updateEvaluator(evaluatorFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -119,6 +168,7 @@ public class EvaluatorsService implements Serializable
 	{
 		try
 		{
+			// Add a new evaluator
 			EVALUATORS_DAO.setOperation(operation);
 			EVALUATORS_DAO.saveEvaluator(evaluator);
 		}
@@ -146,14 +196,45 @@ public class EvaluatorsService implements Serializable
 	 */
 	public void deleteEvaluator(Operation operation,Evaluator evaluator) throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get evaluator from DB
 			EVALUATORS_DAO.setOperation(operation);
-			EVALUATORS_DAO.deleteEvaluator(evaluator);
+			Evaluator evaluatorFromDB=EVALUATORS_DAO.getEvaluator(evaluator.getId(),false);
+			
+			// Delete evaluator
+			EVALUATORS_DAO.setOperation(operation);
+			EVALUATORS_DAO.deleteEvaluator(evaluatorFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -199,8 +280,26 @@ public class EvaluatorsService implements Serializable
 		List<Evaluator> evaluators=null;
 		try
 		{
+			// We get evaluators from DB
 			EVALUATORS_DAO.setOperation(operation);
-			evaluators=EVALUATORS_DAO.getEvaluators(testId,true);
+			List<Evaluator> evaluatorsFromDB=EVALUATORS_DAO.getEvaluators(testId,true);
+			
+			// We return new referenced evaluators within a new list to avoid shared collection references
+			// and object references to unsaved transient instances
+			evaluators=new ArrayList<Evaluator>(evaluatorsFromDB.size());
+			for (Evaluator evaluatorFromDB:evaluatorsFromDB)
+			{
+				Evaluator evaluator=evaluatorFromDB.getEvaluatorCopy();
+				if (evaluatorFromDB.getTest()!=null)
+				{
+					evaluator.setTest(evaluatorFromDB.getTest().getTestCopy());
+				}
+				if (evaluatorFromDB.getAddressType()!=null)
+				{
+					evaluator.setAddressType(evaluatorFromDB.getAddressType().getAddressTypeCopy());
+				}
+				evaluators.add(evaluator);
+			}
 		}
 		catch (DaoException de)
 		{

@@ -19,16 +19,12 @@ package es.uned.lsi.gepec.model.entities;
 
 // Generated 08-jul-2011 10:08:42 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.GeneratedValue;
@@ -52,9 +48,6 @@ public class Category implements java.io.Serializable {
 	private boolean defaultCategory;
 	private CategoryType categoryType;
 	private Visibility visibility;
-	private Set<Resource> resources = new HashSet<Resource>(0);
-	private Set<Question> questions = new HashSet<Question>(0);
-	private Set<Test> tests = new HashSet<Test>(0);
 
 	public Category() {
 	}
@@ -139,7 +132,7 @@ public class Category implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_type", nullable = false)
+	@JoinColumn(name = "id_type")
 	public CategoryType getCategoryType() {
 		return this.categoryType;
 	}
@@ -149,40 +142,13 @@ public class Category implements java.io.Serializable {
 	}
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_visibility", nullable = false)
+	@JoinColumn(name = "id_visibility")
 	public Visibility getVisibility() {
 		return this.visibility;
 	}
 
 	public void setVisibility(Visibility visibility) {
 		this.visibility = visibility;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "category")
-	public Set<Resource> getResources() {
-		return this.resources;
-	}
-
-	public void setResources(Set<Resource> resources) {
-		this.resources = resources;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "category")
-	public Set<Question> getQuestions() {
-		return this.questions;
-	}
-
-	public void setQuestions(Set<Question> questions) {
-		this.questions = questions;
-	}
-
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "category")
-	public Set<Test> getTests() {
-		return this.tests;
-	}
-
-	public void setTests(Set<Test> tests) {
-		this.tests = tests;
 	}
 
 	/**
@@ -203,6 +169,16 @@ public class Category implements java.io.Serializable {
 			setCategoryType(otherCategory.getCategoryType());
 			setVisibility(otherCategory.getVisibility());
 		}
+	}
+	
+	/**
+	 * @return A copy of this category.
+	 */
+	@Transient
+	public Category getCategoryCopy()
+	{
+		return new Category(getId(),getName(),getDescription(),getParent(),getUser(),isDefaultCategory(),
+			getCategoryType(),getVisibility());
 	}
 	
 	@Override

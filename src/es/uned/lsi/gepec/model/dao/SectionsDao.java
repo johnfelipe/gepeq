@@ -22,6 +22,7 @@ import java.util.List;
 import javax.el.ELContext;
 import javax.faces.context.FacesContext;
 
+import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.type.StandardBasicTypes;
@@ -135,6 +136,10 @@ public class SectionsDao
 		{
 			startOperation();
 			section=(Section)operation.session.get(Section.class,id);
+			if (section!=null)
+			{
+				Hibernate.initialize(section.getTest());
+			}
 		}
 		catch (HibernateException he)
 		{
@@ -160,11 +165,14 @@ public class SectionsDao
 		try
 		{
 			startOperation();
-			Query query=
-				operation.session.createQuery("from Section s where s.test = :testId and s.order = :order");
+			Query query=operation.session.createQuery("from Section s where s.test = :testId and s.order = :order");
 			query.setParameter("testId",Long.valueOf(testId),StandardBasicTypes.LONG);
 			query.setParameter("order",Integer.valueOf(order),StandardBasicTypes.INTEGER);
 			section=(Section)query.uniqueResult();
+			if (section!=null)
+			{
+				Hibernate.initialize(section.getTest());
+			}
 		}
 		catch (HibernateException he)
 		{
@@ -190,10 +198,13 @@ public class SectionsDao
 		try
 		{
 			startOperation();
-			Query query=
-				operation.session.createQuery("from Section s where s.test = :testId order by s.order");
+			Query query=operation.session.createQuery("from Section s where s.test = :testId order by s.order");
 			query.setParameter("testId",Long.valueOf(testId),StandardBasicTypes.LONG);
 			sections=query.list();
+			for (Section section:sections)
+			{
+				Hibernate.initialize(section.getTest());
+			}
 		}
 		catch (HibernateException he)
 		{

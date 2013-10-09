@@ -89,8 +89,7 @@ public class ScoreTypesService implements Serializable
 		// We don't want caller accessing directly to a cached score type so we return a copy
 		if (scoreTypeFromCache!=null)
 		{
-			scoreType=new ScoreType();
-			scoreType.setFromOtherScoreType(scoreTypeFromCache);
+			scoreType=scoreTypeFromCache.getScoreTypeCopy();
 		}
 		return scoreType;
 	}
@@ -135,8 +134,7 @@ public class ScoreTypesService implements Serializable
 		// We don't want caller accessing directly to a cached score type so we return a copy
 		if (scoreTypeFromCache!=null)
 		{
-			scoreType=new ScoreType();
-			scoreType.setFromOtherScoreType(scoreTypeFromCache);
+			scoreType=scoreTypeFromCache.getScoreTypeCopy();
 		}
 		return scoreType;
 	}
@@ -189,8 +187,7 @@ public class ScoreTypesService implements Serializable
 			ScoreType scoreType=null;
 			if (scoreTypeFromCache!=null)
 			{
-				scoreType=new ScoreType();
-				scoreType.setFromOtherScoreType(scoreTypeFromCache);
+				scoreType=scoreTypeFromCache.getScoreTypeCopy();
 			}
 			scoreTypes.add(scoreType);
 		}

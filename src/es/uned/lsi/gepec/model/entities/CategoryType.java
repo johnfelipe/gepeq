@@ -19,8 +19,6 @@ package es.uned.lsi.gepec.model.entities;
 
 //Generated 16-may-2012 16:24:00 by Hibernate Tools 3.4.0.CR1
 
-import java.util.HashSet;
-import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -29,7 +27,6 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Transient;
@@ -47,7 +44,6 @@ public class CategoryType implements java.io.Serializable {
 	private CategoryType parent;
 	private String type;
 	private String icon;
-	private Set<Category> categories = new HashSet<Category>(0);
 
 	public CategoryType() {
 	}
@@ -56,13 +52,11 @@ public class CategoryType implements java.io.Serializable {
 		this.id = id;
 	}
 
-	public CategoryType(long id, CategoryType parent, String type, String icon, 
-			Set<Category> categories) {
+	public CategoryType(long id, CategoryType parent, String type, String icon) {
 		this.id = id;
 		this.parent = parent;
 		this.type = type;
 		this.icon = icon;
-		this.categories = categories;
 	}
 
 	@Id
@@ -104,15 +98,6 @@ public class CategoryType implements java.io.Serializable {
 		this.icon = icon;
 	}
 
-	@OneToMany(fetch = FetchType.LAZY, mappedBy = "categoryType")
-	public Set<Category> getCategories() {
-		return this.categories;
-	}
-
-	public void setCategories(Set<Category> categories) {
-		this.categories = categories;
-	}
-
 	/**
 	 * Set the fields of this category type with the values from fields from other category type.
 	 * @param otherCategoryType Other category type
@@ -127,6 +112,15 @@ public class CategoryType implements java.io.Serializable {
 			setType(otherCategoryType.getType());
 			setIcon(otherCategoryType.getIcon());
 		}
+	}
+	
+	/**
+	 * @return A copy of this category type.
+	 */
+	@Transient
+	public CategoryType getCategoryTypeCopy()
+	{
+		return new CategoryType(getId(),getParent(),getType(),getIcon());
 	}
 	
 	@Override

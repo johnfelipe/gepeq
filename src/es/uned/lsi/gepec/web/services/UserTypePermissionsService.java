@@ -18,16 +18,20 @@
 package es.uned.lsi.gepec.web.services;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.bean.ApplicationScoped;
 import javax.faces.bean.ManagedBean;
+
+import org.hibernate.Hibernate;
 
 import es.uned.lsi.gepec.model.dao.DaoException;
 import es.uned.lsi.gepec.model.dao.UserTypePermissionsDao;
 import es.uned.lsi.gepec.model.entities.Permission;
 import es.uned.lsi.gepec.model.entities.UserType;
 import es.uned.lsi.gepec.model.entities.UserTypePermission;
+import es.uned.lsi.gepec.util.HibernateUtil;
 import es.uned.lsi.gepec.util.HibernateUtil.Operation;
 
 /**
@@ -65,8 +69,27 @@ public class UserTypePermissionsService implements Serializable
 		UserTypePermission userTypePermission=null;
 		try
 		{
+			// Get permission of user type from DB
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
-			userTypePermission=USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(id,true);
+			UserTypePermission userTypePermissionFromDB=USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(id,true);
+			if (userTypePermissionFromDB!=null)
+			{
+				userTypePermission=userTypePermissionFromDB.getUserTypePermissionCopy();
+				if (userTypePermissionFromDB.getUserType()!=null)
+				{
+					userTypePermission.setUserType(userTypePermissionFromDB.getUserType().getUserTypeCopy());
+				}
+				if (userTypePermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userTypePermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userTypePermission.setPermission(permission);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -129,7 +152,8 @@ public class UserTypePermissionsService implements Serializable
 	public UserTypePermission getUserTypePermission(Operation operation,UserType userType,Permission permission) 
 		throws ServiceException
 	{
-		return getUserTypePermission(operation,userType==null?0L:userType.getId(),permission==null?0L:permission.getId());
+		return getUserTypePermission(
+			operation,userType==null?0L:userType.getId(),permission==null?0L:permission.getId());
 	}
 	
 	/**
@@ -171,8 +195,28 @@ public class UserTypePermissionsService implements Serializable
 		UserTypePermission userTypePermission=null;
 		try
 		{
+			// Get permission of user type from DB
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
-			userTypePermission=USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(userTypeId,permissionId,true);
+			UserTypePermission userTypePermissionFromDB=
+				USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(userTypeId,permissionId,true);
+			if (userTypePermissionFromDB!=null)
+			{
+				userTypePermission=userTypePermissionFromDB.getUserTypePermissionCopy();
+				if (userTypePermissionFromDB.getUserType()!=null)
+				{
+					userTypePermission.setUserType(userTypePermissionFromDB.getUserType().getUserTypeCopy());
+				}
+				if (userTypePermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userTypePermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userTypePermission.setPermission(permission);
+				}
+			}
 		}
 		catch (DaoException de)
 		{
@@ -197,10 +241,12 @@ public class UserTypePermissionsService implements Serializable
 	 * @param userTypePermission Permission of user type
 	 * @throws ServiceException
 	 */
-	public void addUserTypePermission(Operation operation,UserTypePermission userTypePermission) throws ServiceException
+	public void addUserTypePermission(Operation operation,UserTypePermission userTypePermission) 
+		throws ServiceException
 	{
 		try
 		{
+			// Add a new permission of user type
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
 			USER_TYPE_PERMISSIONS_DAO.saveUserTypePermission(userTypePermission);
 		}
@@ -229,14 +275,49 @@ public class UserTypePermissionsService implements Serializable
 	public void updateUserTypePermission(Operation operation,UserTypePermission userTypePermission) 
 		throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get permission of user type from DB
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
-			USER_TYPE_PERMISSIONS_DAO.updateUserTypePermission(userTypePermission);
+			UserTypePermission userTypePermissionFromDB=
+				USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(userTypePermission.getId(),true);
+			
+			// Set fields with the updated values
+			userTypePermissionFromDB.setFromOtherUserTypePermission(userTypePermission);
+			
+			// Update permission of user type
+			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
+			USER_TYPE_PERMISSIONS_DAO.updateUserTypePermission(userTypePermissionFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -259,14 +340,46 @@ public class UserTypePermissionsService implements Serializable
 	public void deleteUserTypePermission(Operation operation,UserTypePermission userTypePermission) 
 		throws ServiceException
 	{
+		boolean singleOp=operation==null;
 		try
 		{
+			if (singleOp)
+			{
+				// Start Hibernate operation
+				operation=HibernateUtil.startOperation();
+			}
+			
+			// Get permission of user type from DB
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
-			USER_TYPE_PERMISSIONS_DAO.deleteUserTypePermission(userTypePermission);
+			UserTypePermission userTypePermissionFromDB=
+				USER_TYPE_PERMISSIONS_DAO.getUserTypePermission(userTypePermission.getId(),true);
+			
+			// Delete permission of user type
+			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
+			USER_TYPE_PERMISSIONS_DAO.deleteUserTypePermission(userTypePermissionFromDB);
+			
+			if (singleOp)
+			{
+				// Do commit
+				operation.commit();
+			}
 		}
 		catch (DaoException de)
 		{
+			if (singleOp)
+			{
+				// Do rollback
+				operation.rollback();
+			}
 			throw new ServiceException(de.getMessage(),de);
+		}
+		finally
+		{
+			if (singleOp)
+			{
+				// End Hibernate operation
+				HibernateUtil.endOperation(operation);
+			}
 		}
 	}
 	
@@ -278,14 +391,41 @@ public class UserTypePermissionsService implements Serializable
 	 * optionally sorted by user type's type and permission's name
 	 * @throws ServiceException
 	 */
-	private List<UserTypePermission> getUserTypePermissions(Operation operation,long userTypeId,boolean sortedByUserType) 
-		throws ServiceException
+	private List<UserTypePermission> getUserTypePermissions(Operation operation,long userTypeId,
+		boolean sortedByUserType) throws ServiceException
 	{
 		List<UserTypePermission> userTypePermissions=null;
 		try
 		{
+			// We get permissions of an user type from DB
 			USER_TYPE_PERMISSIONS_DAO.setOperation(operation);
-			userTypePermissions=USER_TYPE_PERMISSIONS_DAO.getUserTypePermissions(userTypeId,sortedByUserType,true);
+			List<UserTypePermission> userTypePermissionsFromDB=
+				USER_TYPE_PERMISSIONS_DAO.getUserTypePermissions(userTypeId,sortedByUserType,true);
+			
+			// We return new referenced permissions of an user type (or all permissions of any user type 
+			// if userType==0) within  a new list to avoid shared collection references or object references 
+			// to unsaved transient instances
+			userTypePermissions=new ArrayList<UserTypePermission>(userTypePermissionsFromDB.size());
+			for (UserTypePermission userTypePermissionFromDB:userTypePermissionsFromDB)
+			{
+				UserTypePermission userTypePermission=userTypePermissionFromDB.getUserTypePermissionCopy();
+				if (userTypePermissionFromDB.getUserType()!=null)
+				{
+					userTypePermission.setUserType(userTypePermissionFromDB.getUserType().getUserTypeCopy());
+				}
+				if (userTypePermissionFromDB.getPermission()!=null)
+				{
+					Permission permissionFromDB=userTypePermissionFromDB.getPermission();
+					Permission permission=permissionFromDB.getPermissionCopy();
+					if (permissionFromDB.getPermissionType()!=null)
+					{
+						permission.setPermissionType(permissionFromDB.getPermissionType().getPermissionTypeCopy());
+					}
+					userTypePermission.setPermission(permission);
+				}
+				
+				userTypePermissions.add(userTypePermission);
+			}
 		}
 		catch (DaoException de)
 		{
@@ -320,7 +460,8 @@ public class UserTypePermissionsService implements Serializable
 	 * @return List of permissions of an user type (or all permissions of any user type if userType==null)
 	 * @throws ServiceException
 	 */
-	public List<UserTypePermission> getUserTypePermissions(Operation operation,UserType userType) throws ServiceException
+	public List<UserTypePermission> getUserTypePermissions(Operation operation,UserType userType) 
+		throws ServiceException
 	{
 		return getUserTypePermissions(operation,userType==null?0L:userType.getId(),false);
 	}
@@ -331,7 +472,8 @@ public class UserTypePermissionsService implements Serializable
 	 * @return List of permissions of an user type (or all permissions of any user type if userTypeId==0)
 	 * @throws ServiceException
 	 */
-	public List<UserTypePermission> getUserTypePermissions(Operation operation,long userTypeId) throws ServiceException
+	public List<UserTypePermission> getUserTypePermissions(Operation operation,long userTypeId) 
+		throws ServiceException
 	{
 		return getUserTypePermissions(operation,userTypeId,false);
 	}

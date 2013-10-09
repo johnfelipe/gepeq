@@ -211,6 +211,8 @@
     <property name="encryption.asymmetric-encryptor.tool.name" value="asymmetric-encryptor.jar"/> <!-- Asymmetric encryptor tool jar file name -->
     <property name="encryption.symmetric-encryptor.tool" value="encryption"/> <!-- Directory where symmetric encryptor tool is located -->
     <property name="encryption.symmetric-encryptor.tool.name" value="symmetric-encryptor.jar"/> <!-- Symmetric encryptor tool jar file name -->
+	<property name="encryption.password-digester.tool" value="encryption"/> <!-- Directory where password digester tool is located -->
+	<property name="encryption.password-digester.tool.name" value="password-digester.jar"/> <!-- Password digester tool jar file name -->
 	<property name="gepeq.encryption.enabled" value="false"/> <!-- Boolean flag to enable (true) or disable (false) encryption within OpenMark Authoring Tool configuration file -->
 	<property name="gepeq.encryption.generate-keypair" value="false"/> <!-- Boolean flag to generate (true) or not (false) a new encryption key pair for OpenMark Authoring Tool -->
 	<property name="gepeq.encryption.output" value="build/encryption/gepeq"/> <!-- Output directory for OpenMark Authoring Tool encryption -->
@@ -313,6 +315,21 @@
     <property name="faces-config.meta-inf.conf.name" value="faces-config.xml"/> <!-- OpenMark Authoring Tool faces-config template file name for META-INF folder -->
     <property name="faces-config.meta-inf.dest" value="${build.classes}/META-INF"/> <!-- Directory where OpenMark Authoring Tool faces-config derived file for META-INF folder is stored -->
     <property name="faces-config.meta-inf.dest.name" value="faces-config.xml"/> <!-- OpenMark Authoring Tool faces-config derived file name for META-INF folder -->
+	
+	<!-- Create DB script configuration -->
+    <!-- createdb.sql -->
+	<property name="gepeq.createdb.enabled" value="false"/> <!-- Boolean flag to enable (true) or disable (false) generation of createdb.sql file -->
+	<property name="gepeq.createdb" value="conf/gepeq/db"/> <!-- Directory where OpenMark Authoring Tool createdb.sql template is located -->
+    <property name="gepeq.createdb.name" value="createdb.sql"/> <!-- OpenMark Authoring Tool createdb.sql template file name -->
+    <property name="gepeq.createdb.output" value="build/gepeq/db"/> <!-- Directory where OpenMark Authoring Tool createdb.sql template is located -->
+	<property name="gepeq.rootuser.login" value="profesor"/> <!-- Login of the root user of OpenMark Authoring Tool (maximum lenght: 15 characters, only letters allowed) -->
+    <property name="gepeq.rootuser.password" value="profesor"/> <!-- Password of the root user of OpenMark Authoring Tool -->
+    <property name="gepeq.rootuser.name" value="Profesor"/> <!-- Name of the root user of OpenMark Authoring Tool (maximum lenght: 50 characters, only letters and whitespaces allowed, first character must be a letter, not allowed consecutive whitespaces) -->
+    <property name="gepeq.rootuser.surname" value=""/> <!-- Surname of the root user of OpenMark Authoring Tool (maximum lenght: 80 characters, only letters and whitespaces allowed, first character must be a letter, not allowed consecutive whitespaces) -->
+    <property name="gepeq.rootuser.nickname" value="Profesor"/> <!-- Nickname of the root user of OpenMark Authoring Tool (maximum lenght: 15 characters, only letters allowed) -->
+    <property name="gepeq.rootuser.oucu" value="profesor"/> <!-- OUCU of the root user of OpenMark Authoring Tool (maximum lenght: 8 characters, only letters allowed) -->
+    <property name="gepeq.adminusertype.type" value="Administrador"/> <!-- Type of admin user type of OpenMark Authoring Tool (maximum lenght: 25 characters, only letters allowed) -->
+    <property name="gepeq.adminusertype.description" value="Con permisos para labores de administración"/> <!-- Description of admin user type of OpenMark Authoring Tool -->
 	
 	<!-- OpenMark libraries paths -->
     <property name="om.axis.lib" value="${axis.lib}"/> <!-- Directory where Apache Axis patched library for OpenMark is located -->
@@ -851,7 +868,7 @@
     		</else>
     	</if>
     	<!-- Generates a new Hibernate configuration file from template replacing some values with the appropiated values and copy it to output folder for compiled classes -->
-    	<copy file="${hibernate.conf}/${hibernate.conf.name}" tofile="${hibernate.conf.dest}/${hibernate.conf.dest.name}">
+    	<copy file="${hibernate.conf}/${hibernate.conf.name}" tofile="${hibernate.conf.dest}/${hibernate.conf.dest.name}" encoding="${encoding}">
     		<filterchain>
     			<replacetokens>
     				<token key="hibernate.encryption.config" value="${hibernate.encryption.config}"/>
@@ -892,6 +909,7 @@
 	
 	<target description="Deletes directory used as output for deploying OpenMark Authoring Tool Web application (GEPEQ)" depends="save-keep" name="clean-gepeq-webapp">
         <delete dir="${gepeq-webapp.output}"/>
+		<delete dir="${gepeq.createdb.output}"/>
 	</target>
 	
     <target description="Deletes directory used as output for deploying OpenMark Develover Web application (om)" depends="save-keep" name="clean-om-webapp">
@@ -1125,7 +1143,6 @@
     <target name="build-subprojects"/>
 	
     <target description="Builds OpenMark Authoring Tool web application (GEPEQ)" depends="init" name="build-project">
-        <echo message="${ant.project.name}: ${ant.file}"/>
         <javac debug="true" debuglevel="${debuglevel}" destdir="${build.classes}" includeantruntime="false" source="${source}" target="${target}" encoding="${encoding}"> <!-- We need to include encoding to avoid warnings -->
             <compilerarg line="-XDignore.symbol.file"/> <!-- This argument is to avoid some warnings -->
             <src path="${src}"/>
@@ -1387,7 +1404,7 @@
             </else>
         </if>
 		<!-- Generates a new configuration.xml file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Authoring Tool web application (GEPEQ) -->
-        <copy file="${configuration.web-inf.conf}/${configuration.web-inf.conf.name}" tofile="${gepeq-webapp.output}/WEB-INF/${configuration.web-inf.conf.name}">
+        <copy file="${configuration.web-inf.conf}/${configuration.web-inf.conf.name}" tofile="${gepeq-webapp.output}/WEB-INF/${configuration.web-inf.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="gepeq.resources.folder" value="${gepeq.resources.folder}"/>
@@ -1406,7 +1423,7 @@
             </filterchain>
         </copy>
         <!-- Generates a new web.xml file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Authoring Tool web application (GEPEQ) -->
-        <copy file="${web.web-inf.conf}/${web.web-inf.conf.name}" tofile="${gepeq-webapp.output}/WEB-INF/${web.web-inf.conf.name}">
+        <copy file="${web.web-inf.conf}/${web.web-inf.conf.name}" tofile="${gepeq-webapp.output}/WEB-INF/${web.web-inf.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="javax.faces.FACELETS_REFRESH_PERIOD" value="${javax.faces.FACELETS_REFRESH_PERIOD}"/>
@@ -1555,6 +1572,50 @@
                 </copy>
             </then>
         </if>
+		
+		<if>
+			<equals arg1="${gepeq.createdb.enabled}" arg2="true"/>
+			<then>
+		        <!-- Digest OpenMark Authoring Tool web application root user password -->
+		        <if>
+		            <not>
+		                <available file="${gepeq.createdb.output}" type="dir"/>
+		            </not>
+		            <then>
+		                <mkdir dir="${gepeq.createdb.output}"/>
+		            </then>
+		        </if>
+		        <java jar="${encryption.password-digester.tool}/${encryption.password-digester.tool.name}" fork="true">
+		            <arg value="digest"/>
+		            <arg value="${gepeq.rootuser.password}"/>
+		            <arg value="-o"/>
+		            <arg value="${gepeq.createdb.output}${file.separator}gepeq.rootuser.password.txt"/>
+		        </java>
+		        <loadfile property="gepeq.rootuser.password.digested" srcfile="${gepeq.createdb.output}/gepeq.rootuser.password.txt">
+		            <filterchain>
+		                <deletecharacters chars="\r\n"/>
+		            </filterchain>
+		        </loadfile>
+		        <propertycopy name="gepeq.rootuser.password" from="gepeq.rootuser.password.digested" override="true"/>
+		        
+		        <!-- Generates a new createdb.sql file from template replacing some values with the appropiated values and copy it to GEPEQ DB output folder -->
+		        <copy file="${gepeq.createdb}/${gepeq.createdb.name}" tofile="${gepeq.createdb.output}/${gepeq.createdb.name}" encoding="${encoding}">
+		            <filterchain>
+		                <replacetokens>
+		                    <token key="gepeq.dbname" value="${gepeq.dbname}"/>
+		                    <token key="gepeq.rootuser.login" value="${gepeq.rootuser.login}"/>
+		                    <token key="gepeq.rootuser.password" value="${gepeq.rootuser.password}"/>
+		                    <token key="gepeq.rootuser.name" value="${gepeq.rootuser.name}"/>
+		                    <token key="gepeq.rootuser.surname" value="${gepeq.rootuser.surname}"/>
+		                    <token key="gepeq.rootuser.nickname" value="${gepeq.rootuser.nickname}"/>
+		                    <token key="gepeq.rootuser.oucu" value="${gepeq.rootuser.oucu}"/>
+		                    <token key="gepeq.adminusertype.type" value="${gepeq.adminusertype.type}"/>
+		                    <token key="gepeq.adminusertype.description" value="${gepeq.adminusertype.description}"/>
+		                </replacetokens>
+		            </filterchain>
+		        </copy>
+			</then>
+		</if>
 	</target>
 	
     <target description="Deploys OpenMark Developer web application (om)" depends="save-keep" name="om-webapp">
@@ -1599,7 +1660,7 @@
         <!-- Copy server-config.wsdd from template (no replacements needed) to WEB-INF folder within deploy output folder of OpenMark Developer web application (om) -->
         <copy file="${om.server-config.web-inf.conf}/${om.server-config.web-inf.conf.name}" tofile="${om-webapp.output}/WEB-INF/${om.server-config.web-inf.conf.name}"/>
         <!-- Generates a new web.xml file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Developer web application (om) -->
-    	<copy file="${om.web.web-inf.conf}/${om.web.web-inf.conf.name}" tofile="${om-webapp.output}/WEB-INF/${om.web.web-inf.conf.name}">
+    	<copy file="${om.web.web-inf.conf}/${om.web.web-inf.conf.name}" tofile="${om-webapp.output}/WEB-INF/${om.web.web-inf.conf.name}" encoding="${encoding}">
         	<filterchain>
         		<replacetokens>
         			<token key="jdk-home" value="${jdk-home}"/>
@@ -1709,7 +1770,7 @@
             </fileset>
         </copy>
         <!-- Generates a new server-config.wsdd file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Question Engine web application for preview environment (om-qe) -->
-        <copy file="${om-qe.server-config.web-inf.conf}/${om-qe.server-config.web-inf.conf.name}" tofile="${om-qe-webapp.output}/WEB-INF/${om-qe.server-config.web-inf.conf.name}">
+        <copy file="${om-qe.server-config.web-inf.conf}/${om-qe.server-config.web-inf.conf.name}" tofile="${om-qe-webapp.output}/WEB-INF/${om-qe.server-config.web-inf.conf.name}" encoding="${encoding}">
         	<filterchain>
         		<replacetokens>
         			<token key="om-qe.om-service" value="${om-qe.om-service}"/>
@@ -2254,7 +2315,7 @@
 			</else>
 		</if>
         <!-- Generates a new navigator.xml file from template replacing some values with the appropiated values and copy it to deploy output folder of OpenMark Test Navigator web application for preview environment (om-tn) -->
-        <copy file="${om-tn.navigator.conf}/${om-tn.navigator.conf.name}" tofile="${om-tn-webapp.output}/${om-tn.navigator.conf.name}">
+        <copy file="${om-tn.navigator.conf}/${om-tn.navigator.conf.name}" tofile="${om-tn-webapp.output}/${om-tn.navigator.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="om-tn.navigator-db-plugin" value="${om-tn.navigator-db-plugin}"/>
@@ -2292,7 +2353,7 @@
         <!-- Copy server-config.wsdd from template (no replacements needed) to WEB-INF folder within deploy output folder of OpenMark Test Navigator web application for preview environment (om-tn) -->
         <copy file="${om-tn.server-config.web-inf.conf}/${om-tn.server-config.web-inf.conf.name}" tofile="${om-tn-webapp.output}/WEB-INF/${om-tn.server-config.web-inf.conf.name}"/>
         <!-- Generates a new web.xml file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Test Navigator web application for preview environment (om-tn) -->
-		<copy file="${om-tn.web.web-inf.conf}/${om-tn.web.web-inf.conf.name}" tofile="${om-tn-webapp.output}/WEB-INF/${om-tn.web.web-inf.conf.name}">
+		<copy file="${om-tn.web.web-inf.conf}/${om-tn.web.web-inf.conf.name}" tofile="${om-tn-webapp.output}/WEB-INF/${om-tn.web.web-inf.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="om-tn.navigator-servlet" value="${om-tn.navigator-servlet}"/>
@@ -2464,7 +2525,7 @@
             </fileset>
         </copy>
         <!-- Generates a new server-config.wsdd file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Question Engine web application for publication environment (om-qe-pro) -->
-        <copy file="${om-qe-pro.server-config.web-inf.conf}/${om-qe-pro.server-config.web-inf.conf.name}" tofile="${om-qe-pro-webapp.output}/WEB-INF/${om-qe-pro.server-config.web-inf.conf.name}">
+        <copy file="${om-qe-pro.server-config.web-inf.conf}/${om-qe-pro.server-config.web-inf.conf.name}" tofile="${om-qe-pro-webapp.output}/WEB-INF/${om-qe-pro.server-config.web-inf.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="om-qe-pro.om-service" value="${om-qe-pro.om-service}"/>
@@ -3009,7 +3070,7 @@
             </else>
         </if>
     	<!-- Generates a new navigator.xml file from template replacing some values with the appropiated values and copy it to deploy output folder of OpenMark Test Navigator web application for publication environment (om-tn-pro) -->
-        <copy file="${om-tn-pro.navigator.conf}/${om-tn-pro.navigator.conf.name}" tofile="${om-tn-pro-webapp.output}/${om-tn-pro.navigator.conf.name}">
+        <copy file="${om-tn-pro.navigator.conf}/${om-tn-pro.navigator.conf.name}" tofile="${om-tn-pro-webapp.output}/${om-tn-pro.navigator.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="om-tn-pro.navigator-db-plugin" value="${om-tn-pro.navigator-db-plugin}"/>
@@ -3047,7 +3108,7 @@
     	<!-- Copy server-config.wsdd from template (no replacements needed) to WEB-INF folder within deploy output folder of OpenMark Test Navigator web application for publication environment (om-tn-pro) -->
         <copy file="${om-tn-pro.server-config.web-inf.conf}/${om-tn-pro.server-config.web-inf.conf.name}" tofile="${om-tn-pro-webapp.output}/WEB-INF/${om-tn-pro.server-config.web-inf.conf.name}"/>
     	<!-- Generates a new web.xml file from template replacing some values with the appropiated values and copy it to WEB-INF folder within deploy output folder of OpenMark Test Navigator web application for publication environment (om-tn-pro) -->
-    	<copy file="${om-tn-pro.web.web-inf.conf}/${om-tn-pro.web.web-inf.conf.name}" tofile="${om-tn-pro-webapp.output}/WEB-INF/${om-tn-pro.web.web-inf.conf.name}">
+    	<copy file="${om-tn-pro.web.web-inf.conf}/${om-tn-pro.web.web-inf.conf.name}" tofile="${om-tn-pro-webapp.output}/WEB-INF/${om-tn-pro.web.web-inf.conf.name}" encoding="${encoding}">
             <filterchain>
                 <replacetokens>
                     <token key="om-tn-pro.navigator-servlet" value="${om-tn-pro.navigator-servlet}"/>
