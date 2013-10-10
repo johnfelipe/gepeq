@@ -1310,16 +1310,21 @@ public class UserTypeBean implements Serializable
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
+		UserType userType=getUserType();
+    	
     	// We perform several checks before saving user
     	if (!checkAdministrationPermissions(operation))
     	{
     		displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
     	}
+    	else if (userType.getId()>0L && !userTypesService.checkUserTypeId(operation,userType.getId()))
+    	{
+    		displayErrorPage("ROLE_EDIT_NOT_FOUND_ERROR","The role you are trying to edit no longer exists.");
+    	}
     	else
     	{
     		if (checkGeneralInputFields(operation))
     		{
-    			UserType userType=getUserType();
         		if (userType.getId()>0L) // Update user type
         		{
         			boolean updateOk=true;

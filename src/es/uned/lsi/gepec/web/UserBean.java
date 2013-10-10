@@ -2855,17 +2855,22 @@ public class UserBean implements Serializable
     	// Get current user session Hibernate operation
     	Operation operation=getCurrentUserOperation(null);
     	
+		User user=getUser();
+    	
     	// We perform several checks before saving user
     	if (!checkAdministrationPermissions(operation))
     	{
     		displayErrorPage("NON_AUTHORIZED_ACTION_ERROR","You are not authorized to execute that operation");
+    	}
+    	else if (user.getId()>0L && !usersService.checkUserId(operation,user.getId()))
+    	{
+    		displayErrorPage("USER_EDIT_NOT_FOUND_ERROR","The user you are trying to edit no longer exists.");
     	}
     	else
     	{
     		if (checkGeneralInputFields(operation,FacesContext.getCurrentInstance().getViewRoot()))
     		{
         		setCurrentPermissions(null);
-        		User user=getUser();
         		
         		// Set user groups
         		StringBuffer sGroups=new StringBuffer();

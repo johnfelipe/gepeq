@@ -1388,16 +1388,41 @@ public class AdministrationBean implements Serializable
 		if (getAdminUserTypesEnabled(operation).booleanValue())
 		{
 			long userTypeId=userType.getId();
-			resetAdminRoles();
-			resetSuperadminRoles();
-			setDeleteUserTypesEnabled(null);
-			setDeleteAdminRolesEnabled(null);
-			setDeleteSuperadminRolesEnabled(null);
-			resetDeleteUserTypesAllowed();
-			if (isDeleteUserTypeAllowed(operation,userTypeId))
+			if (userTypesService.checkUserTypeId(operation,userTypeId))
 			{
-				setConfirmType(CONFIRM_DELETE_USERTYPE);
-				setUserTypeId(userTypeId);
+				resetAdminRoles();
+				resetSuperadminRoles();
+				setDeleteUserTypesEnabled(null);
+				setDeleteAdminRolesEnabled(null);
+				setDeleteSuperadminRolesEnabled(null);
+				resetDeleteUserTypesAllowed();
+				if (isDeleteUserTypeAllowed(operation,userTypeId))
+				{
+					setConfirmType(CONFIRM_DELETE_USERTYPE);
+					setUserTypeId(userTypeId);
+				}
+				else
+				{
+					setAdminUsersEnabled(null);
+					resetAdmins();
+					resetSuperadmins();
+					setAddUsersEnabled(null);
+					setEditUsersEnabled(null);
+					setEditAdminsEnabled(null);
+					setEditSuperadminsEnabled(null);
+					resetEditUsersAllowed();
+					setDeleteUsersEnabled(null);
+					setDeleteAdminsEnabled(null);
+					setDeleteSuperadminsEnabled(null);
+					resetDeleteUsersAllowed();
+					setAddUserTypesEnabled(null);
+					setEditUserTypesEnabled(null);
+					setEditAdminRolesEnabled(null);
+					setEditSuperadminRolesEnabled(null);
+					resetEditUserTypesAllowed();
+					
+					addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
 			}
 			else
 			{
@@ -1413,13 +1438,19 @@ public class AdministrationBean implements Serializable
 				setDeleteAdminsEnabled(null);
 				setDeleteSuperadminsEnabled(null);
 				resetDeleteUsersAllowed();
+				resetAdminRoles();
+				resetSuperadminRoles();
 				setAddUserTypesEnabled(null);
 				setEditUserTypesEnabled(null);
 				setEditAdminRolesEnabled(null);
 				setEditSuperadminRolesEnabled(null);
 				resetEditUserTypesAllowed();
+				setDeleteUserTypesEnabled(null);
+				setDeleteAdminRolesEnabled(null);
+				setDeleteSuperadminRolesEnabled(null);
+				resetDeleteUserTypesAllowed();
 				
-				addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_NOT_FOUND_ERROR");
 			}
 		}
 		else
@@ -1472,34 +1503,6 @@ public class AdministrationBean implements Serializable
 			rq.execute("confirmDialog.show()");
 		}
 	}
-	
-	/**
-	 * Action listener to confirm user/user type deletion.
-	 * @param event Action event
-	 */
-	/*
-	public void confirm(ActionEvent event)
-	{
-		Object userIdObj=event.getComponent().getAttributes().get("userId");
-		Object userTypeIdObj=event.getComponent().getAttributes().get("userTypeId");
-		setConfirmType(null);
-		if (userIdObj!=null)
-		{
-			setConfirmType(CONFIRM_DELETE_USER);
-			setUserId(((Long)userIdObj).longValue());
-		}
-		else if (userTypeIdObj!=null)
-		{
-			setConfirmType(CONFIRM_DELETE_USERTYPE);
-			setUserTypeId(((Long)userTypeIdObj).longValue());
-		}
-		if (getConfirmType()!=null)
-		{
-			RequestContext rq=RequestContext.getCurrentInstance();
-			rq.execute("confirmDialog.show()");
-		}
-	}
-	*/
 	
     /**
 	 * Change users to display on datatable based on filter.
@@ -1792,7 +1795,7 @@ public class AdministrationBean implements Serializable
 						User user=usersService.getUser(operation,getUserId());
 						if (user==null)
 						{
-							addErrorMessage(true,"INCORRECT_OPERATION","USER_DELETE_USER_NOT_FOUND");
+							addErrorMessage(true,"INCORRECT_OPERATION","USER_DELETE_NOT_FOUND_ERROR");
 							ok=false;
 						}
 						else
@@ -1865,6 +1868,7 @@ public class AdministrationBean implements Serializable
 					setDeleteSuperadminsEnabled(null);
 					resetDeleteUsersAllowed();
 					resetEditUsersAllowed();
+					setAdminUserTypesEnabled(null);
 					resetAdminRoles();
 					resetSuperadminRoles();
 					setAddUserTypesEnabled(null);
@@ -2147,41 +2151,75 @@ public class AdministrationBean implements Serializable
 		if (getAdminUserTypesEnabled(operation).booleanValue())
 		{
 			long userTypeId=userType.getId();
-			resetAdminRoles();
-			resetSuperadminRoles();
-			setEditUserTypesEnabled(null);
-			setEditAdminRolesEnabled(null);
-			setEditSuperadminRolesEnabled(null);
-			resetEditUserTypesAllowed();
-			
-			// Reload user types from DB
-			setUserTypes(null);
-			
-			if (isEditUserTypeAllowed(operation,userTypeId))
+			if (userTypesService.checkUserTypeId(operation, userTypeId))
 			{
-				updateView="usertypeupdate";
+				resetAdminRoles();
+				resetSuperadminRoles();
+				setEditUserTypesEnabled(null);
+				setEditAdminRolesEnabled(null);
+				setEditSuperadminRolesEnabled(null);
+				resetEditUserTypesAllowed();
+				
+				// Reload user types from DB
+				setUserTypes(null);
+				
+				if (isEditUserTypeAllowed(operation,userTypeId))
+				{
+					updateView="usertypeupdate";
+				}
+				else
+				{
+					resetAdmins();
+					resetSuperadmins();
+					setAdminUsersEnabled(null);
+					setAddUsersEnabled(null);
+					setEditUsersEnabled(null);
+					setEditAdminsEnabled(null);
+					setEditSuperadminsEnabled(null);
+					resetEditUsersAllowed();
+					setDeleteUsersEnabled(null);
+					setDeleteAdminsEnabled(null);
+					setDeleteSuperadminsEnabled(null);
+					resetDeleteUsersAllowed();
+					setAddUserTypesEnabled(null);
+					setDeleteUserTypesEnabled(null);
+					setDeleteAdminRolesEnabled(null);
+					setDeleteSuperadminRolesEnabled(null);
+					resetDeleteUserTypesAllowed();
+					
+					addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				}
 			}
 			else
 			{
-				resetAdmins();
-				resetSuperadmins();
 				setAdminUsersEnabled(null);
-				setAddUsersEnabled(null);
-				setEditUsersEnabled(null);
-				setEditAdminsEnabled(null);
-				setEditSuperadminsEnabled(null);
-				resetEditUsersAllowed();
-				setDeleteUsersEnabled(null);
-				setDeleteAdminsEnabled(null);
-				setDeleteSuperadminsEnabled(null);
-				resetDeleteUsersAllowed();
-				setAddUserTypesEnabled(null);
-				setDeleteUserTypesEnabled(null);
-				setDeleteAdminRolesEnabled(null);
-				setDeleteSuperadminRolesEnabled(null);
-				resetDeleteUserTypesAllowed();
-				
-				addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+				if (isAdminEnabled(operation))
+				{
+					resetAdmins();
+					resetSuperadmins();
+					setAddUsersEnabled(null);
+					setEditUsersEnabled(null);
+					setEditAdminsEnabled(null);
+					setEditSuperadminsEnabled(null);
+					resetEditUsersAllowed();
+					setDeleteUsersEnabled(null);
+					setDeleteAdminsEnabled(null);
+					setDeleteSuperadminsEnabled(null);
+					resetDeleteUsersAllowed();
+					resetAdminRoles();
+					resetSuperadminRoles();
+					setAddUserTypesEnabled(null);
+					setEditUserTypesEnabled(null);
+					setEditAdminRolesEnabled(null);
+					setEditSuperadminRolesEnabled(null);
+					resetEditUserTypesAllowed();
+					setDeleteUserTypesEnabled(null);
+					setDeleteAdminRolesEnabled(null);
+					setDeleteSuperadminRolesEnabled(null);
+					resetDeleteUserTypesAllowed();
+					
+					addErrorMessage(true,"INCORRECT_OPERATION","ROLE_EDIT_NOT_FOUND_ERROR");
+				}
 			}
 		}
 		else
@@ -2247,56 +2285,87 @@ public class AdministrationBean implements Serializable
 			setAdminUserTypesEnabled(null);
 			if (getAdminUserTypesEnabled(operation).booleanValue())
 			{
-				resetAdminRoles();
-				resetSuperadminRoles();
-				setDeleteUserTypesEnabled(null);
-				setDeleteAdminRolesEnabled(null);
-				setDeleteSuperadminRolesEnabled(null);
-				resetDeleteUserTypesAllowed();
-				
-				if (isDeleteUserTypeAllowed(operation,getUserTypeId()))
+				if (userTypesService.checkUserTypeId(operation,getUserTypeId()))
 				{
-					// Get user type
-					UserType userType=getUserType();
-					if (userType==null)
+					resetAdminRoles();
+					resetSuperadminRoles();
+					setDeleteUserTypesEnabled(null);
+					setDeleteAdminRolesEnabled(null);
+					setDeleteSuperadminRolesEnabled(null);
+					resetDeleteUserTypesAllowed();
+					
+					if (isDeleteUserTypeAllowed(operation,getUserTypeId()))
 					{
-						addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_ROLE_NOT_FOUND");
-						ok=false;
+						// Get user type
+						UserType userType=getUserType();
+						if (userType==null)
+						{
+							addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_NOT_FOUND_ERROR");
+							ok=false;
+						}
+						else
+						{
+							// Check that there are no users with this user type
+							for (User user:usersService.getUsers(operation))
+							{
+								if (userType.equals(user.getUserType()))
+								{
+									addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_USERS_FOUND");
+									ok=false;
+									break;
+								}
+							}
+						}
 					}
 					else
 					{
-						// Check that there are no users with this user type
-						for (User user:usersService.getUsers(operation))
-						{
-							if (userType.equals(user.getUserType()))
-							{
-								addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_USERS_FOUND");
-								ok=false;
-								break;
-							}
-						}
+						resetAdmins();
+						resetSuperadmins();
+						setAddUsersEnabled(null);
+						setEditUsersEnabled(null);
+						setEditAdminsEnabled(null);
+						setEditSuperadminsEnabled(null);
+						resetEditUsersAllowed();
+						setDeleteUsersEnabled(null);
+						setDeleteAdminsEnabled(null);
+						setDeleteSuperadminsEnabled(null);
+						resetDeleteUsersAllowed();
+						setAddUserTypesEnabled(null);
+						setEditUserTypesEnabled(null);
+						setEditAdminRolesEnabled(null);
+						setEditSuperadminRolesEnabled(null);
+						resetDeleteUserTypesAllowed();
+						
+						addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
 					}
 				}
 				else
 				{
+					setAdminUsersEnabled(null);
 					resetAdmins();
 					resetSuperadmins();
 					setAddUsersEnabled(null);
 					setEditUsersEnabled(null);
 					setEditAdminsEnabled(null);
 					setEditSuperadminsEnabled(null);
-					resetEditUsersAllowed();
 					setDeleteUsersEnabled(null);
 					setDeleteAdminsEnabled(null);
 					setDeleteSuperadminsEnabled(null);
 					resetDeleteUsersAllowed();
+					resetEditUsersAllowed();
+					resetAdminRoles();
+					resetSuperadminRoles();
 					setAddUserTypesEnabled(null);
 					setEditUserTypesEnabled(null);
 					setEditAdminRolesEnabled(null);
 					setEditSuperadminRolesEnabled(null);
+					resetEditUserTypesAllowed();
+					setDeleteUserTypesEnabled(null);
+					setDeleteAdminRolesEnabled(null);
+					setDeleteSuperadminRolesEnabled(null);
 					resetDeleteUserTypesAllowed();
 					
-					addErrorMessage(false,"INCORRECT_OPERATION","NON_AUTHORIZED_ACTION_ERROR");
+					addErrorMessage(true,"INCORRECT_OPERATION","ROLE_DELETE_NOT_FOUND_ERROR");
 				}
 			}
 			else
